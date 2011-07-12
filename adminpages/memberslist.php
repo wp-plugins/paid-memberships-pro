@@ -118,7 +118,7 @@
 	</form>
 	
 	<?php
-	echo pmpro_getPaginationString($pn, $totalrows, $limit, 1, "/wp-admin/users.php?page=pmpro-memberlist&s=" . urlencode($s), "&l=$l&limit=$limit&pn=");
+	echo pmpro_getPaginationString($pn, $totalrows, $limit, 1, "/wp-admin/admin.php?page=pmpro-memberslist&s=" . urlencode($s), "&l=$l&limit=$limit&pn=");
 	?>
 	
 </div>

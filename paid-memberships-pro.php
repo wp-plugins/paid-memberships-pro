@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships. Pulled from the Stranger Products plugin.
-Version: 1.1.4
+Version: 1.1.5
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -1029,53 +1029,57 @@ function pmpro_wp_signup_location($location)
 add_filter('wp_signup_location', 'pmpro_wp_signup_location');
 
 function pmpro_login_head()
-{
-	//redirect registration page to levels page
-	if($_REQUEST['action'] == "register")
-	{						
-		wp_redirect(pmpro_url("levels"));
-	}	
-	
-	//if theme my login is installed, redirect all logins to the login page	
-	if(pmpro_is_plugin_active("theme-my-login/theme-my-login.php")) 
-	{		
-		//check for the login page id and redirect there if we're not there already
-		global $post;						
-		if(is_array($GLOBALS['theme_my_login']->options))
-		{						
-			if($GLOBALS['theme_my_login']->options['page_id'] !== $post->ID)
-			{									
-				//redirect to the real login page
-				$link = get_permalink($GLOBALS['theme_my_login']->options['page_id']);								
-				if($_SERVER['QUERY_STRING'])
-					$link .= "?" . $_SERVER['QUERY_STRING'];
-				wp_redirect($link);
-				exit;
-			}			
-		}
-		elseif(isset($GLOBALS['theme_my_login']->options))
-		{		
-			if($GLOBALS['theme_my_login']->options->options['page_id'] !== $post->ID)
-			{									
-				//redirect to the real login page
-				$link = get_permalink($GLOBALS['theme_my_login']->options->options['page_id']);								
-				if($_SERVER['QUERY_STRING'])
-					$link .= "?" . $_SERVER['QUERY_STRING'];
-				wp_redirect($link);
-				exit;
-			}
-		}
+{	
+	if(pmpro_is_login_page() || is_page("login"))
+	{
+		//redirect registration page to levels page
+		if($_REQUEST['action'] == "register" || $_REQUEST['registration'] == "disabled")
+		{									
+			wp_redirect(pmpro_url("levels"));	
+			exit;		
+		}	
 		
-		//make sure users are only getting to the profile when logged in
-		global $current_user;
-		if($_REQUEST['action'] == "profile" && !$current_user->ID)
-		{
-			$link = get_permalink($GLOBALS['theme_my_login']->options['page_id']);	
-			wp_redirect($link);
+		//if theme my login is installed, redirect all logins to the login page	
+		if(pmpro_is_plugin_active("theme-my-login/theme-my-login.php")) 
+		{		
+			//check for the login page id and redirect there if we're not there already
+			global $post;						
+			if(is_array($GLOBALS['theme_my_login']->options))
+			{						
+				if($GLOBALS['theme_my_login']->options['page_id'] !== $post->ID)
+				{									
+					//redirect to the real login page
+					$link = get_permalink($GLOBALS['theme_my_login']->options['page_id']);								
+					if($_SERVER['QUERY_STRING'])
+						$link .= "?" . $_SERVER['QUERY_STRING'];
+					wp_redirect($link);
+					exit;
+				}			
+			}
+			elseif(isset($GLOBALS['theme_my_login']->options))
+			{		
+				if($GLOBALS['theme_my_login']->options->options['page_id'] !== $post->ID)
+				{									
+					//redirect to the real login page
+					$link = get_permalink($GLOBALS['theme_my_login']->options->options['page_id']);								
+					if($_SERVER['QUERY_STRING'])
+						$link .= "?" . $_SERVER['QUERY_STRING'];
+					wp_redirect($link);
+					exit;
+				}
+			}
+			
+			//make sure users are only getting to the profile when logged in
+			global $current_user;
+			if($_REQUEST['action'] == "profile" && !$current_user->ID)
+			{
+				$link = get_permalink($GLOBALS['theme_my_login']->options['page_id']);	
+				wp_redirect($link);
+			}
 		}
 	}
 }
-add_action('login_head', 'pmpro_login_head');
+add_action('wp', 'pmpro_login_head');
 
 //use recaptcha?
 global $recaptcha;

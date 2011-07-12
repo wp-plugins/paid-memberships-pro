@@ -56,7 +56,7 @@
 				$this->total = $dbobj->total;
 				$this->payment_type = $dbobj->payment_type;
 				$this->cardtype = $dbobj->cardtype;
-				$this->accountnumber = $dbobj->accountnumber;
+				$this->accountnumber = trim($dbobj->accountnumber);
 				$this->expirationmonth = $dbobj->expirationmonth;
 				$this->expirationyear = $dbobj->expirationyear;
 				
@@ -255,8 +255,8 @@
 		{
 			$gateway = pmpro_getOption("gateway");
 			if($gateway == "paypal")
-			{				
-				if($this->InitialPayment == 0)
+			{												
+				if((int)$this->InitialPayment == 0)
 				{
 					//auth first, then process
 					$authorization_id = $this->authorizeWithPayPal();					
@@ -300,8 +300,8 @@
 				}				
 			}				
 			elseif($gateway == "authorizenet")
-			{
-				if($this->InitialPayment == 0)
+			{				
+				if((int)$this->InitialPayment == 0)
 				{
 					//auth first, then process
 					if($this->authorizeWithAuthorizeNet())
@@ -461,8 +461,7 @@
 			//credit card fields
 			if($this->cardtype == "American Express")
 				$cardtype = "Amex";
-			else
-				$cardtype = "American Express";
+			
 			if($this->cardtype)			
 				$nvpStr .= "&CREDITCARDTYPE=" . $cardtype . "&ACCT=" . $this->accountnumber . "&EXPDATE=" . $this->ExpirationDate . "&CVV2=" . $this->CVV2;
 
@@ -538,8 +537,7 @@
 			//credit card fields
 			if($this->cardtype == "American Express")
 				$cardtype = "Amex";
-			else
-				$cardtype = "American Express";
+
 			if($this->cardtype)			
 				$nvpStr .= "&CREDITCARDTYPE=" . $cardtype . "&ACCT=" . $this->accountnumber . "&EXPDATE=" . $this->ExpirationDate . "&CVV2=" . $this->CVV2;
 
@@ -613,8 +611,7 @@
 			//credit card fields
 			if($this->cardtype == "American Express")
 				$cardtype = "Amex";
-			else
-				$cardtype = "American Express";
+			
 			if($this->cardtype)			
 				$nvpStr .= "&CREDITCARDTYPE=" . $cardtype . "&ACCT=" . $this->accountnumber . "&EXPDATE=" . $this->ExpirationDate . "&CVV2=" . $this->CVV2;
 
@@ -830,6 +827,7 @@
 
 				"x_type"			=> "AUTH_ONLY",
 				"x_method"			=> "CC",
+				"x_card_type"		=> $this->cardtype,
 				"x_card_num"		=> $this->accountnumber,
 				"x_exp_date"		=> $this->ExpirationDate,
 				"x_card_code"		=> $this->CVV2,
@@ -840,8 +838,10 @@
 				"x_first_name"		=> $this->FirstName,
 				"x_last_name"		=> $this->LastName,
 				"x_address"			=> $address,
+				"x_city"			=> $this->billing->city,
 				"x_state"			=> $this->billing->state,
 				"x_zip"				=> $this->billing->zip,
+				"x_country"			=> $this->billing->country,
 				"x_invoice_num"		=> $this->code
 				// Additional fields can be added here as outlined in the AIM integration
 				// guide at: http://developer.authorize.net
@@ -926,6 +926,7 @@
 
 				"x_type"			=> "AUTH_CAPTURE",
 				"x_method"			=> "CC",
+				"x_card_type"		=> $this->cardtype,
 				"x_card_num"		=> $this->accountnumber,
 				"x_exp_date"		=> $this->ExpirationDate,
 				"x_card_code"		=> $this->CVV2,
@@ -937,8 +938,10 @@
 				"x_first_name"		=> $this->FirstName,
 				"x_last_name"		=> $this->LastName,
 				"x_address"			=> $address,
+				"x_city"			=> $this->billing->city,
 				"x_state"			=> $this->billing->state,
 				"x_zip"				=> $this->billing->zip,
+				"x_country"			=> $this->billing->country,
 				"x_invoice_num"		=> $this->code
 				
 				// Additional fields can be added here as outlined in the AIM integration
