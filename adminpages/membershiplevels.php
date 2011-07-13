@@ -327,8 +327,8 @@
 
 				// grab the categories for the given level...
 				$level->categories = $wpdb->get_col("SELECT c.category_id
-													FROM {$wpdb->pmpro_memberships_categories} AS c
-													WHERE c.membership_id = $temp_id");       		
+													FROM $wpdb->pmpro_memberships_categories c
+													WHERE c.membership_id = '" . $temp_id . "'");       		
 				if(!$level->categories)
 					$level->categories = array();			
 			?>
