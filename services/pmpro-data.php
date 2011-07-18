@@ -67,12 +67,14 @@
       pmpro_updateMembershipCategories( $saveid, $ml_categories );
       if(!mysql_errno())
       {
-        header("Location:/wp-admin/admin.php?page=pmpro-membershiplevels&msg=2");
+        wp_redirect(home_url("/wp-admin/admin.php?page=pmpro-membershiplevels&msg=2"));
+		//header("Location: /wp-admin/admin.php?page=pmpro-membershiplevels&msg=2");
         exit(0);
       }
       else
       {     
-	    header("Location:/wp-admin/admin.php?page=pmpro-membershiplevels&msg=-2");
+	    wp_redirect(home_url("/wp-admin/admin.php?page=pmpro-membershiplevels&msg=-2"));
+		//header("Location:/wp-admin/admin.php?page=pmpro-membershiplevels&msg=-2");
         exit(0);
       }
     }
@@ -86,26 +88,30 @@
       if(!mysql_errno())
       {
         pmpro_updateMembershipCategories( $wpdb->insert_id, $ml_categories );
-        header("Location:/wp-admin/admin.php?page=pmpro-membershiplevels&msg=1");
+        wp_redirect(home_url("/wp-admin/admin.php?page=pmpro-membershiplevels&msg=1"));
+		//header("Location:/wp-admin/admin.php?page=pmpro-membershiplevels&msg=1");
         exit(0);
       }
       else
       {
-        header("Location:/wp-admin/admin.php?page=pmpro-membershiplevels&msg=-1");
+        wp_redirect(home_url("/wp-admin/admin.php?page=pmpro-membershiplevels&msg=-1"));
+		//header("Location:/wp-admin/admin.php?page=pmpro-membershiplevels&msg=-1");
         exit(0);
       }
     }
   }
   elseif($action == "save_user_membership")
   {
-    if ( pmpro_changeMembershipLevel( $_REQUEST['level'] ) === true )
+    if(pmpro_changeMembershipLevel( $_REQUEST['level'] ) === true )
     {
-      header("Location:/subscription/?msg=1");
+      wp_redirect(pmpro_url("account", "?msg=1"));
+	  //header("Location:/subscription/?msg=1");
       exit(0);
     }
     else
     {
-      header("Location:/subscription/&msg=-1");
+      wp_redirect(pmpro_url("account", "?msg=-1"));
+	  //header("Location:/subscription/&msg=-1");
       exit(0);
     }
   }
@@ -153,17 +159,20 @@
 		  		  	
 			if($r1 !== FALSE && $r2 !== FALSE && $r3 !== FALSE)
 			{
-				header("Location:/wp-admin/admin.php?page=pmpro-membershiplevels&msg=3");
+				wp_redirect(home_url("/wp-admin/admin.php?page=pmpro-membershiplevels&msg=3"));
+				//header("Location:/wp-admin/admin.php?page=pmpro-membershiplevels&msg=3");
 				exit(0);
 			}
 			else
 			{
-				header("Location:/wp-admin/admin.php?page=pmpro-membershiplevels&msg=-3");
+				wp_redirect(home_url("/wp-admin/admin.php?page=pmpro-membershiplevels&msg=-3"));
+				//header("Location:/wp-admin/admin.php?page=pmpro-membershiplevels&msg=-3");
 				exit(0);
 			}
 		}
 	  
-		header("Location:/wp-admin/admin.php?page=pmpro-membershiplevels&msg=-3");
+		wp_redirect(home_url("/wp-admin/admin.php?page=pmpro-membershiplevels&msg=-3"));
+		//header("Location:/wp-admin/admin.php?page=pmpro-membershiplevels&msg=-3");
 		exit(0);
   }  
 ?>

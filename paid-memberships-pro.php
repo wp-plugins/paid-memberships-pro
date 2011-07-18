@@ -3,13 +3,13 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships. Pulled from the Stranger Products plugin.
-Version: 1.1.6
+Version: 1.1.7
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
 /*	
 	Copyright 2010	Stranger Studios	(email : jason@strangerstudios.com)	 
-	Full license details in license.txt
+	GPLv2 Full license details in license.txt
 */
 
 //if the session has been started yet, start it (ignore if running from command line)
@@ -857,14 +857,14 @@ function pmpro_besecure()
 	
 	if ($besecure && !$_SERVER['HTTPS'])
 	{				
-		//need to be secure								
-		wp_redirect(SECUREURL . $_SERVER['REQUEST_URI']);
+		//need to be secure												
+		wp_redirect("https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 		exit;
 	}
 	elseif(!$besecure && $_SERVER['HTTPS'])
 	{		
-		//don't need to be secure		
-		wp_redirect("http://" . SITEURL . $_SERVER['REQUEST_URI']);
+		//don't need to be secure				
+		wp_redirect("http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 		exit;
 	}	
 }
