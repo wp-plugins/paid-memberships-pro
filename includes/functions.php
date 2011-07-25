@@ -593,9 +593,8 @@
 		
 		if(!$user_id)
 			return false;
-			
-		$sqlQuery = "SELECT meta_value FROM $wpdb->usermeta WHERE user_id = '$user_id' AND meta_key = 'wp_capabilities' AND meta_value LIKE '%\"administrator\"%' LIMIT 1";		
-		$admincap = $wpdb->get_var($sqlQuery);
+					
+		$admincap = user_can($user_id, "manage_options");
 		if($admincap)
 			return true;
 		else

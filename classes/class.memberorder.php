@@ -256,7 +256,7 @@
 			$gateway = pmpro_getOption("gateway");
 			if($gateway == "paypal")
 			{												
-				if((int)$this->InitialPayment == 0)
+				if(floatval($this->InitialPayment) == 0)
 				{
 					//auth first, then process
 					$authorization_id = $this->authorizeWithPayPal();					
@@ -268,8 +268,8 @@
 					}
 					else
 					{
-						if(!$morder->error)
-							$morder->error = "Unknown error: Authorization failed.";
+						if(!$this->error)
+							$this->error = "Unknown error: Authorization failed.";
 						return false;
 					}
 				}
@@ -293,15 +293,15 @@
 					}
 					else
 					{
-						if(!$morder->error)
-							$morder->error = "Unknown error: Payment failed.";
+						if(!$this->error)
+							$this->error = "Unknown error: Payment failed.";
 						return false;
 					}
 				}				
 			}				
 			elseif($gateway == "authorizenet")
 			{				
-				if((int)$this->InitialPayment == 0)
+				if(floatval($this->InitialPayment) == 0)
 				{
 					//auth first, then process
 					if($this->authorizeWithAuthorizeNet())
@@ -311,8 +311,8 @@
 					}
 					else
 					{
-						if(!$morder->error)
-							$morder->error = "Unknown error: Authorization failed.";
+						if(!$this->error)
+							$this->error = "Unknown error: Authorization failed.";
 						return false;
 					}
 				}
@@ -336,14 +336,20 @@
 					}
 					else
 					{
-						if(!$morder->error)
-							$morder->error = "Unknown error: Payment failed.";
+						if(!$this->error)
+							$this->error = "Unknown error: Payment failed.";
 						return false;
 					}
 				}				
 			}
 			else
+			{			
+				if(pmpro_isAdmin())			
+					$this->error = "You must <a href=\"" . home_url('/wp-admin/admin.php?page=pmpro-membershiplevels&view=payment') . "\">setup a Payment Gateway</a> before any payments will be processed.";
+				else
+					$this->error = "A Payment Gateway must be setup before any payments will be processed.";
 				return false;
+			}
 		}
 		
 		function cancel()
@@ -947,7 +953,7 @@
 				// Additional fields can be added here as outlined in the AIM integration
 				// guide at: http://developer.authorize.net
 			);
-			
+						
 			// This section takes the input fields and converts them to the proper format
 			// for an http post.  For example: "x_login=username&x_tran_key=a1B2c3D4"
 			$post_string = "";

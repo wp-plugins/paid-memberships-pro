@@ -109,7 +109,7 @@
 			$pmpro_continue_registration = apply_filters("pmpro_registration_checks", true);
 						
 			if($pmpro_continue_registration)
-			{			
+			{							
 				//if creating a new user, check that the email and username are available
 				if(!$current_user->ID)
 				{
@@ -330,6 +330,16 @@
 	}
 	else
 	{
+		//show message if the payment gateway is not setup yet
+		if($pmpro_requirebilling && !pmpro_getOption("gateway"))
+		{
+			if(pmpro_isAdmin())			
+				$pmpro_msg = "You must <a href=\"" . home_url('/wp-admin/admin.php?page=pmpro-membershiplevels&view=payment') . "\">setup a Payment Gateway</a> before any payments will be processed.";
+			else
+				$pmpro_msg = "A Payment Gateway must be setup before any payments will be processed.";
+			$pmpro_msgt = "";
+		}
+		
 		//default values from DB
 		$bfirstname = get_user_meta($current_user->ID, "pmpro_bfirstname", true);
 		$blastname = get_user_meta($current_user->ID, "pmpro_blastname", true);

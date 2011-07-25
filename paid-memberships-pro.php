@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships. Pulled from the Stranger Products plugin.
-Version: 1.1.7
+Version: 1.1.8
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -751,6 +751,10 @@ function pmpro_admin_bar_menu() {
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Advanced Settings'),
 	'href' => home_url('/wp-admin/admin.php?page=pmpro-membershiplevels&view=advanced') ) );	
+	$wp_admin_bar->add_menu( array(
+	'parent' => 'paid-memberships-pro',
+	'title' => __( 'Members List'),
+	'href' => home_url('/wp-admin/admin.php?page=pmpro-memberslist') ) );	
 	
 }
 add_action('admin_bar_menu', 'pmpro_admin_bar_menu', 1000);
@@ -1029,9 +1033,9 @@ function pmpro_wp_signup_location($location)
 add_filter('wp_signup_location', 'pmpro_wp_signup_location');
 
 function pmpro_login_head()
-{	
+{				
 	if(pmpro_is_login_page() || is_page("login"))
-	{
+	{		
 		//redirect registration page to levels page
 		if($_REQUEST['action'] == "register" || $_REQUEST['registration'] == "disabled")
 		{									
@@ -1080,6 +1084,7 @@ function pmpro_login_head()
 	}
 }
 add_action('wp', 'pmpro_login_head');
+add_action('login_init', 'pmpro_login_head');
 
 //use recaptcha?
 global $recaptcha;
