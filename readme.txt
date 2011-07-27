@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal
 Requires at least: 3.0
 Tested up to: 3.2
-Stable tag: 1.1.8
+Stable tag: 1.1.9
 
 An infinitely customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -18,6 +18,11 @@ Paid Memberships Pro is a WordPress Plugin and support community for membership 
 1. Follow the instructions here to setup your memberships: http://www.paidmembershipspro.com/support/initial-plugin-setup/
 
 == Changelog ==
+= 1.1.9 =
+* You can now set individual posts to require membership without assigning them to a category.
+* Fixed bug with the confirmation email during signup.
+* Fixed a CSS bug on the cancel membership page.
+
 = 1.1.8 =
 * Fix for login/registration URL rerouting.
 * Added members list to admin bar menu.

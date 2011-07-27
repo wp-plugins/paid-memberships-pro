@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships. Pulled from the Stranger Products plugin.
-Version: 1.1.8
+Version: 1.1.9
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -359,24 +359,32 @@ function pmpro_has_membership_access($post_id = NULL, $user_id = NULL, $return_l
 		$post_categories = wp_get_post_categories($mypost->ID);
 		
 		if(!$post_categories)
-			return true;
-		
-		//are any of the post categories associated with membership levels?
-		$sqlQuery = "SELECT m.id, m.name FROM $wpdb->pmpro_memberships_categories mc LEFT JOIN $wpdb->pmpro_membership_levels m ON mc.membership_id = m.id WHERE mc.category_id IN(" . implode(",", $post_categories) . ") AND m.id IS NOT NULL";				
+		{
+			//just check for entries in the memberships_pages table			
+			$sqlQuery = "SELECT m.id, m.name FROM $wpdb->pmpro_memberships_pages mp LEFT JOIN $wpdb->pmpro_membership_levels m ON mp.membership_id = m.id WHERE mp.page_id = '" . $mypost->ID . "'";	
+		}
+		else
+		{
+			//are any of the post categories associated with membership levels? also check the memberships_pages table
+			$sqlQuery = "(SELECT m.id, m.name FROM $wpdb->pmpro_memberships_categories mc LEFT JOIN $wpdb->pmpro_membership_levels m ON mc.membership_id = m.id WHERE mc.category_id IN(" . implode(",", $post_categories) . ") AND m.id IS NOT NULL) UNION (SELECT m.id, m.name FROM $wpdb->pmpro_memberships_pages mp LEFT JOIN $wpdb->pmpro_membership_levels m ON mp.membership_id = m.id WHERE mp.page_id = '" . $mypost->ID . "')";				
+		}
 	}
-	elseif($mypost->post_type == "page")
+	else
 	{		
 		//are any membership levels associated with this page?
 		$sqlQuery = "SELECT m.id, m.name FROM $wpdb->pmpro_memberships_pages mp LEFT JOIN $wpdb->pmpro_membership_levels m ON mp.membership_id = m.id WHERE mp.page_id = '" . $mypost->ID . "'";		
 	}
-	else
+	
+	
+	/*		
+		The action passes the post and user to check for access.
+		The filter needs to be applied to return true/false according to your action function.
+		For reverse compatibility:
+	*/
+	if(has_filter("pmpro_has_membership_access_action_" . $mypost->post_type))
 	{
-		/*
-			The action passes the post and user to check for access.
-			The filter needs to be applied to return true/false according to your action function.
-		*/
 		do_action("pmpro_has_membership_access_action_" . $mypost->post_type, $mypost, $myuser);
-		return apply_filters("pmpro_has_membership_access_filter_" . $mypost->post_type, true);
+		return apply_filters("pmpro_has_membership_access_filter_" . $mypost->post_type, true);	
 	}
 		
 	$post_membership_levels = $wpdb->get_results($sqlQuery);
@@ -655,6 +663,9 @@ function pmpro_page_meta()
 		}
     ?>
     </ul>
+	<?php if('post' == get_post_type($post)) { ?>
+		<p class="pmpro_meta_notice">This post may also require membership if it is within a category that requires membership.</p>
+	<?php } ?>
 <?php
 }
 
@@ -672,10 +683,13 @@ function pmpro_page_save($post_id)
 		return $post_id;
 		
 	// Check permissions
-	if ( 'page' == $_POST['post_type'] ) {
+	if ( 'page' == $_POST['post_type'] ) 
+	{
 		if ( !current_user_can( 'edit_page', $post_id ) )
 			return $post_id;
-		} else {
+	} 
+	else 
+	{
 		if ( !current_user_can( 'edit_post', $post_id ) )
 			return $post_id;
 	}
@@ -699,6 +713,7 @@ function pmpro_page_save($post_id)
 function pmpro_page_meta_wrapper()
 {
 	add_meta_box('pmpro_page_meta', 'Require Membership', 'pmpro_page_meta', 'page', 'side');	
+	add_meta_box('pmpro_page_meta', 'Require Membership', 'pmpro_page_meta', 'post', 'side');	
 }
 if (is_admin())
 {

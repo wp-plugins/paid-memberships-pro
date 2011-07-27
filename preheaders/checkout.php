@@ -297,6 +297,8 @@
 						
 							//update the current user
 							global $current_user;
+							if(!$current_user->ID && $user->ID)
+								$current_user = $user;		//in case the user just signed up
 							pmpro_set_current_user();
 						
 							//save billing info ect, as user meta																		
@@ -318,7 +320,7 @@
 								$invoice = NULL;
 							$user->membership_level = $pmpro_level;		//make sure they have the right level info
 							$pmproemail->sendCheckoutEmail($current_user, $invoice);
-													
+										
 							//redirect to confirmation
 							wp_redirect(pmpro_url("confirmation"));
 							exit;

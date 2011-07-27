@@ -38,7 +38,8 @@
 	
 	function pmpro_br2nl($text, $tags = "br")
 	{
-		$tags = explode(" ", $tags);
+		if(!is_array($tags))
+			$tags = explode(" ", $tags);
 
 		foreach($tags as $tag)
 		{

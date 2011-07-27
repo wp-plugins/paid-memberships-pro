@@ -4,7 +4,7 @@
 	if($pmpro_msg) 
 	{
 ?>
-	<div class="message <?=$pmpro_msgt?>"><?=$pmpro_msg?></div>
+	<div class="pmpro_message <?=$pmpro_msgt?>"><?=$pmpro_msg?></div>
 <?php
 	}
 ?>
