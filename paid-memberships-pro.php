@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships. Pulled from the Stranger Products plugin.
-Version: 1.1.9
+Version: 1.1.10
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -375,24 +375,16 @@ function pmpro_has_membership_access($post_id = NULL, $user_id = NULL, $return_l
 		$sqlQuery = "SELECT m.id, m.name FROM $wpdb->pmpro_memberships_pages mp LEFT JOIN $wpdb->pmpro_membership_levels m ON mp.membership_id = m.id WHERE mp.page_id = '" . $mypost->ID . "'";		
 	}
 	
-	
-	/*		
-		The action passes the post and user to check for access.
-		The filter needs to be applied to return true/false according to your action function.
-		For reverse compatibility:
-	*/
-	if(has_filter("pmpro_has_membership_access_action_" . $mypost->post_type))
-	{
-		do_action("pmpro_has_membership_access_action_" . $mypost->post_type, $mypost, $myuser);
-		return apply_filters("pmpro_has_membership_access_filter_" . $mypost->post_type, true);	
-	}
-		
+			
 	$post_membership_levels = $wpdb->get_results($sqlQuery);
 		
 	if(!$post_membership_levels)
-		return true;
+	{
+		$hasaccess = true;
+	}
 	else
 	{
+		//we need to see if the user has access		
 		$post_membership_levels_ids = array();
 		$post_membership_levels_names = array();
 		foreach($post_membership_levels as $level)
@@ -400,41 +392,48 @@ function pmpro_has_membership_access($post_id = NULL, $user_id = NULL, $return_l
 			$post_membership_levels_ids[] = $level->id;
 			$post_membership_levels_names[] = $level->name;
 		}
-	}	
-			
-	//levels found. check if this is in a feed or if the current user is in at least one of those membership levels								
-	if(is_feed())
-	{
-		//always block restricted feeds
-		if($return_membership_levels)
-			return array(false, $post_membership_levels_ids, $post_membership_levels_names);
+				
+		//levels found. check if this is in a feed or if the current user is in at least one of those membership levels								
+		if(is_feed())
+		{
+			//always block restricted feeds
+			$hasaccess = false;		
+		}
+		elseif($myuser->id)
+		{
+			if(in_array($myuser->membership_level->ID, $post_membership_levels_ids))
+			{
+				//the users membership id is one that will grant access
+				$hasaccess = true;			
+			}
+			else	
+			{
+				//user isn't a member of a level with access
+				$hasaccess = false;			
+			}
+		}
 		else
-			return false;
-	}
-	elseif($myuser->id)
-	{
-		if(in_array($myuser->membership_level->ID, $post_membership_levels_ids))
-		{
-			if($return_membership_levels)
-				return array(true, $post_membership_levels_ids, $post_membership_levels_names);
-			else
-				return true;
-		}
-		else	
-		{
-			if($return_membership_levels)
-				return array(false, $post_membership_levels_ids, $post_membership_levels_names);
-			else
-				return false;
+		{	
+			//user is not logged in and this content requires membership
+			$hasaccess = false;		
 		}
 	}
+	
+	/*		
+		Filters		
+		The generic filter is run first. Then if there is a filter for this post type, that is run.
+	*/		
+	//general filter for all posts		
+	$hasaccess = apply_filters("pmpro_has_membership_access_filter", $hasaccess, $mypost, $myuser, $post_membership_levels);
+	//filter for this post type
+	if(has_filter("pmpro_has_membership_access_action_" . $mypost->post_type))
+		$hasaccess = apply_filters("pmpro_has_membership_access_filter_" . $mypost->post_type, $hasaccess, $mypost, $myuser, $post_membership_levels);		
+	
+	//return
+	if($return_membership_levels)
+		return array($hasaccess, $post_membership_levels_ids, $post_membership_levels_names);
 	else
-	{	
-		if($return_membership_levels)
-			return array(false, $post_membership_levels_ids, $post_membership_levels_names);	//not logged in, 
-		else
-			return false;
-	}
+		return $hasaccess;		
 }
 
 function pmpro_search_filter($query) 
@@ -552,19 +551,19 @@ function pmpro_membership_content_filter($content, $skipcheck = false)
 		//get the correct message to show at the bottom		
 		if(is_feed())
 		{
-			$newcontent = stripslashes(pmpro_getOption("rsstext"));
+			$newcontent = apply_filters("pmpro_rss_text_filter", stripslashes(pmpro_getOption("rsstext")));
 			$content .= $pmpro_content_message_pre . str_replace($sr_search, $sr_replace, $newcontent) . $pmpro_content_message_post;
 		}
 		elseif($current_user->ID)
 		{		
 			//not a member
-			$newcontent = stripslashes(pmpro_getOption("nonmembertext"));									
+			$newcontent = apply_filters("pmpro_non_member_text_filter", stripslashes(pmpro_getOption("nonmembertext")));									
 			$content .= $pmpro_content_message_pre . str_replace($sr_search, $sr_replace, $newcontent) . $pmpro_content_message_post;
 		}
 		else
 		{
 			//not logged in!
-			$newcontent = stripslashes(pmpro_getOption("notloggedintext"));						
+			$newcontent = apply_filters("pmpro_not_logged_in_text_filter", stripslashes(pmpro_getOption("notloggedintext")));						
 			$content .= $pmpro_content_message_pre . str_replace($sr_search, $sr_replace, $newcontent) . $pmpro_content_message_post;
 		}	
 	}
