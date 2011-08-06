@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships. Pulled from the Stranger Products plugin.
-Version: 1.1.10
+Version: 1.1.11
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -1106,7 +1106,10 @@ $recaptcha = pmpro_getOption("recaptcha");
 if($recaptcha)
 {
 	global $recaptcha_publickey, $recaptcha_privatekey;
-	require_once(dirname(__FILE__) . "/includes/lib/recaptchalib.php");				
+	if(!function_exists("recaptcha_get_html"))
+	{
+		require_once(dirname(__FILE__) . "/includes/lib/recaptchalib.php");				
+	}
 	$recaptcha_publickey = pmpro_getOption("recaptcha_publickey");
 	$recaptcha_privatekey = pmpro_getOption("recaptcha_privatekey");		
 }

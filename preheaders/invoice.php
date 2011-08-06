@@ -12,7 +12,7 @@
 	else
 	{
 		$pmpro_invoice = new MemberOrder($invoice_code);
-		var_dump($pmpro_invoice);
+		//var_dump($pmpro_invoice);
 		if(!$pmpro_invoice->id)
 			wp_redirect(pmpro_url("account")); //no match
 		

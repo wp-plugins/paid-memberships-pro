@@ -4,9 +4,6 @@
 	$view = $_REQUEST['view'];
 	$copy = $_REQUEST['copy'];
 	$s = $_REQUEST['s'];
-
-	//including tinymce editors on this page. need to init
-	pmpro_tinymce();
 	
 	//get/set settings
 	global $pmpro_pages;
@@ -350,10 +347,7 @@
                         <th scope="row" valign="top"><label for="description">Description:</label></th>
                         <td>
 	                        <div id="poststuff" class="pmpro_description">
-							<?php 
-								wp_tiny_mce(); 
-								the_editor($level->description, "description");
-							?>
+							<textarea rows="10" cols="80" name="description" id="description"><?=str_replace("\"", "&quot;", stripslashes($level->description))?></textarea>							
                         	</div>    
                         </td>
                     </tr>
