@@ -306,7 +306,7 @@
 					//auth first, then process
 					if($this->authorizeWithAuthorizeNet())
 					{						
-						$this->ProfileStartDate = date("Y-m-d", strtotime("+ 1 " . $this->BillingPeriod)) . "T0:0:0";
+						$this->ProfileStartDate = date("Y-m-d", strtotime("+ 1 " . $this->BillingPeriod)) . "T0:0:0";						
 						return $this->processWithAuthorizeNet();
 					}
 					else
@@ -320,7 +320,7 @@
 				{
 					//charge first payment
 					if($this->chargeWithAuthorizeNet())
-					{																		
+					{							
 						//setup recurring billing
 						if(pmpro_isLevelRecurring($this->membership_level))
 						{
@@ -1024,6 +1024,11 @@
 				$unit = "months";
 				$length = 12;
 			}
+			elseif($this->BillingPeriod == "Week")
+			{
+				$unit = "days";
+				$length = $length * 7;	//converting weeks to days
+			}
 			else
 				return false;	//authorize.net only supports months and days
 				
@@ -1043,8 +1048,12 @@
 			$trialAmount = round((float)$trialAmount + (float)$trial_tax, 2);
 			
 			//authorize.net doesn't support different periods between trial and actual
+			
 			if($this->TrialBillingPeriod && $this->TrialBillingPeriod != $this->BillingPeriod)
+			{
+				echo "F";
 				return false;
+			}
 			
 			$cardNumber = $this->accountnumber;			
 			$expirationDate = $this->ExpirationDate_YdashM;						
@@ -1124,14 +1133,13 @@
 			/*
 			$response = send_request_via_fsockopen($host,$path,$content);
 			*/
-			
-			
+						
 			if($response) {				
 				list ($refId, $resultCode, $code, $text, $subscriptionId) = $this->parse_return($response);
 				if($resultCode == "Ok")
 				{
 					$this->status = "success";	//saved on checkout page				
-					$this->subscription_transaction_id = $subscriptionId;
+					$this->subscription_transaction_id = $subscriptionId;				
 					return true;
 				}
 				else

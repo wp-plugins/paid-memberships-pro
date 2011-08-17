@@ -1,6 +1,5 @@
 <?php
 	global $wpdb, $besecure, $pmpro_level;
-	$besecure = true;		
 	
 	//what level are they purchasing?
 	if($_REQUEST['level'])
@@ -16,15 +15,18 @@
 	{
 		$pagetitle = "Checkout: Payment Information";
 		$pmpro_requirebilling = true;
+		$besecure = true;			
 	}
 	elseif($current_user)
 	{
 		//just skip them through
 		$pagetitle = "Setup Your Account";
+		$besecure = false;
 	}
 	else
 	{
 		$pagetitle = "Setup Your Account";
+		$besecure = false;
 	}	
 	
 	//some options
@@ -216,13 +218,17 @@
 													
 							if($morder->process())
 							{
-								$pmpro_msg = "Payment accepted.";					
+								$pmpro_msg = "Payment accepted.";
+								$pmpro_msgt = "pmpro_success";	
 							}			
 							else
 							{
 								$pmpro_msg = $morder->error;
-								$pmpro_msgt = "pmpro_error";
+								if(!$pmpro_msg)
+									$pmpro_msg = "Unknown error generating account. Please contact us to setup your membership.";
+								$pmpro_msgt = "pmpro_error";								
 							}	
+														
 						}	//end if($pmpro_requirebilling)
 					}
 					
@@ -284,7 +290,7 @@
 								$morder->membership_id = $pmpro_level->id;
 															
 								$morder->saveOrder();
-								
+																
 								//cancel any other subscriptions they have
 								$other_order_ids = $wpdb->get_col("SELECT id FROM $wpdb->pmpro_membership_orders WHERE user_id = '" . $current_user->ID . "' AND id <> '" . $morder->id . "' AND status = 'success' ORDER BY id DESC");
 								foreach($other_order_ids as $order_id)
@@ -311,7 +317,7 @@
 												
 							//hook
 							do_action("pmpro_after_checkout", $user_id);						
-							
+							do_action("pmpro_after_change_membership_level", $pmpro_level->id, $user_id);																									
 							//send email
 							$pmproemail = new PMProEmail();
 							if($morder)
@@ -325,7 +331,7 @@
 							wp_redirect(pmpro_url("confirmation"));
 							exit;
 						}
-					}	
+					}						
 				}
 			}	//endif($pmpro_continue_registration)
 		}

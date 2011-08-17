@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships. Pulled from the Stranger Products plugin.
-Version: 1.1.11
+Version: 1.1.12
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -142,25 +142,36 @@ function pmpro_is_ready()
 	//check if there is at least one level
 	$pmpro_level_ready = (bool)$wpdb->get_var("SELECT id FROM $wpdb->pmpro_membership_levels LIMIT 1");
 	
-	//check if the gateway settings are good
-	$gateway = pmpro_getOption("gateway");
-	if($gateway == "authorizenet")
+	//check if the gateway settings are good. first check if it's needed (is there paid membership level)
+	$paid_membership_level = $wpdb->get_var("SELECT id FROM $wpdb->pmpro_membership_levels WHERE allow_signups = 1 AND (initial_payment > 0 OR billing_amount > 0 OR trial_amount > 0) LIMIT 1");
+	$paid_user_subscription = $wpdb->get_var("SELECT id FROM $wpdb->pmpro_memberships_users WHERE initial_payment > 0 OR billing_amount > 0 OR trial_amount > 0 LIMIT 1");
+	
+	if(!$paid_membership_level && !$paid_user_susbcription)
 	{
-		if(pmpro_getOption("gateway_environment") && pmpro_getOption("loginname") && pmpro_getOption("transactionkey"))
-			$pmpro_gateway_ready = true;
-		else
-			$pmpro_gateway_ready = false;
-	}
-	elseif($gateway == "paypal")
-	{
-		if(pmpro_getOption("gateway_environment") && pmpro_getOption("gateway_email") && pmpro_getOption("apiusername") && pmpro_getOption("apipassword") && pmpro_getOption("apisignature"))
-			$pmpro_gateway_ready = true;
-		else
-			$pmpro_gateway_ready = false;
+		//no paid membership level now or attached to a user. we don't need the gateway setup
+		$pmpro_gateway_ready = true;
 	}
 	else
 	{
-		$pmpro_gateway_ready = false;
+		$gateway = pmpro_getOption("gateway");
+		if($gateway == "authorizenet")
+		{
+			if(pmpro_getOption("gateway_environment") && pmpro_getOption("loginname") && pmpro_getOption("transactionkey"))
+				$pmpro_gateway_ready = true;
+			else
+				$pmpro_gateway_ready = false;
+		}
+		elseif($gateway == "paypal")
+		{
+			if(pmpro_getOption("gateway_environment") && pmpro_getOption("gateway_email") && pmpro_getOption("apiusername") && pmpro_getOption("apipassword") && pmpro_getOption("apisignature"))
+				$pmpro_gateway_ready = true;
+			else
+				$pmpro_gateway_ready = false;
+		}
+		else
+		{
+			$pmpro_gateway_ready = false;
+		}
 	}
 	
 	//check if we have all pages
@@ -863,16 +874,16 @@ add_filter('home_url', 'pmpro_https_filter');
 function pmpro_besecure()
 {
 	global $besecure, $post;	
-	
+		
 	//check the post option
 	if(!$besecure)
 		$besecure = get_post_meta($post->ID, "besecure", true);
-	
+		
 	if(!$besecure && (force_ssl_admin() || force_ssl_login()))
 		$besecure = true;
-	
+		
 	$besecure = apply_filters("pmpro_besecure", $besecure);
-	
+		
 	if ($besecure && !$_SERVER['HTTPS'])
 	{				
 		//need to be secure												

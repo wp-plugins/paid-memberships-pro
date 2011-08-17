@@ -292,7 +292,7 @@
 	
 	<?php	
 		if($edit)
-		{
+		{			
 		?>
 			
 		<h2>
@@ -322,6 +322,13 @@
 				// didn't find a membership level, let's add a new one...
 				if(!$level) $edit = -1;
 
+				//defaults for new levels
+				if($edit == -1)
+				{
+					$level->cycle_number = 1;
+					$level->cycle_period = "Month";
+				}
+				
 				// grab the categories for the given level...
 				$level->categories = $wpdb->get_col("SELECT c.category_id
 													FROM $wpdb->pmpro_memberships_categories c

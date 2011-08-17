@@ -41,3 +41,6 @@ div.pmpro_pagination span.current {border: 1px solid #FFF; color: #FFF; backgrou
 div.pmpro_pagination span.disabled {padding: 2px 5px 2px 5px; margin: 2px; border: 1px solid #BBB; color: #BBB; background: #EFEFEF;}
 
 p.pmpro_meta_notice {font-size: .6em; padding-top: 5px; border-top: 1px solid #CCC;}
+
+/* misc */
+.pmpro_lite {color: #AAA;}

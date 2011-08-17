@@ -33,6 +33,45 @@
 		<input id="post-search-input" type="text" value="<?=$s?>" name="s"/>
 		<input class="button" type="submit" value="Search Members"/>
 	</p>
+	<?php 
+		//some vars for the search
+		$pn = $_REQUEST['pn'];
+			if(!$pn) $pn = 1;
+		$limit = $_REQUEST['limit'];
+			if(!$limit) $limit = 15;
+		$end = $pn * $limit;
+		$start = $end - $limit;				
+					
+		if($s)
+		{
+			$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, mu.membership_id, mu.initial_payment, mu.billing_amount, mu.cycle_period, mu.cycle_number, mu.billing_limit, mu.trial_amount, mu.trial_limit, UNIX_TIMESTAMP(mu.startdate) as startdate, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->usermeta um ON u.ID = um.user_id LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id WHERE mu.membership_id > 0 AND (u.user_login LIKE '%$s%' OR u.user_email LIKE '%$s%' OR um.meta_value LIKE '%$s%') ";
+		
+			if($l)
+				$sqlQuery .= " AND mu.membership_id = '" . $l . "' ";					
+				
+			$sqlQuery .= "GROUP BY u.ID ORDER BY user_registered DESC LIMIT $start, $limit";
+		}
+		else
+		{
+			$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, mu.membership_id, mu.initial_payment, mu.billing_amount, mu.cycle_period, mu.cycle_number, mu.billing_limit, mu.trial_amount, mu.trial_limit, UNIX_TIMESTAMP(mu.startdate) as startdate, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id ";
+			$sqlQuery .= "WHERE mu.membership_id > 0 ";
+			if($l)
+				$sqlQuery .= " AND mu.membership_id = '" . $l . "' ";										
+			$sqlQuery .= "ORDER BY user_registered DESC LIMIT $start, $limit";
+		}
+						
+		$theusers = $wpdb->get_results($sqlQuery);
+		$totalrows = $wpdb->get_var("SELECT FOUND_ROWS() as found_rows");
+		
+		if($theusers)
+		{
+			$initial_payments = pmpro_calculateInitialPaymentRevenue($s, $l);
+			$recurring_payments = pmpro_calculateRecurringRevenue($s, $l);
+		?>
+		<p class="clear">Members shown below have paid <strong>$<?=number_format($initial_payments)?> in initial payments</strong> and will generate an estimated <strong>$<?=number_format($recurring_payments)?> in revenue over the next year</strong>, or <strong>$<?=number_format($recurring_payments/12)?>/month</strong>. <span class="pmpro_lite">(This estimate does not take into account trial periods or billing limits.)</span></p>
+		<?php
+		}		
+	?>
 	<table class="widefat">
 		<thead>
 			<tr class="thead">
@@ -47,35 +86,7 @@
 			</tr>
 		</thead>
 		<tbody id="users" class="list:user user-list">	
-			<?php				
-				//some vars for the search
-				$pn = $_REQUEST['pn'];
-					if(!$pn) $pn = 1;
-				$limit = $_REQUEST['limit'];
-					if(!$limit) $limit = 15;
-				$end = $pn * $limit;
-				$start = $end - $limit;				
-							
-				if($s)
-				{
-					$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, mu.membership_id, mu.billing_amount, mu.cycle_period, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->usermeta um ON u.ID = um.user_id LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id WHERE mu.membership_id > 0 AND (u.user_login LIKE '%$s%' OR u.user_email LIKE '%$s%' OR um.meta_value LIKE '%$s%') ";
-				
-					if($l)
-						$sqlQuery .= " AND mu.membership_id = '" . $l . "' ";					
-						
-					$sqlQuery .= "GROUP BY u.ID ORDER BY user_registered DESC LIMIT $start, $limit";
-				}
-				else
-				{
-					$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, mu.membership_id, mu.billing_amount, mu.cycle_period, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id ";
-					$sqlQuery .= "WHERE mu.membership_id > 0 ";
-					if($l)
-						$sqlQuery .= " AND mu.membership_id = '" . $l . "' ";										
-					$sqlQuery .= "ORDER BY user_registered DESC LIMIT $start, $limit";
-				}
-								
-				$theusers = $wpdb->get_results($sqlQuery);
-				$totalrows = $wpdb->get_var("SELECT FOUND_ROWS() as found_rows");
+			<?php								
 				foreach($theusers as $theuser)
 				{
 					//get meta

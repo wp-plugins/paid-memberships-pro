@@ -102,7 +102,7 @@
 		else
 			return home_url(str_replace(home_url(), "", get_permalink($pmpro_pages[$page])) . $querystring, $scheme);
 	}
-	
+		
 	function pmpro_isLevelFree(&$level)
 	{
 		if($level->initial_payment <= 0 && $level->billing_amount <= 0 && $level->trial_amount <= 0)
@@ -670,7 +670,7 @@
 		$pagination = "";
 		if($lastpage > 1)
 		{	
-			$pagination .= "<div class=\"pagination\"";
+			$pagination .= "<div class=\"pmpro_pagination\"";
 			if($margin || $padding)
 			{
 				$pagination .= " style=\"";
@@ -758,5 +758,65 @@
 		
 		return $pagination;
 
+	}
+	
+	function pmpro_calculateInitialPaymentRevenue($s = NULL, $l = NULL)
+	{
+		global $wpdb;
+	
+		//if we're limiting users by search
+		if($s || $l)
+		{
+			$user_ids_query = "SELECT ID FROM $wpdb->users u LEFT JOIN $wpdb->usermeta um  ON u.ID = um.user_id LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id WHERE 1 ";
+			if($s)
+				$user_ids_query .= "AND (u.user_login LIKE '%$s%' OR u.user_email LIKE '%$s%' OR um.meta_value LIKE '%$s%') ";
+			if($l)
+				$user_ids_query .= "AND mu.membership_id = '$l' ";
+		}
+		
+		//query to sum initial payments
+		$sqlQuery = "SELECT SUM(initial_payment) FROM $wpdb->pmpro_memberships_users WHERE 1 ";
+		if($user_ids_query)	
+			$sqlQuery .= "AND user_id IN(" . $user_ids_query . ") ";
+		
+		$total = $wpdb->get_var($sqlQuery);
+				
+		return (double)$total;
+	}
+	
+	function pmpro_calculateRecurringRevenue($s, $l)
+	{
+		global $wpdb;
+		
+		//if we're limiting users by search
+		if($s || $l)
+		{
+			$user_ids_query = "AND user_id IN(SELECT ID FROM $wpdb->users u LEFT JOIN $wpdb->usermeta um  ON u.ID = um.user_id LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id WHERE 1 ";
+			if($s)
+				$user_ids_query .= "AND (u.user_login LIKE '%$s%' OR u.user_email LIKE '%$s%' OR um.meta_value LIKE '%$s%') ";
+			if($l)
+				$user_ids_query .= "AND mu.membership_id = '$l' ";
+			$user_ids_query .= ")";
+		}
+		
+		//4 queries to get annual earnings for each cycle period. currently ignoring trial periods and billing limits.
+		$sqlQuery = "
+			SELECT SUM((12/cycle_number)*billing_amount) FROM $wpdb->pmpro_memberships_users WHERE cycle_period = 'Month' AND cycle_number <> 12 $user_ids_query
+				UNION
+			SELECT SUM((365/cycle_number)*billing_amount) FROM $wpdb->pmpro_memberships_users WHERE cycle_period = 'Day' AND cycle_number <> 365 $user_ids_query
+				UNION
+			SELECT SUM((52/cycle_number)*billing_amount) FROM $wpdb->pmpro_memberships_users WHERE cycle_period = 'Week' AND cycle_number <> 52 $user_ids_query
+				UNION
+			SELECT SUM(billing_amount) FROM $wpdb->pmpro_memberships_users WHERE cycle_period = 'Year' $user_ids_query
+		";		
+		$annual_revenues = $wpdb->get_col($sqlQuery);
+				
+		$total = 0;
+		foreach($annual_revenues as $r)
+		{
+			$total += $r;
+		}
+		
+		return $total;
 	}
 ?>

@@ -1,6 +1,6 @@
 <?php
 	global $besecure;
-	$besecure = true;	
+	$besecure = false;	
 	
 	global $current_user, $pmpro_msg, $pmpro_msgt, $pmpro_confirm; 
 	
