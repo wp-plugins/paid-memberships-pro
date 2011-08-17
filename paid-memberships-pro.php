@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships. Pulled from the Stranger Products plugin.
-Version: 1.1.12
+Version: 1.1.13
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */

@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal
 Requires at least: 3.0
 Tested up to: 3.2
-Stable tag: 1.1.12
+Stable tag: 1.1.13
 
 An infinitely customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -18,6 +18,10 @@ Paid Memberships Pro is a WordPress Plugin and support community for membership 
 1. Follow the instructions here to setup your memberships: http://www.paidmembershipspro.com/support/initial-plugin-setup/
 
 == Changelog ==
+= 1.1.13 =
+* No longer adding "besecure" custom field to the billing and checkout pages. You can still add this manually to selectively require SSL on a page. If you are trying to do a free membership without SSL, you will have to make sure the besecure custom field is deleted from the Membership-Checkout page, especially if you are upgrading from an older version of PMPro.
+* Added a filter before sending the default WP welcome notification email. Return false for the "pmpro_wp_new_user_notification" hook/filter to skip sending the WP default welcome email (because in many cases they are already getting an email from PMPro as well).
+
 = 1.1.12 =
 * Revenue report on members list page. (Rought estimate only that doesn't take into account trial periods and billing limits.)
 * Enabling weekly recurring payments for Authorize.net by converting week period to 7 days * # months.

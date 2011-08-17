@@ -187,7 +187,7 @@
 		//check the pages array
 		foreach($pmpro_pages as $pmpro_page_name => $pmpro_page_id)
 		{
-			if(!$pmpro_page_id)		
+			if(!$pmpro_page_id)
 			{
 				//no id set. create an array to store the page info
 				$insert = array(
@@ -202,9 +202,11 @@
 				$pmpro_pages[$pmpro_page_name] = wp_insert_post( $insert );
 				
 				//add besecure post option to pages that need it
+				/* these pages are handling this themselves in the preheader
 				if(in_array($pmpro_page_name, array("billing", "checkout")))
 					update_post_meta($pmpro_pages[$pmpro_page_name], "besecure", 1);								
-								
+				*/
+					
 				//update the option too
 				pmpro_setOption($pmpro_page_name . "_page_id", $pmpro_pages[$pmpro_page_name]);
 				$pages_created[] = $pmpro_pages[$pmpro_page_name];

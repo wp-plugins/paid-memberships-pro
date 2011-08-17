@@ -249,7 +249,10 @@
 								$pmpro_msg = "Your payment was accepted, but there was an error setting up your account. Please contact us.";
 								$pmpro_msgt = "pmpro_error";
 							} else {
-								wp_new_user_notification($user_id, $password);
+							
+								//check pmpro_wp_new_user_notification filter before sending the default WP email
+								if(apply_filters("pmpro_wp_new_user_notification", true, $user_id, $pmpro_level->id))
+									wp_new_user_notification($user_id, $password);								
 						
 								$wpuser = new WP_User(0, $username);
 						
