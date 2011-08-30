@@ -22,6 +22,7 @@
 
 tr.pmpro_gray td {color: #AAA;}
 
+/* messages */
 .pmpro_message {background-color: #D5E4F7; background-image: url(../images/icon_information.gif); background-position: 3px 5px; background-repeat: no-repeat; margin: .5em 0; padding: 6px 6px 6px 25px; color: #345395; font-size: 11px; font-weight: bold; line-height: 1.3em; }
 
 .pmpro_success {background-color: #CFEECA; background-image: url(../images/icon_success.gif); color: #208A1B; }
@@ -32,6 +33,11 @@ tr.pmpro_gray td {color: #AAA;}
 .pmpro_success a {color: #208A1B; }
 .pmpro_error a {color: #E36154; }
 .pmpro_alert a {color: #CF8516; }
+
+/* discount levels */
+.pmpro_discount_levels {border: 1px solid #CCC;}
+.pmpro_discount_levels div {padding: 5px; border: 1px solid #CCC;}
+.pmpro_discount_levels div div {margin-top: 5px; background: #F5F5F5;}
 
 /* pagination */
 div.pmpro_pagination {padding: 3px; margin: 5px 0px 5px 0px; font-size: 10px; float: right; }
@@ -44,3 +50,4 @@ p.pmpro_meta_notice {font-size: .6em; padding-top: 5px; border-top: 1px solid #C
 
 /* misc */
 .pmpro_lite {color: #AAA;}
+.pmpro_pad20 {padding: 20px !important;}

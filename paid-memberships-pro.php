@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships. Pulled from the Stranger Products plugin.
-Version: 1.1.13
+Version: 1.1.15
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -38,6 +38,9 @@ $wpdb->pmpro_memberships_users = $table_prefix . 'pmpro_memberships_users';
 $wpdb->pmpro_memberships_categories = $table_prefix . 'pmpro_memberships_categories';
 $wpdb->pmpro_memberships_pages = $table_prefix . 'pmpro_memberships_pages';
 $wpdb->pmpro_membership_orders = $table_prefix . 'pmpro_membership_orders';
+$wpdb->pmpro_discount_codes = $wpdb->prefix . 'pmpro_discount_codes';
+$wpdb->pmpro_discount_codes_levels = $wpdb->prefix . 'pmpro_discount_codes_levels';
+$wpdb->pmpro_discount_codes_uses = $wpdb->prefix . 'pmpro_discount_codes_uses';	
 
 //setup the DB
 pmpro_checkForUpgrades();
@@ -47,7 +50,7 @@ $urlparts = split("//", get_bloginfo("home"));
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1");
+define("PMPRO_VERSION", "1.1.15");
 
 global $gateway_environment;
 $gateway_environment = pmpro_getOption("gateway_environment");
@@ -63,6 +66,12 @@ function pmpro_memberslist()
 	require_once(dirname(__FILE__) . "/adminpages/memberslist.php");
 }
 
+function pmpro_discountcodes()
+{
+	require_once(dirname(__FILE__) . "/adminpages/discountcodes.php");
+}
+
+
 function pmpro_membershiplevels()
 {	
 	require_once(dirname(__FILE__) . "/adminpages/membershiplevels.php");
@@ -76,7 +85,7 @@ function pmpro_set_current_user()
 	$id = intval($current_user->ID);
 	if($id)
 	{
-		$current_user->membership_level = $wpdb->get_row("SELECT l.id AS ID, l.id as id, l.name, l.description, mu.initial_payment, mu.billing_amount, mu.cycle_number, mu.cycle_period, mu.billing_limit, mu.trial_amount, mu.trial_limit
+		$current_user->membership_level = $wpdb->get_row("SELECT l.id AS ID, l.id as id, l.name, l.description, mu.initial_payment, mu.billing_amount, mu.cycle_number, mu.cycle_period, mu.billing_limit, mu.trial_amount, mu.trial_limit, mu.code_id as code_id
 															FROM {$wpdb->pmpro_membership_levels} AS l
 															JOIN {$wpdb->pmpro_memberships_users} AS mu ON (l.id = mu.membership_id)
 															WHERE mu.user_id = $id
@@ -335,7 +344,7 @@ add_action( 'show_user_profile', 'pmpro_membership_level_profile_fields' );
 add_action( 'edit_user_profile', 'pmpro_membership_level_profile_fields' );
 add_action( 'profile_update', 'pmpro_membership_level_profile_fields_update' );
 
-function pmpro_has_membership_access($post_id = NULL, $user_id = NULL, $return_levels = false)
+function pmpro_has_membership_access($post_id = NULL, $user_id = NULL, $return_membership_levels = false)
 {
 	global $post, $wpdb, $current_user;
 	//use globals if no values supplied
@@ -388,7 +397,7 @@ function pmpro_has_membership_access($post_id = NULL, $user_id = NULL, $return_l
 	
 			
 	$post_membership_levels = $wpdb->get_results($sqlQuery);
-		
+	
 	if(!$post_membership_levels)
 	{
 		$hasaccess = true;
@@ -489,13 +498,13 @@ function pmpro_membership_content_filter($content, $skipcheck = false)
 		
 	if(!$skipcheck)
 	{
-		$hasaccess = pmpro_has_membership_access(NULL, NULL, true);
+		$hasaccess = pmpro_has_membership_access(NULL, NULL, true);		
 		if(is_array($hasaccess))
 		{
 			//returned an array to give us the membership level values
 			$post_membership_levels_ids = $hasaccess[1];
 			$post_membership_levels_names = $hasaccess[2];
-			$hasaccess = $hasaccess[0];
+			$hasaccess = $hasaccess[0];						
 		}
 	}
 	
@@ -557,7 +566,7 @@ function pmpro_membership_content_filter($content, $skipcheck = false)
 		$pmpro_content_message_post = '</div>';
 			
 		$sr_search = array("!!levels!!", "!!referrer!!");
-		$sr_replace = array(implode(", ", $post_membership_levels_names), $_SERVER['REQUEST_URI']);
+		$sr_replace = array(pmpro_implodeToEnglish($post_membership_levels_names), $_SERVER['REQUEST_URI']);
 	
 		//get the correct message to show at the bottom		
 		if(is_feed())
@@ -737,6 +746,7 @@ function pmpro_add_pages()
 	
 	add_menu_page('Memberships', 'Memberships', 'manage_options', 'pmpro-membershiplevels', 'pmpro_membershiplevels', PMPRO_URL . '/images/menu_users.png');	
 	add_submenu_page('pmpro-membershiplevels', 'Members List', 'Members List', 'manage_options', 'pmpro-memberslist', 'pmpro_memberslist');
+	add_submenu_page('pmpro-membershiplevels', 'Discount Codes', 'Discount Codes', 'manage_options', 'pmpro-discountcodes', 'pmpro_discountcodes');
 	
 	//rename the automatically added Memberships submenu item
 	global $submenu;
@@ -1102,7 +1112,7 @@ function pmpro_login_head()
 			global $current_user;
 			if($_REQUEST['action'] == "profile" && !$current_user->ID)
 			{
-				$link = get_permalink($GLOBALS['theme_my_login']->options['page_id']);	
+				$link = get_permalink($GLOBALS['theme_my_login']->options->options['page_id']);	
 				wp_redirect($link);
 			}
 		}
