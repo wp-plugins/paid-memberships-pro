@@ -1,16 +1,43 @@
 <?php
-	global $wpdb, $besecure, $pmpro_level;
+	global $wpdb, $besecure, $discountcode, $pmpro_level, $pmpro_msg, $pmpro_msgt;
 	
-	//what level are they purchasing?
-	if($_REQUEST['level'])
-		$pmpro_level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . $wpdb->escape($_REQUEST['level']) . "' AND allow_signups = 1 LIMIT 1");		
+	//what level are they purchasing? (discount code passed)
+	if($_REQUEST['level'] && $_REQUEST['discountcode'])
+	{
+		$discountcode = preg_replace("/[^A-Za-z0-9]/", "", $_REQUEST['discountcode']);
+		//check code
+		$code_check = pmpro_checkDiscountCode($discountcode, (int)$_REQUEST['level'], true);		
+		if($code_check[0] == false)
+		{
+			//error
+			$pmpro_msg = $code_check[1];
+			$pmpro_msgt = "pmpro_error";
+			
+			//don't use this code
+			$use_discount_code = false;
+		}
+		else
+		{			
+			$sqlQuery = "SELECT l.id, cl.*, l.name, l.description, l.allow_signups FROM $wpdb->pmpro_discount_codes_levels cl LEFT JOIN $wpdb->pmpro_membership_levels l ON cl.level_id = l.id LEFT JOIN $wpdb->pmpro_discount_codes dc ON dc.id = cl.code_id WHERE dc.code = '" . $discountcode . "' AND cl.level_id = '" . (int)$_REQUEST['level'] . "' LIMIT 1";			
+			$pmpro_level = $wpdb->get_row($sqlQuery);
+			
+			$use_discount_code = true;
+		}	
+	}
+	
+	//what level are they purchasing? (no discount code)
+	if(!$pmpro_level && $_REQUEST['level'])
+	{
+		$pmpro_level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . $wpdb->escape($_REQUEST['level']) . "' AND allow_signups = 1 LIMIT 1");	
+	}
+	
 	if(!$pmpro_level)
 	{
 		wp_redirect(pmpro_url("levels"));
 		exit(0);
 	}		
 	
-	global $wpdb, $current_user, $pmpro_msg, $pmpro_msgt, $pmpro_requirebilling;
+	global $wpdb, $current_user, $pmpro_requirebilling;
 	if(!pmpro_isLevelFree($pmpro_level))
 	{
 		$pagetitle = "Checkout: Payment Information";
@@ -56,6 +83,7 @@
 	$ExpirationYear = $_REQUEST['ExpirationYear'];
 	$CVV = $_REQUEST['CVV'];
 	
+	$discountcode = $_REQUEST['discountcode'];
 	$username = $_REQUEST['username'];
 	$password = $_REQUEST['password'];
 	$password2 = $_REQUEST['password2'];
@@ -67,7 +95,7 @@
 	if($submit === "0") $submit = true;
 		
 	//check their fields if they clicked continue
-	if($submit)
+	if($submit && $pmpro_msgt != "pmpro_error")
 	{		
 		if($pmpro_requirebilling && (!$bfirstname || !$blastname || !$baddress1 || !$bcity || !$bstate || !$bzipcode || !$bphone || !$bemail || !$CardType || !$AccountNumber || !$ExpirationMonth || !$ExpirationYear || !$CVV))
 		{
@@ -163,6 +191,7 @@
 							$morder = new MemberOrder();			
 							$morder->membership_id = $pmpro_level->id;
 							$morder->membership_name = $pmpro_level->name;
+							$morder->discountcode = $discountcode;
 							$morder->InitialPayment = $pmpro_level->initial_payment;
 							$morder->PaymentAmount = $pmpro_level->billing_amount;
 							$morder->ProfileStartDate = date("Y-m-d") . "T0:0:0";
@@ -187,8 +216,8 @@
 							$morder->expirationyear = $ExpirationYear;
 							$morder->ExpirationDate = $ExpirationMonth . $ExpirationYear;
 							$morder->ExpirationDate_YdashM = $ExpirationYear . "-" . $ExpirationMonth;
-							$morder->CVV2 = $CVV;
-											
+							$morder->CVV2 = $CVV;												
+							
 							//not saving email in order table, but the sites need it
 							$morder->Email = $bemail;
 							
@@ -215,11 +244,11 @@
 							//tax
 							$morder->subtotal = $morder->InitialPayment;
 							$morder->getTax();						
-													
+														
 							if($morder->process())
 							{
 								$pmpro_msg = "Payment accepted.";
-								$pmpro_msgt = "pmpro_success";	
+								$pmpro_msgt = "pmpro_success";																	
 							}			
 							else
 							{
@@ -292,16 +321,15 @@
 								$morder->user_id = $user_id;
 								$morder->membership_id = $pmpro_level->id;
 															
-								$morder->saveOrder();
-																
+								$morder->saveOrder();																
+								
 								//cancel any other subscriptions they have
 								$other_order_ids = $wpdb->get_col("SELECT id FROM $wpdb->pmpro_membership_orders WHERE user_id = '" . $current_user->ID . "' AND id <> '" . $morder->id . "' AND status = 'success' ORDER BY id DESC");
 								foreach($other_order_ids as $order_id)
 								{
 									$c_order = new MemberOrder($order_id);
 									$c_order->cancel();		
-								}
-						
+								}						
 							}
 						
 							//update the current user
@@ -309,6 +337,13 @@
 							if(!$current_user->ID && $user->ID)
 								$current_user = $user;		//in case the user just signed up
 							pmpro_set_current_user();
+						
+							//add discount code use
+							if($discountcode && $use_discount_code)
+							{
+								$discountcode_id = $wpdb->get_var("SELECT id FROM $wpdb->pmpro_discount_codes WHERE code = '" . $discountcode . "' LIMIT 1");
+								$wpdb->query("INSERT INTO $wpdb->pmpro_discount_codes_uses (code_id, user_id, order_id, timestamp) VALUES('" . $discountcode_id . "', '" . $current_user->ID . "', '" . $morder->id . "', now())");
+							}
 						
 							//save billing info ect, as user meta																		
 							$meta_keys = array("pmpro_bfirstname", "pmpro_blastname", "pmpro_baddress1", "pmpro_baddress2", "pmpro_bcity", "pmpro_bstate", "pmpro_bzipcode", "pmpro_bphone", "pmpro_bemail", "pmpro_CardType", "pmpro_AccountNumber", "pmpro_ExpirationMonth", "pmpro_ExpirationYear");
@@ -339,7 +374,7 @@
 			}	//endif($pmpro_continue_registration)
 		}
 	}
-	else
+	elseif(!$submit)
 	{
 		//show message if the payment gateway is not setup yet
 		if($pmpro_requirebilling && !pmpro_getOption("gateway"))

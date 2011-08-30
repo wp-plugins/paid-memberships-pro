@@ -289,7 +289,7 @@
 		<a href="admin.php?page=pmpro-membershiplevels&view=pages" class="nav-tab<?php if($view == 'pages') { ?> nav-tab-active<?php } ?>">Pages</a>
 		<a href="admin.php?page=pmpro-membershiplevels&view=payment" class="nav-tab<?php if($view == 'payment') { ?> nav-tab-active<?php } ?>">SSL &amp; Payment Gateway</a>
 		<a href="admin.php?page=pmpro-membershiplevels&view=email" class="nav-tab<?php if($view == 'email') { ?> nav-tab-active<?php } ?>">Email</a>
-		<a href="admin.php?page=pmpro-membershiplevels&view=advanced" class="nav-tab<?php if($view == 'advanced') { ?> nav-tab-active<?php } ?>">Advanced</a>
+		<a href="admin.php?page=pmpro-membershiplevels&view=advanced" class="nav-tab<?php if($view == 'advanced') { ?> nav-tab-active<?php } ?>">Advanced</a>	
 	</h3>
 	
 	<?php	
