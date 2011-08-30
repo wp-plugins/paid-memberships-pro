@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships. Pulled from the Stranger Products plugin.
-Version: 1.2
+Version: 1.2.1
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -50,7 +50,7 @@ $urlparts = split("//", get_bloginfo("home"));
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.2");
+define("PMPRO_VERSION", "1.2.1");
 
 global $gateway_environment;
 $gateway_environment = pmpro_getOption("gateway_environment");
@@ -220,23 +220,26 @@ add_action("init", "pmpro_init");
 //this code runs after $post is set, but before template output
 function pmpro_wp()
 {
-	global $post, $pmpro_pages, $pmpro_page_name, $pmpro_page_id;
-	
-	//run the appropriate preheader function	
-	foreach($pmpro_pages as $pmpro_page_name => $pmpro_page_id)
-	{		
-		if($pmpro_page_id == $post->ID)
-		{			
-			include(ABSPATH . "/wp-content/plugins/paid-memberships-pro/preheaders/" . $pmpro_page_name . ".php");
-			
-			function pmpro_pages_shortcode($atts, $content=null, $code="")
-			{
-				global $pmpro_page_name;
-				include(ABSPATH . "/wp-content/plugins/paid-memberships-pro/pages/" . $pmpro_page_name . ".php");
-				return "";
-			}			
-			add_shortcode("pmpro_" . $pmpro_page_name, "pmpro_pages_shortcode");			
-			break;	//only the first page found gets a shortcode replacement
+	if(!is_admin())
+	{
+		global $post, $pmpro_pages, $pmpro_page_name, $pmpro_page_id;
+		
+		//run the appropriate preheader function	
+		foreach($pmpro_pages as $pmpro_page_name => $pmpro_page_id)
+		{		
+			if($pmpro_page_id == $post->ID)
+			{			
+				include(ABSPATH . "/wp-content/plugins/paid-memberships-pro/preheaders/" . $pmpro_page_name . ".php");
+				
+				function pmpro_pages_shortcode($atts, $content=null, $code="")
+				{
+					global $pmpro_page_name;
+					include(ABSPATH . "/wp-content/plugins/paid-memberships-pro/pages/" . $pmpro_page_name . ".php");
+					return "";
+				}			
+				add_shortcode("pmpro_" . $pmpro_page_name, "pmpro_pages_shortcode");			
+				break;	//only the first page found gets a shortcode replacement
+			}
 		}
 	}
 }

@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal
 Requires at least: 3.0
 Tested up to: 3.2.1
-Stable tag: 1.2
+Stable tag: 1.2.1
 
 An infinitely customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -34,6 +34,9 @@ Please visit our premium support site at http://www.paidmembershipspro.com for m
 3. Use Discount Codes to offer access at lower prices for special customers.
 
 == Changelog ==
+= 1.2 =
+* Fixed bug where non-member admins would be redirected away from the "All Pages" page in the admin.
+
 = 1.2 =
 * Fixing some wonkiness with the 1.1.15 update.
 * Fixed "warning" showing up on discount code pages.
