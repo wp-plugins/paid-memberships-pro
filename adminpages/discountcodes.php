@@ -82,11 +82,16 @@
 				$initial_payment = $initial_payment_a[$n];
 				
 				//is this recurring?
-				if(in_array($level_id, $recurring_a))
-					$recurring = 1;
+				if($recurring_a)
+				{
+					if(in_array($level_id, $recurring_a))
+						$recurring = 1;
+					else
+						$recurring = 0;
+				}
 				else
 					$recurring = 0;
-				
+						
 				if($recurring)
 				{
 					$billing_amount = $billing_amount_a[$n];
@@ -95,8 +100,13 @@
 					$billing_limit = $billing_limit_a[$n];
 					
 					//custom trial
-					if(in_array($level_id, $custom_trial_a))
-						$custom_trial = 1;
+					if($custom_trial_a)
+					{
+						if(in_array($level_id, $custom_trial_a))
+							$custom_trial = 1;
+						else
+							$custom_trial = 0;
+					}
 					else
 						$custom_trial = 0;
 					
@@ -149,7 +159,25 @@
 		}
 	}
 ?>
-<div class="wrap">	
+<div class="wrap pmpro_admin">	
+	<div class="pmpro_banner">		
+		<a class="pmpro_logo" title="Paid Memberships Pro - Membership Plugin for WordPress" target="_blank" href="<?=pmpro_https_filter("http://www.paidmembershipspro.com")?>"><img src="<?=PMPRO_URL?>/images/PaidMembershipsPro.gif" width="350" height="45" border="0" alt="Paid Memberships Pro(c) - All Rights Reserved" /></a>
+		<div class="pmpro_tagline">Membership Plugin for WordPress</div>
+		
+		<div class="pmpro_meta"><a href="<?=pmpro_https_filter("http://www.paidmembershipspro.com")?>">Plugin Support</a> | <a href="http://www.paidmembershipspro.com/forums/">User Forum</a> | <strong>Version <?=PMPRO_VERSION?></strong></div>
+	</div>
+	<br style="clear:both;" />
+	
+	<?php
+		//include(pmpro_https_filter("http://www.paidmembershipspro.com/notifications/?v=" . PMPRO_VERSION));
+	?>
+	<div id="pmpro_notifications">
+	</div>
+	<script>
+		jQuery.get('<?=pmpro_https_filter("http://www.paidmembershipspro.com/notifications/?v=" . PMPRO_VERSION)?>', function(data) {
+		  jQuery('#pmpro_notifications').html(data);		 
+		});
+	</script>
 	
 	<?php if($edit) { ?>
 		
