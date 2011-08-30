@@ -3,12 +3,12 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal
 Requires at least: 3.0
 Tested up to: 3.2
-Stable tag: 1.1.13
+Stable tag: 1.2
 
 An infinitely customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
-== Description ==
 
+== Description ==
 Paid Memberships Pro is a WordPress Plugin and support community for membership site curators. PMPro's rich feature set allows you to add a new revenue source to your new or current blog or website and is flexible enough to fit the needs of almost all online and offline businesses.
 
 == Installation ==
@@ -17,7 +17,39 @@ Paid Memberships Pro is a WordPress Plugin and support community for membership 
 1. Activate the plugin through the 'Plugins' menu in WordPress.
 1. Follow the instructions here to setup your memberships: http://www.paidmembershipspro.com/support/initial-plugin-setup/
 
+== Frequently Asked Questions ==
+
+= I found a bug in the plugin. =
+
+Please post it in the WordPress support forum and we'll fix it right away. Thanks for helping. http://wordpress.org/tags/paid-memberships-pro?forum_id=10
+
+= I need help installing, configuring, or customizing the plugin. =
+
+Please visit our premium support site at http://www.paidmembershipspro.com for more documentation and our support forums.
+
+== Screenshots ==
+
+1. Paid Memberships Pro supports multiple membership levels.
+2. On-site checkout via Authorize.net or PayPal Website Payments Pro. (Off-site checkout coming soon.)
+3. Use Discount Codes to offer access at lower prices for special customers.
+
 == Changelog ==
+= 1.2 =
+* Fixing some wonkiness with the 1.1.15 update.
+* Fixed "warning" showing up on discount code pages.
+* Tweaked the admin pages a bit for consistency.
+* Added screenshots and FAQ to the readme.
+* Figured we were due for a bigger version step.
+
+= 1.1.15 =
+* Discount Codes Added!
+* Removed some redundant files that slipped into the services folder.
+* Fixed the !!levels!! variable for message settings of the advanced tab.
+* Changing some ids columns in tables to unsigned.
+
+= 1.1.14 =
+* Now encoding #'s when sending info via Authorize.net's API. This may prevent some address conflicts.
+
 = 1.1.13 =
 * No longer adding "besecure" custom field to the billing and checkout pages. You can still add this manually to selectively require SSL on a page. If you are trying to do a free membership without SSL, you will have to make sure the besecure custom field is deleted from the Membership-Checkout page, especially if you are upgrading from an older version of PMPro.
 * Added a filter before sending the default WP welcome notification email. Return false for the "pmpro_wp_new_user_notification" hook/filter to skip sending the WP default welcome email (because in many cases they are already getting an email from PMPro as well).

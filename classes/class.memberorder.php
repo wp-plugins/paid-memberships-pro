@@ -857,7 +857,7 @@
 			// for an http post.  For example: "x_login=username&x_tran_key=a1B2c3D4"
 			$post_string = "";
 			foreach( $post_values as $key => $value )
-				{ $post_string .= "$key=" . urlencode( $value ) . "&"; }
+				{ $post_string .= "$key=" . urlencode( str_replace("#", "%23", $value) ) . "&"; }
 			$post_string = rtrim( $post_string, "& " );
 						
 			//curl
@@ -958,7 +958,7 @@
 			// for an http post.  For example: "x_login=username&x_tran_key=a1B2c3D4"
 			$post_string = "";
 			foreach( $post_values as $key => $value )
-				{ $post_string .= "$key=" . urlencode( $value ) . "&"; }
+				{ $post_string .= "$key=" . urlencode( str_replace("#", "%23", $value) ) . "&"; }
 			$post_string = rtrim( $post_string, "& " );
 						
 			//curl
