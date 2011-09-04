@@ -1,5 +1,5 @@
 <?php
-	global $wpdb, $current_user, $pmpro_msg, $pmpro_msgt, $pmpro_requirebilling, $pmpro_level, $tospage;
+	global $skip_account_fields, $wpdb, $current_user, $pmpro_msg, $pmpro_msgt, $pmpro_requirebilling, $pmpro_level, $tospage;
 	global $discountcode, $username, $password, $password2, $bfirstname, $blastname, $baddress1, $bcity, $bstate, $bzipcode, $bphone, $bemail, $bconfirmemail, $CardType, $AccountNumber, $ExpirationMonth,$ExpirationYear;
 ?>
 
@@ -38,6 +38,7 @@
 						The <strong><?=$discountcode?></strong> code has been applied to your order.
 					<?php } ?>
 					<?=pmpro_getLevelCost($pmpro_level)?>
+					<?=pmpro_getLevelExpiration($pmpro_level)?>
 				</p>
 				
 				<?php if($discountcode) { ?>
@@ -125,7 +126,7 @@
 		});
 	</script>
 	
-	<?php if(!$current_user->ID) { ?>
+	<?php if(!$skip_account_fields) { ?>
 	<table class="pmpro_checkout" width="100%" cellpadding="0" cellspacing="0" border="0">
 	<thead>
 		<tr>
@@ -193,7 +194,7 @@
 				
 			</td>
 	</table>   
-	<?php } else { ?>                        	                       										
+	<?php } elseif($current_user->ID) { ?>                        	                       										
 		<p>You are logged in as <strong><?=$current_user->user_login?></strong>. If you would like to use a different account for this membership, <a href="<?=wp_logout_url(pmpro_url("checkout", "?level=" . $pmpro_level->id));?>">log out now</a>.</p>
 	<?php } ?>
 	
@@ -255,12 +256,15 @@
 					<label for="bphone">Phone</label>
 					<input id="bphone" name="bphone" type="text" class="input" size="30" value="<?=$bphone?>" /> 
 				</div>		
-				<?php if($current_user->ID) { ?>
+				<?php if($skip_account_fields) { ?>
 				<?php
-					if(!$bemail && $current_user->user_email)									
-						$bemail = $current_user->user_email;
-					if(!$bconfirmemail && $current_user->user_email)									
-						$bconfirmemail = $current_user->user_email;									
+					if($current_user->ID)
+					{
+						if(!$bemail && $current_user->user_email)									
+							$bemail = $current_user->user_email;
+						if(!$bconfirmemail && $current_user->user_email)									
+							$bconfirmemail = $current_user->user_email;									
+					}
 				?>
 				<div>
 					<label for="bemail">E-mail Address</label>

@@ -129,6 +129,14 @@
 			return false;
 	}
 	
+	function pmpro_isLevelExpiring(&$level)
+	{
+		if($level->expiration_number > 0)
+			return true;
+		else
+			return false;
+	}
+	
 	function pmpro_getLevelCost(&$level)
 	{
 		$r = '
@@ -186,7 +194,21 @@
 			$r .= " Customers in " . $tax_state . " will be charged " . round($tax_rate * 100) . "% tax.";
 		}
 		
+		$r = apply_filters("pmpro_level_cost_text", $r, $level);		
 		return $r;
+	}
+	
+	function pmpro_getLevelExpiration(&$level)
+	{		
+		if($level->expiration_number)
+		{
+			$expiration_text = "Membership expires after " . $level->expiration_number . " " . sornot(strtolower($level->expiration_period), $level->expiration_number) . ".";
+		}
+		else
+			$expiration_text = "";
+			
+		$expiration_text = apply_filters("pmpro_level_expiration_text", $expiration_text, $level);
+		return $expiration_text;
 	}
 	
 	function pmpro_hideAds()
@@ -818,6 +840,64 @@
 		}
 		
 		return $total;
+	}
+	
+	function pmpro_generateUsername($firstname = "", $lastname = "", $email = "")
+	{
+		global $wpdb;
+		
+		//try first initial + last name, firstname, lastname
+		$firstname = preg_replace("/[^A-Za-z]/", "", $firstname);
+		$lastname = preg_replace("/[^A-Za-z]/", "", $lastname);
+		if($firstname && $lastname)
+		{
+			$username = substr($firstname, 0, 1) . $lastname;
+		}
+		elseif($firstname)
+		{
+			$username = $firstname;
+		}
+		elseif($lastname)
+		{
+			$username = $lastname;
+		}
+		
+		//is it taken?
+		$taken = $wpdb->get_var("SELECT user_login FROM $wpdb->users WHERE user_login = '" . $username . "' LIMIT 1");
+		
+		if(!$taken)
+			return $username;
+		
+		//try the beginning of the email address
+		$emailparts = explode("@", "email");
+		if(is_array($emailparts))
+			$email = preg_replace("/[^A-Za-z]/", "", $emailparts[0]);
+		
+		if($email)
+		{
+			$username = $email;
+		}
+				
+		//is this taken? if not, add numbers until it works
+		$taken = true;
+		$count = 0;
+		while($taken)
+		{	
+			//add a # to the end
+			if($count)
+			{
+				$username = preg_replace("/[0-9]/", "", $username) . $count;
+			}
+			
+			//taken?
+			$taken = $wpdb->get_var("SELECT user_login FROM $wpdb->users WHERE user_login = '" . $username . "' LIMIT 1");		
+			
+			//increment the number
+			$count++;
+		}
+		
+		//must have a good username now
+		return $username;
 	}
 	
 	//get a new random code for discount codes
