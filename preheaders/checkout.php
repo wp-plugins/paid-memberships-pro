@@ -1,33 +1,68 @@
 <?php
-	global $wpdb, $besecure, $pmpro_level;
+	global $wpdb, $besecure, $discount_code, $pmpro_level, $pmpro_msg, $pmpro_msgt, $skip_account_fields;
 	
-	//what level are they purchasing?
-	if($_REQUEST['level'])
-		$pmpro_level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . $wpdb->escape($_REQUEST['level']) . "' AND allow_signups = 1 LIMIT 1");		
+	//what level are they purchasing? (discount code passed)
+	if($_REQUEST['level'] && $_REQUEST['discount_code'])
+	{
+		$discount_code = preg_replace("/[^A-Za-z0-9]/", "", $_REQUEST['discount_code']);
+		//check code
+		$code_check = pmpro_checkDiscountCode($discount_code, (int)$_REQUEST['level'], true);		
+		if($code_check[0] == false)
+		{
+			//error
+			$pmpro_msg = $code_check[1];
+			$pmpro_msgt = "pmpro_error";
+			
+			//don't use this code
+			$use_discount_code = false;
+		}
+		else
+		{			
+			$sqlQuery = "SELECT l.id, cl.*, l.name, l.description, l.allow_signups FROM $wpdb->pmpro_discount_codes_levels cl LEFT JOIN $wpdb->pmpro_membership_levels l ON cl.level_id = l.id LEFT JOIN $wpdb->pmpro_discount_codes dc ON dc.id = cl.code_id WHERE dc.code = '" . $discount_code . "' AND cl.level_id = '" . (int)$_REQUEST['level'] . "' LIMIT 1";			
+			$pmpro_level = $wpdb->get_row($sqlQuery);
+			
+			$use_discount_code = true;
+		}	
+	}
+	
+	//what level are they purchasing? (no discount code)
+	if(!$pmpro_level && $_REQUEST['level'])
+	{
+		$pmpro_level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . $wpdb->escape($_REQUEST['level']) . "' AND allow_signups = 1 LIMIT 1");	
+	}
+	
 	if(!$pmpro_level)
 	{
 		wp_redirect(pmpro_url("levels"));
 		exit(0);
 	}		
 	
-	global $wpdb, $current_user, $pmpro_msg, $pmpro_msgt, $pmpro_requirebilling;
+	global $wpdb, $current_user, $pmpro_requirebilling;
 	if(!pmpro_isLevelFree($pmpro_level))
 	{
+		//just skip them through
 		$pagetitle = "Checkout: Payment Information";
 		$pmpro_requirebilling = true;
 		$besecure = true;			
-	}
-	elseif($current_user)
+	}	
+	else
 	{
-		//just skip them through
+		//no payment so we don't need ssl
 		$pagetitle = "Setup Your Account";
-		$besecure = false;
+		$besecure = false;		
+	}
+	
+	//by default we show the account fields if the user isn't logged in
+	if($current_user->ID)
+	{
+		$skip_account_fields = true;
 	}
 	else
 	{
-		$pagetitle = "Setup Your Account";
-		$besecure = false;
+		$skip_account_fields = false;
 	}	
+	//in case people want to have an account created automatically
+	$skip_account_fields = apply_filters("pmpro_skip_account_fields", $skip_account_fields, $current_user);
 	
 	//some options
 	global $tospage;
@@ -36,7 +71,7 @@
 		$tospage = get_post($tospage);
 	
 	//load em up (other fields)
-	global $username, $password, $password2, $bfirstname, $blastname, $baddress1, $bcity, $bstate, $bzipcode, $bphone, $bemail, $bconfirmemail, $CardType, $AccountNumber, $ExpirationMonth,$ExpirationYear;
+	global $username, $password, $password2, $bfirstname, $blastname, $baddress1, $bcity, $bstate, $bzipcode, $bphone, $bemail, $bconfirmemail, $CardType, $AccountNumber, $ExpirationMonth, $ExpirationYear;
 	
 	$order_id = $_REQUEST['order_id'];
 	$bfirstname = $_REQUEST['bfirstname'];	
@@ -56,10 +91,11 @@
 	$ExpirationYear = $_REQUEST['ExpirationYear'];
 	$CVV = $_REQUEST['CVV'];
 	
+	$discount_code = $_REQUEST['discount_code'];
 	$username = $_REQUEST['username'];
 	$password = $_REQUEST['password'];
 	$password2 = $_REQUEST['password2'];
-	$tos = $_REQUEST['tos'];
+	$tos = $_REQUEST['tos'];		
 	
 	//_x stuff in case they clicked on the image button with their mouse
 	$submit = $_REQUEST['submit-checkout'];
@@ -67,8 +103,17 @@
 	if($submit === "0") $submit = true;
 		
 	//check their fields if they clicked continue
-	if($submit)
+	if($submit && $pmpro_msgt != "pmpro_error")
 	{		
+		//if we're skipping the account fields and there is no user, we need to create a username and password
+		if($skip_account_fields && !$current_user->ID)
+		{
+			$username = pmpro_generateUsername($bfirstname, $blastname, $bemail);
+			$password = pmpro_getDiscountCode() . pmpro_getDiscountCode();	//using two random discount codes
+			$password2 = $password;
+		}
+		
+		
 		if($pmpro_requirebilling && (!$bfirstname || !$blastname || !$baddress1 || !$bcity || !$bstate || !$bzipcode || !$bphone || !$bemail || !$CardType || !$AccountNumber || !$ExpirationMonth || !$ExpirationYear || !$CVV))
 		{
 			//krumo(array($bname, $baddress1, $bcity, $bstate, $bzipcode, $bemail, $name, $address1, $city, $state, $zipcode));
@@ -117,6 +162,9 @@
 				{
 					$oldusername = $wpdb->get_var("SELECT user_login FROM $wpdb->users WHERE user_login = '" . $wpdb->escape($username) . "' LIMIT 1");
 					$oldemail = $wpdb->get_var("SELECT user_email FROM $wpdb->users WHERE user_email = '" . $wpdb->escape($bemail) . "' LIMIT 1");
+					
+					//this hook can be used to allow multiple accounts with the same email address
+					$oldemail = apply_filters("pmpro_checkout_oldemail", $oldemail);
 				}
 				
 				if($oldusername)
@@ -133,7 +181,7 @@
 				{			
 					//check recaptch first
 					global $recaptcha;
-					if(!$current_user && ($recaptcha == 2 || ($recaptcha == 1 && !(float)$pmpro_level->billing_amount && !(float)$pmpro_level->trial_amount)))
+					if(!$skip_account_fields && ($recaptcha == 2 || ($recaptcha == 1 && !(float)$pmpro_level->billing_amount && !(float)$pmpro_level->trial_amount)))
 					{
 						global $recaptcha_privatekey;					
 						$resp = recaptcha_check_answer($recaptcha_privatekey,
@@ -163,6 +211,7 @@
 							$morder = new MemberOrder();			
 							$morder->membership_id = $pmpro_level->id;
 							$morder->membership_name = $pmpro_level->name;
+							$morder->discount_code = $discount_code;
 							$morder->InitialPayment = $pmpro_level->initial_payment;
 							$morder->PaymentAmount = $pmpro_level->billing_amount;
 							$morder->ProfileStartDate = date("Y-m-d") . "T0:0:0";
@@ -187,8 +236,8 @@
 							$morder->expirationyear = $ExpirationYear;
 							$morder->ExpirationDate = $ExpirationMonth . $ExpirationYear;
 							$morder->ExpirationDate_YdashM = $ExpirationYear . "-" . $ExpirationMonth;
-							$morder->CVV2 = $CVV;
-											
+							$morder->CVV2 = $CVV;												
+							
 							//not saving email in order table, but the sites need it
 							$morder->Email = $bemail;
 							
@@ -215,11 +264,11 @@
 							//tax
 							$morder->subtotal = $morder->InitialPayment;
 							$morder->getTax();						
-													
+														
 							if($morder->process())
 							{
 								$pmpro_msg = "Payment accepted.";
-								$pmpro_msgt = "pmpro_success";	
+								$pmpro_msgt = "pmpro_success";																	
 							}			
 							else
 							{
@@ -272,8 +321,18 @@
 						
 						if($user_id)
 						{				
+							//calculate the end date
+							if($pmpro_level->expiration_number)
+							{
+								$enddate = "'" . date("Y-m-d", strtotime("+ " . $pmpro_level->expiration_number . " " . $pmpro_level->expiration_period)) . "'";
+							}
+							else
+							{
+								$enddate = "NULL";
+							}
+							
 							//update membership_user table.
-							$sqlQuery = "REPLACE INTO $wpdb->pmpro_memberships_users (user_id, membership_id, initial_payment, billing_amount, cycle_number, cycle_period, billing_limit, trial_amount, trial_limit, startdate) 
+							$sqlQuery = "REPLACE INTO $wpdb->pmpro_memberships_users (user_id, membership_id, initial_payment, billing_amount, cycle_number, cycle_period, billing_limit, trial_amount, trial_limit, startdate, enddate) 
 								VALUES('" . $user_id . "',
 								'" . $pmpro_level->id . "',
 								'" . $pmpro_level->initial_payment . "',
@@ -283,63 +342,85 @@
 								'" . $pmpro_level->billing_limit . "',
 								'" . $pmpro_level->trial_amount . "',
 								'" . $pmpro_level->trial_limit . "',
-								NOW())";
-							mysql_query($sqlQuery);
-					
-							//add an item to the history table, cancel old subscriptions						
-							if($morder)
+								NOW(),
+								" . $enddate . ")";
+							
+							if($wpdb->query($sqlQuery) !== false)
 							{
-								$morder->user_id = $user_id;
-								$morder->membership_id = $pmpro_level->id;
-															
-								$morder->saveOrder();
-																
-								//cancel any other subscriptions they have
-								$other_order_ids = $wpdb->get_col("SELECT id FROM $wpdb->pmpro_membership_orders WHERE user_id = '" . $current_user->ID . "' AND id <> '" . $morder->id . "' AND status = 'success' ORDER BY id DESC");
-								foreach($other_order_ids as $order_id)
+								//we're good
+								//add an item to the history table, cancel old subscriptions						
+								if($morder)
 								{
-									$c_order = new MemberOrder($order_id);
-									$c_order->cancel();		
+									$morder->user_id = $user_id;
+									$morder->membership_id = $pmpro_level->id;
+																
+									$morder->saveOrder();																
+									
+									//cancel any other subscriptions they have
+									$other_order_ids = $wpdb->get_col("SELECT id FROM $wpdb->pmpro_membership_orders WHERE user_id = '" . $current_user->ID . "' AND id <> '" . $morder->id . "' AND status = 'success' ORDER BY id DESC");
+									foreach($other_order_ids as $order_id)
+									{
+										$c_order = new MemberOrder($order_id);
+										$c_order->cancel();		
+									}						
 								}
-						
+							
+								//update the current user
+								global $current_user;
+								if(!$current_user->ID && $user->ID)
+									$current_user = $user;		//in case the user just signed up
+								pmpro_set_current_user();
+							
+								//add discount code use
+								if($discount_code && $use_discount_code)
+								{
+									$discount_code_id = $wpdb->get_var("SELECT id FROM $wpdb->pmpro_discount_codes WHERE code = '" . $discount_code . "' LIMIT 1");
+									$wpdb->query("INSERT INTO $wpdb->pmpro_discount_codes_uses (code_id, user_id, order_id, timestamp) VALUES('" . $discount_code_id . "', '" . $current_user->ID . "', '" . $morder->id . "', now())");
+								}
+							
+								//save billing info ect, as user meta																		
+								$meta_keys = array("pmpro_bfirstname", "pmpro_blastname", "pmpro_baddress1", "pmpro_baddress2", "pmpro_bcity", "pmpro_bstate", "pmpro_bzipcode", "pmpro_bphone", "pmpro_bemail", "pmpro_CardType", "pmpro_AccountNumber", "pmpro_ExpirationMonth", "pmpro_ExpirationYear");
+								$meta_values = array($bfirstname, $blastname, $baddress1, $baddress2, $bcity, $bstate, $bzipcode, $bphone, $bemail, $CardType, hideCardNumber($AccountNumber), $ExpirationMonth, $ExpirationYear);						
+								pmpro_replaceUserMeta($user_id, $meta_keys, $meta_values);	
+													
+								//show the confirmation
+								$ordersaved = true;
+													
+								//hook
+								do_action("pmpro_after_checkout", $user_id);						
+								do_action("pmpro_after_change_membership_level", $pmpro_level->id, $user_id);																									
+								//send email
+								$pmproemail = new PMProEmail();
+								if($morder)
+									$invoice = new MemberOrder($morder->id);						
+								else
+									$invoice = NULL;
+								$user->membership_level = $pmpro_level;		//make sure they have the right level info
+								$pmproemail->sendCheckoutEmail($current_user, $invoice);
+																
+								//redirect to confirmation
+								wp_redirect(pmpro_url("confirmation"));
+								exit;
 							}
-						
-							//update the current user
-							global $current_user;
-							if(!$current_user->ID && $user->ID)
-								$current_user = $user;		//in case the user just signed up
-							pmpro_set_current_user();
-						
-							//save billing info ect, as user meta																		
-							$meta_keys = array("pmpro_bfirstname", "pmpro_blastname", "pmpro_baddress1", "pmpro_baddress2", "pmpro_bcity", "pmpro_bstate", "pmpro_bzipcode", "pmpro_bphone", "pmpro_bemail", "pmpro_CardType", "pmpro_AccountNumber", "pmpro_ExpirationMonth", "pmpro_ExpirationYear");
-							$meta_values = array($bfirstname, $blastname, $baddress1, $baddress2, $bcity, $bstate, $bzipcode, $bphone, $bemail, $CardType, hideCardNumber($AccountNumber), $ExpirationMonth, $ExpirationYear);						
-							pmpro_replaceUserMeta($user_id, $meta_keys, $meta_values);	
-												
-							//show the confirmation
-							$ordersaved = true;
-												
-							//hook
-							do_action("pmpro_after_checkout", $user_id);						
-							do_action("pmpro_after_change_membership_level", $pmpro_level->id, $user_id);																									
-							//send email
-							$pmproemail = new PMProEmail();
-							if($morder)
-								$invoice = new MemberOrder($morder->id);						
 							else
-								$invoice = NULL;
-							$user->membership_level = $pmpro_level;		//make sure they have the right level info
-							$pmproemail->sendCheckoutEmail($current_user, $invoice);
-										
-							//redirect to confirmation
-							wp_redirect(pmpro_url("confirmation"));
-							exit;
+							{
+								//uh oh. we charged them then the membership creation failed
+								if($morder->cancel())
+								{
+									$pmpro_msg = "IMPORTANT: Something went wrong during membership creation. Your credit card authorized, but we cancelled the order immediately. You should not try to submit this form again. Please contact the site owner to fix this issue.";
+									$morder = NULL;
+								}
+								else
+									$pmpro_msg = "IMPORTANT: Something went wrong during membership creation. Your credit card was charged, but we couldn't assign your membership. You should not submit this form again. Please contact the site owner to fix this issue.";
+								$pmpro_error;
+							}												
 						}
 					}						
 				}
 			}	//endif($pmpro_continue_registration)
 		}
 	}
-	else
+	elseif(!$submit)
 	{
 		//show message if the payment gateway is not setup yet
 		if($pmpro_requirebilling && !pmpro_getOption("gateway"))

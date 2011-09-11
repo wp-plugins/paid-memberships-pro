@@ -4,9 +4,27 @@
 	$s = $_REQUEST['s'];
 	$l = $_REQUEST['l'];
 ?>
-<div class="wrap">
-	<form id="posts-filter" method="get" action="">
-	<div id="icon-users" class="icon32"><br /></div>
+<div class="wrap pmpro_admin">	
+	<div class="pmpro_banner">		
+		<a class="pmpro_logo" title="Paid Memberships Pro - Membership Plugin for WordPress" target="_blank" href="<?=pmpro_https_filter("http://www.paidmembershipspro.com")?>"><img src="<?=PMPRO_URL?>/images/PaidMembershipsPro.gif" width="350" height="45" border="0" alt="Paid Memberships Pro(c) - All Rights Reserved" /></a>
+		<div class="pmpro_tagline">Membership Plugin for WordPress</div>
+		
+		<div class="pmpro_meta"><a href="<?=pmpro_https_filter("http://www.paidmembershipspro.com")?>">Plugin Support</a> | <a href="http://www.paidmembershipspro.com/forums/">User Forum</a> | <strong>Version <?=PMPRO_VERSION?></strong></div>
+	</div>
+	<br style="clear:both;" />
+	
+	<?php
+		//include(pmpro_https_filter("http://www.paidmembershipspro.com/notifications/?v=" . PMPRO_VERSION));
+	?>
+	<div id="pmpro_notifications">
+	</div>
+	<script>
+		jQuery.get('<?=pmpro_https_filter("http://www.paidmembershipspro.com/notifications/?v=" . PMPRO_VERSION)?>', function(data) {
+		  jQuery('#pmpro_notifications').html(data);		 
+		});
+	</script>
+
+	<form id="posts-filter" method="get" action="">	
 	<h2>
 		Members Report
 		<small>(<a target="_blank" href="<?=PMPRO_URL?>/adminpages/memberslist-csv.php?s=<?=$s?>&l=<?=$l?>">Export to CSV</a>)</small>
