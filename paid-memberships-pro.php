@@ -2,13 +2,13 @@
 /*
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
-Description: Plugin to Handle Memberships. Pulled from the Stranger Products plugin.
-Version: 1.2.4
+Description: Plugin to Handle Memberships
+Version: 1.2.5
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
 /*	
-	Copyright 2010	Stranger Studios	(email : jason@strangerstudios.com)	 
+	Copyright 2011	Stranger Studios	(email : jason@strangerstudios.com)	 
 	GPLv2 Full license details in license.txt
 */
 
@@ -51,7 +51,7 @@ $urlparts = split("//", get_bloginfo("home"));
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.2.4");
+define("PMPRO_VERSION", "1.2.5");
 
 global $gateway_environment;
 $gateway_environment = pmpro_getOption("gateway_environment");
@@ -167,7 +167,7 @@ function pmpro_is_ready()
 			else
 				$pmpro_gateway_ready = false;
 		}
-		elseif($gateway == "paypal")
+		elseif($gateway == "paypal" || $gateway == "paypalexpress")
 		{
 			if(pmpro_getOption("gateway_environment") && pmpro_getOption("gateway_email") && pmpro_getOption("apiusername") && pmpro_getOption("apipassword") && pmpro_getOption("apisignature"))
 				$pmpro_gateway_ready = true;
@@ -200,6 +200,8 @@ function pmpro_is_ready()
 }
 function pmpro_init()
 {
+	require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/countries.php");
+	
 	global $pmpro_pages, $pmpro_ready;
 	$pmpro_pages = array();
 	$pmpro_pages["account"] = pmpro_getOption("account_page_id");

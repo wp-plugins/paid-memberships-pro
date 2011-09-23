@@ -1,6 +1,8 @@
 <?php
-	global $skip_account_fields, $wpdb, $current_user, $pmpro_msg, $pmpro_msgt, $pmpro_requirebilling, $pmpro_level, $tospage;
+	global $pmpro_review, $skip_account_fields, $pmpro_paypal_token, $wpdb, $current_user, $pmpro_msg, $pmpro_msgt, $pmpro_requirebilling, $pmpro_level, $tospage;
 	global $discount_code, $username, $password, $password2, $bfirstname, $blastname, $baddress1, $bcity, $bstate, $bzipcode, $bphone, $bemail, $bconfirmemail, $CardType, $AccountNumber, $ExpirationMonth,$ExpirationYear;
+	
+	$gateway = pmpro_getOption("gateway");
 ?>
 
 <form class="pmpro_form" action="<?=pmpro_url("checkout", "", "https")?>" method="post">
@@ -20,6 +22,10 @@
 		}
 	?>
 	
+	<?php if($pmpro_review) { ?>
+		<p>Almost done. Review the membership information and pricing below then <strong>click the "Complete Payment" button</strong> to finish your order.</p>
+	<?php } ?>
+		
 	<table class="pmpro_checkout" width="100%" cellpadding="0" cellspacing="0" border="0">
 	<thead>
 		<tr>
@@ -30,7 +36,7 @@
 	</thead>
 	<tbody>                
 		<tr>
-			<td>
+			<td>				
 				<p>You have selected the <strong><?=$pmpro_level->name?></strong> membership level.</p>
 				
 				<p id="pmpro_level_cost">
@@ -41,10 +47,12 @@
 					<?=pmpro_getLevelExpiration($pmpro_level)?>
 				</p>
 				
-				<?php if($discount_code) { ?>
+				<?php if($discount_code && !$pmpro_review) { ?>
 					<p id="other_discount_code_p" class="pmpro_small"><a id="other_discount_code_a" href="#discount_code">Click here to change your discount code</a>.</p>
-				<?php } else { ?>
+				<?php } elseif(!$pmpro_review) { ?>
 					<p id="other_discount_code_p" class="pmpro_small">Do you have a discount code? <a id="other_discount_code_a" href="#discount_code">Click here to enter your discount code</a>.</p>
+				<?php } elseif($pmpro_review && $discount_code) { ?>
+					<p><strong>Discount Code:</strong> <?=$discount_code?></p>
 				<?php } ?>
 								
 			</td>
@@ -126,7 +134,7 @@
 		});
 	</script>
 	
-	<?php if(!$skip_account_fields) { ?>
+	<?php if(!$skip_account_fields && !$pmpro_review) { ?>
 	<table class="pmpro_checkout" width="100%" cellpadding="0" cellspacing="0" border="0">
 	<thead>
 		<tr>
@@ -194,12 +202,12 @@
 				
 			</td>
 	</table>   
-	<?php } elseif($current_user->ID) { ?>                        	                       										
+	<?php } elseif($current_user->ID && !$pmpro_review) { ?>                        	                       										
 		<p>You are logged in as <strong><?=$current_user->user_login?></strong>. If you would like to use a different account for this membership, <a href="<?=wp_logout_url(pmpro_url("checkout", "?level=" . $pmpro_level->id));?>">log out now</a>.</p>
 	<?php } ?>
 	
 	<?php					
-		if($tospage)
+		if($tospage && !$pmpro_review)
 		{						
 		?>
 		<table class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -223,7 +231,7 @@
 		}
 	?>
 				
-	<table id="pmpro_billing_address_fields" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0" <?php if(!$pmpro_requirebilling) { ?>style="display: none;"<?php } ?>>
+	<table id="pmpro_billing_address_fields" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0" <?php if(!$pmpro_requirebilling || $gateway == "paypalexpress") { ?>style="display: none;"<?php } ?>>
 	<thead>
 		<tr>
 			<th>Billing Address</th>
@@ -248,10 +256,67 @@
 					<label for="baddress2">Address 2</label>
 					<input id="baddress2" name="baddress2" type="text" class="input" size="30" value="<?=$baddress2?>" /> <small class="lite">(optional)</small>
 				</div>
+				
+				<?php
+					$longform_address = apply_filters("pmpro_longform_address", false);
+					if($longform_address)
+					{
+				?>
+					<div>
+						<label for="bcity">City</label>
+						<input id="bcity" name="bcity" type="text" class="input" size="30" value="<?=$bcity?>" /> 
+					</div>
+					<div>
+						<label for="bstate">State</label>
+						<input id="bstate" name="bstate" type="text" class="input" size="30" value="<?=$bstate?>" /> 
+					</div>
+					<div>
+						<label for="bzipcode">Zip/Postal Code</label>
+						<input id="bzipcode" name="bzipcode" type="text" class="input" size="30" value="<?=$bzipcode?>" /> 
+					</div>					
+				<?php
+					}
+					else
+					{
+					?>
+					<div>
+						<label for="bcity_state_zip">City, State Zip</label>
+						<input id="bcity" name="bcity" type="text" class="input" size="14" value="<?=$bcity?>" />, <input id="bstate" name="bstate" type="text" class="input" size="2" value="<?=$bstate?>" /> <input id="bzipcode" name="bzipcode" type="text" class="input" size="5" value="<?=$bzipcode?>" /> 
+					</div>
+					<?php
+					}
+				?>
+				
+				<?php
+					$show_country = apply_filters("pmpro_international_addresses", false);
+					if($show_country)
+					{
+				?>
 				<div>
-					<label for="bcity_state_zip">City, State Zip</label>
-					<input id="bcity" name="bcity" type="text" class="input" size="14" value="<?=$bcity?>" />, <input id="bstate" name="bstate" type="text" class="input" size="2" value="<?=$bstate?>" /> <input id="bzipcode" name="bzipcode" type="text" class="input" size="5" value="<?=$bzipcode?>" /> 
+					<label for="bcountry">Country</label>
+					<select name="bcountry">
+						<?php
+							global $pmpro_countries, $pmpro_default_country;
+							foreach($pmpro_countries as $abbr => $country)
+							{
+								if(!$bcountry)
+									$bcountry = $pmpro_default_country;
+							?>
+							<option value="<?=$abbr?>" <?php if($abbr == $bcountry) { ?>selected="selected"<?php } ?>><?=$country?></option>
+							<?php
+							}
+						?>
+					</select>
 				</div>
+				<?php
+					}
+					else
+					{
+					?>
+						<input type="hidden" name="bcountry" value="US" />
+					<?php
+					}
+				?>
 				<div>
 					<label for="bphone">Phone</label>
 					<input id="bphone" name="bphone" type="text" class="input" size="30" value="<?=$bphone?>" /> 
@@ -300,7 +365,7 @@
 		}
 	?>
 	
-	<table id="pmpro_payment_information_fields" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0" <?php if(!$pmpro_requirebilling) { ?>style="display: none;"<?php } ?>>
+	<table id="pmpro_payment_information_fields" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0" <?php if(!$pmpro_requirebilling || $gateway == "paypalexpress") { ?>style="display: none;"<?php } ?>>
 	<thead>
 		<tr>
 			<th colspan="2"><span class="pmpro_thead-msg">We Accept <?=$pmpro_accepted_credit_cards_string?></span>Payment Information</th>
@@ -416,9 +481,18 @@
 		});
 	</script>
 	
-	<div align="center">
-		<input type="hidden" name="submit-checkout" value="1" />
-		<input type="submit" class="pmpro_btn pmpro_btn-submit-checkout" value="Submit and <?php if($pmpro_requirebilling) { ?>Checkout<?php } else { ?>Confirm<?php } ?> &raquo;" />
+	<div align="center">		
+		<?php if($pmpro_review) { ?>
+			<input type="hidden" name="confirm" value="1" />
+			<input type="hidden" name="token" value="<?=$pmpro_paypal_token?>" />
+			<input type="submit" class="pmpro_btn pmpro_btn-submit-checkout" value="Complete Payment &raquo;" />
+		<?php } elseif($gateway == "paypalexpress") { ?>
+			<input type="hidden" name="submit-checkout" value="1" />		
+			<input type="image" value="Checkout with PayPal &raquo;" src="https://www.paypal.com/en_US/i/btn/btn_xpressCheckout.gif" />
+		<?php } else { ?>
+			<input type="hidden" name="submit-checkout" value="1" />		
+			<input type="submit" class="pmpro_btn pmpro_btn-submit-checkout" value="Submit and <?php if($pmpro_requirebilling) { ?>Checkout<?php } else { ?>Confirm<?php } ?> &raquo;" />
+		<?php } ?>
 	</div>	
 		
 </form>
