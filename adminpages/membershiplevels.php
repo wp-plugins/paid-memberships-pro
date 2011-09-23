@@ -289,7 +289,7 @@
 		<a href="admin.php?page=pmpro-membershiplevels&view=pages" class="nav-tab<?php if($view == 'pages') { ?> nav-tab-active<?php } ?>">Pages</a>
 		<a href="admin.php?page=pmpro-membershiplevels&view=payment" class="nav-tab<?php if($view == 'payment') { ?> nav-tab-active<?php } ?>">SSL &amp; Payment Gateway</a>
 		<a href="admin.php?page=pmpro-membershiplevels&view=email" class="nav-tab<?php if($view == 'email') { ?> nav-tab-active<?php } ?>">Email</a>
-		<a href="admin.php?page=pmpro-membershiplevels&view=advanced" class="nav-tab<?php if($view == 'advanced') { ?> nav-tab-active<?php } ?>">Advanced</a>
+		<a href="admin.php?page=pmpro-membershiplevels&view=advanced" class="nav-tab<?php if($view == 'advanced') { ?> nav-tab-active<?php } ?>">Advanced</a>	
 	</h3>
 	
 	<?php	
@@ -381,7 +381,7 @@
                         <td>
 							$<input name="billing_amount" type="text" size="20" value="<?=str_replace("\"", "&quot;", stripslashes($level->billing_amount))?>" /> <small>per</small>
 							<input id="cycle_number" name="cycle_number" type="text" size="10" value="<?=str_replace("\"", "&quot;", stripslashes($level->cycle_number))?>" />
-							<select id="cycle_period" name="cycle_period" onchange="updateCyclePeriod();">
+							<select id="cycle_period" name="cycle_period">
 							  <?php
 								$cycles = array( 'Day(s)' => 'Day', 'Week(s)' => 'Week', 'Month(s)' => 'Month', 'Year(s)' => 'Year' );
 								foreach ( $cycles as $name => $value ) {
@@ -391,14 +391,7 @@
 								}
 							  ?>
 							</select>
-							<br /><small>The amount to be billed one cycle after the initial payment.</small>
-							<script>
-								function updateCyclePeriod()
-								{
-									jQuery('#trial_cycle_period_select').val(jQuery('#cycle_period').val());
-									jQuery('#trial_cycle_period').val(jQuery('#cycle_period').val());
-								}
-							</script>
+							<br /><small>The amount to be billed one cycle after the initial payment.</small>							
 						</td>
                     </tr>                                        
                     
@@ -406,7 +399,7 @@
                         <th scope="row" valign="top"><label for="billing_limit">Billing Cycle Limit:</label></th>
                         <td>
 							<input name="billing_limit" type="text" size="20" value="<?=$level->billing_limit?>" />
-							<br /><small>The <strong>total</strong> number of billing cycles for this level, including the trial period (if applicable). Set to zero if membership is indefinite.</small>
+							<br /><small>The <strong>total</strong> number of recurring billing cycles for this level, including the trial period (if applicable) but not including the initial payment. Set to zero if membership is indefinite.</small>
 						</td>
                     </tr>            								
 	
@@ -424,6 +417,7 @@
                             <small>subscription payments.</small>																			
 						</td>
                     </tr>
+										 
 				</tbody>
 			</table>
 			<h3 class="topborder">Other Settings</h3>
@@ -433,6 +427,29 @@
                         <th scope="row" valign="top"><label>Disable New Signups:</label></th>
                         <td><input name="disable_signups" type="checkbox" value="yes" <?php if($level->id && !$level->allow_signups) { ?>checked="checked"<?php } ?> /> Check to hide this level from the membership levels page and disable registration.</td>
                     </tr>
+					
+					<tr>
+                        <th scope="row" valign="top"><label>Membership Expiration:</label></th>
+                        <td><input id="expiration" name="expiration" type="checkbox" value="yes" <?php if(pmpro_isLevelExpiring($level)) { echo "checked='checked'"; } ?> onclick="if(jQuery('#expiration').is(':checked')) { jQuery('.expiration_info').show(); } else { jQuery('.expiration_info').hide();}" /> <small>Check this to set an expiration date for new sign ups.</small></td>
+                    </tr>
+					
+					<tr class="expiration_info" <?php if(!pmpro_isLevelExpiring($level)) {?>style="display: none;"<?php } ?>>
+                        <th scope="row" valign="top"><label for="billing_amount">Expire In:</label></th>
+                        <td>							
+							<input id="expiration_number" name="expiration_number" type="text" size="10" value="<?=str_replace("\"", "&quot;", stripslashes($level->expiration_number))?>" />
+							<select id="expiration_period" name="expiration_period">
+							  <?php
+								$cycles = array( 'Day(s)' => 'Day', 'Week(s)' => 'Week', 'Month(s)' => 'Month', 'Year(s)' => 'Year' );
+								foreach ( $cycles as $name => $value ) {
+								  echo "<option value='$value'";
+								  if ( $level->expiration_period == $value ) echo " selected='selected'";
+								  echo ">$name</option>";
+								}
+							  ?>
+							</select>
+							<br /><small>How long before the expiration expires. Not that any future payments will be canceled when the membership expires.</small>							
+						</td>
+                    </tr> 
 				</tbody>
 			</table>
 			<h3 class="topborder">Content Settings</h3>
@@ -494,6 +511,10 @@
                         <?php
 							wp_dropdown_pages(array("name"=>"account_page_id", "show_option_none"=>"-- Choose One --", "selected"=>$pmpro_pages[account]));
 						?>	
+						<?php if($pmpro_pages[account]) { ?>
+							<a target="_blank" href="post.php?post=<?=$pmpro_pages[account]?>&action=edit" class="pmpro_page_edit">edit page</a>
+						<?php } ?>
+						<br /><small class="pmpro_lite">Include the shortcode [pmpro_account].</small>
 					</td>
 				<tr>
                     <th scope="row" valign="top">
@@ -503,6 +524,10 @@
                         <?php
 							wp_dropdown_pages(array("name"=>"billing_page_id", "show_option_none"=>"-- Choose One --", "selected"=>$pmpro_pages[billing]));
 						?>
+						<?php if($pmpro_pages[billing]) { ?>
+							<a target="_blank" href="post.php?post=<?=$pmpro_pages[billing]?>&action=edit" class="pmpro_page_edit">edit page</a>
+						<?php } ?>
+						<br /><small class="pmpro_lite">Include the shortcode [pmpro_billing].</small>
 					</td>
 				<tr>
                     <th scope="row" valign="top">	
@@ -512,46 +537,66 @@
                         <?php
 							wp_dropdown_pages(array("name"=>"cancel_page_id", "show_option_none"=>"-- Choose One --", "selected"=>$pmpro_pages[cancel]));
 						?>	
+						<?php if($pmpro_pages[cancel]) { ?>
+							<a target="_blank" href="post.php?post=<?=$pmpro_pages[cancel]?>&action=edit" class="pmpro_page_edit">edit page</a>
+						<?php } ?>
+						<br /><small class="pmpro_lite">Include the shortcode [pmpro_cancel].</small>
 					</td>
 				</tr>
 				<tr>
                     <th scope="row" valign="top">	
-						<label for="cancel_page_id">Checkout Page:</label>
+						<label for="checkout_page_id">Checkout Page:</label>
 					</th>
 					<td>
                         <?php
 							wp_dropdown_pages(array("name"=>"checkout_page_id", "show_option_none"=>"-- Choose One --", "selected"=>$pmpro_pages[checkout]));
 						?>
+						<?php if($pmpro_pages[checkout]) { ?>
+							<a target="_blank" href="post.php?post=<?=$pmpro_pages[checkout]?>&action=edit" class="pmpro_page_edit">edit page</a>
+						<?php } ?>
+						<br /><small class="pmpro_lite">Include the shortcode [pmpro_checkout].</small>
 					</td>
 				</tr>
 				<tr>
                     <th scope="row" valign="top">		
-						<label for="cancel_page_id">Confirmation Page:</label>
+						<label for="confirmation_page_id">Confirmation Page:</label>
 					</th>
 					<td>
                         <?php
 							wp_dropdown_pages(array("name"=>"confirmation_page_id", "show_option_none"=>"-- Choose One --", "selected"=>$pmpro_pages[confirmation]));
 						?>	
+						<?php if($pmpro_pages[confirmation]) { ?>
+							<a target="_blank" href="post.php?post=<?=$pmpro_pages[confirmation]?>&action=edit" class="pmpro_page_edit">edit page</a>
+						<?php } ?>
+						<br /><small class="pmpro_lite">Include the shortcode [pmpro_confirmation].</small>
 					</td>
 				</tr>
 				<tr>
                     <th scope="row" valign="top">	
-						<label for="cancel_page_id">Invoice Page:</label>
+						<label for="invoice_page_id">Invoice Page:</label>
 					</th>
 					<td>
                         <?php
 							wp_dropdown_pages(array("name"=>"invoice_page_id", "show_option_none"=>"-- Choose One --", "selected"=>$pmpro_pages[invoice]));
 						?>
+						<?php if($pmpro_pages[invoice]) { ?>
+							<a target="_blank" href="post.php?post=<?=$pmpro_pages[invoice]?>&action=edit" class="pmpro_page_edit">edit page</a>
+						<?php } ?>
+						<br /><small class="pmpro_lite">Include the shortcode [pmpro_invoice].</small>
 					</td>
 				</tr>
 				<tr>
                     <th scope="row" valign="top">	
-						<label for="cancel_page_id">Levels Page:</label>
+						<label for="levels_page_id">Levels Page:</label>
 					</th>
 					<td>
                         <?php
 							wp_dropdown_pages(array("name"=>"levels_page_id", "show_option_none"=>"-- Choose One --", "selected"=>$pmpro_pages[levels]));
 						?>
+						<?php if($pmpro_pages[levels]) { ?>
+							<a target="_blank" href="post.php?post=<?=$pmpro_pages[levels]?>&action=edit" class="pmpro_page_edit">edit page</a>
+						<?php } ?>
+						<br /><small class="pmpro_lite">Include the shortcode [pmpro_levels].</small>
 					</td>
 				</tr>				
 			</tbody>
@@ -587,7 +632,8 @@
 					<td>
                         <select id="gateway" name="gateway" onchange="pmpro_changeGateway(jQuery(this).val());">
 							<option value="">-- choose one --</option>
-                        	<option value="paypal" <?php if($gateway == "paypal") { ?>selected="selected"<?php } ?>>PayPal</option>
+                        	<option value="paypalexpress" <?php if($gateway == "paypalexpress") { ?>selected="selected"<?php } ?>>PayPal Express</option>
+							<option value="paypal" <?php if($gateway == "paypal") { ?>selected="selected"<?php } ?>>PayPal Website Payments Pro</option>
 							<option value="authorizenet" <?php if($gateway == "authorizenet") { ?>selected="selected"<?php } ?>>Authorize.net</option>
                         </select>                        
                     </td>
@@ -612,7 +658,7 @@
 						</script>
                     </td>
                </tr>
-               <tr class="gateway gateway_paypal" <?php if($gateway != "paypal") { ?>style="display: none;"<?php } ?>>
+               <tr class="gateway gateway_paypal gateway_paypalexpress" <?php if($gateway != "paypal" && $gateway != "paypalexpress") { ?>style="display: none;"<?php } ?>>
                     <th scope="row" valign="top">	
                     	<label for="gateway_email">Gateway Account Email:</label>
 					</th>
@@ -620,7 +666,7 @@
                         <input type="text" name="gateway_email" size="60" value="<?=$gateway_email?>" />
                     </td>
                 </tr>                
-				<tr class="gateway gateway_paypal" <?php if($gateway != "paypal") { ?>style="display: none;"<?php } ?>>
+				<tr class="gateway gateway_paypal gateway_paypalexpress" <?php if($gateway != "paypal" && $gateway != "paypalexpress") { ?>style="display: none;"<?php } ?>>
                     <th scope="row" valign="top">
                     	<label for="apiusername">API Username:</label>
 					</th>
@@ -628,7 +674,7 @@
                         <input type="text" name="apiusername" size="60" value="<?=$apiusername?>" />
                     </td>
                 </tr>
-                <tr class="gateway gateway_paypal" <?php if($gateway != "paypal") { ?>style="display: none;"<?php } ?>>
+                <tr class="gateway gateway_paypal gateway_paypalexpress" <?php if($gateway != "paypal" && $gateway != "paypalexpress") { ?>style="display: none;"<?php } ?>>
                     <th scope="row" valign="top">
                     	<label for="apipassword">API Password:</label>
 					</th>
@@ -636,7 +682,7 @@
                         <input type="text" name="apipassword" size="60" value="<?=$apipassword?>" />
                     </td>
                 </tr> 
-                <tr class="gateway gateway_paypal" <?php if($gateway != "paypal") { ?>style="display: none;"<?php } ?>>
+                <tr class="gateway gateway_paypal gateway_paypalexpress" <?php if($gateway != "paypal" && $gateway != "paypalexpress") { ?>style="display: none;"<?php } ?>>
                     <th scope="row" valign="top">
                     	<label for="apisignature">API Signature:</label>
 					</th>
@@ -660,7 +706,7 @@
                         <input type="text" name="transactionkey" size="60" value="<?=$transactionkey?>" />
                     </td>
                 </tr>
-				<tr>
+				<tr class="gateway gateway_authorizenet gateway_paypal" <?php if($gateway != "authorizenet" && $gateway != "paypal") { ?>style="display: none;"<?php } ?>>
                     <th scope="row" valign="top">
                     	<label for="creditcards">Accepted Credit Card Types</label>
 					</th>
@@ -671,7 +717,7 @@
 						<input type="checkbox" name="creditcards_discover" value="1" <?php if(in_array("Discover", $pmpro_accepted_credit_cards)) { ?>checked="checked"<?php } ?> /> Discover<br />
                     </td>
                 </tr>
-				<tr>
+				<tr class="gateway gateway_authorizenet gateway_paypal gateway_paypalexpress" <?php if($gateway != "authorizenet" && $gateway != "paypal") { ?>style="display: none;"<?php } ?>>
 					<th scope="row" valign="top">
 						<label for="tax">Sales Tax <small>(optional)</small></label>
 					</th>
@@ -964,6 +1010,7 @@ if(pmpro_displayAds())
 				<th>Initial Payment</th>
 				<th>Billing Cycle</th>        
 				<th>Trial Cycle</th>
+				<th>Expiration</th>
 				<th>Allow Signups</th>
 				<th></th>
 				<th></th>
@@ -1007,6 +1054,13 @@ if(pmpro_displayAds())
 						--
 					<?php } else { ?>		
 						$<?=$level->trial_amount?> for <?=$level->trial_limit?> <?=sornot("payment",$level->trial_limit)?>
+					<?php } ?>
+				</td>
+				<td>
+					<?php if(!pmpro_isLevelExpiring($level)) { ?>
+						--
+					<?php } else { ?>		
+						After <?=$level->expiration_number?> <?=sornot($level->expiration_period,$level->expiration_number)?>
 					<?php } ?>
 				</td>
 				<td><?php if($level->allow_signups) { ?>Yes<?php } else { ?>No<?php } ?></td>
