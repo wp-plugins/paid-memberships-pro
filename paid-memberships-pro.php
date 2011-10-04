@@ -51,7 +51,7 @@ $urlparts = split("//", get_bloginfo("home"));
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.2.5");
+define("PMPRO_VERSION", "1.2.6");
 
 global $gateway_environment;
 $gateway_environment = pmpro_getOption("gateway_environment");
