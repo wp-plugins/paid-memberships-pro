@@ -1,5 +1,5 @@
 <?php 
-global $wpdb, $pmpro_msg, $pmpro_msgt, $pmpro_levels, $current_user;
+global $wpdb, $pmpro_msg, $pmpro_msgt, $pmpro_levels, $current_user, $pmpro_currency_symbol;
 if($pmpro_msg)
 {
 ?>
@@ -30,14 +30,14 @@ if($pmpro_msg)
 			<?php if(pmpro_isLevelFree($level)) { ?>
 				<strong>Free</strong>
 			<?php } else { ?>
-				$<?=$level->initial_payment?>
+				<?=$pmpro_currency_symbol?><?=$level->initial_payment?>
 			<?php } ?>
 		</td>
 		<td>
 		<?php if(pmpro_isLevelFree($level)) { ?>
 			<strong>Free</strong>
 		<?php } elseif(pmpro_isLevelRecurring($level)) { ?>
-			<strong>$<?=$level->billing_amount?></strong>
+			<strong><?=$pmpro_currency_symbol?><?=$level->billing_amount?></strong>
 			<?php if($level->cycle_number == '1') { ?>
 				per <?=sornot($level->cycle_period,$level->cycle_number)?>
 			<?php } else { ?>
@@ -52,15 +52,29 @@ if($pmpro_msg)
 		  if (pmpro_isLevelTrial($level)) 
 		  {			
 			?>
-				<p><?php if($level->trial_amount == '0.00') { ?><strong>Free</strong><?php } else { ?>$<?=$level->trial_amount?><?php } ?> for the first <?=$level->trial_limit.' ' .sornot("payment",$level->trial_limit)?>.</p>
+				<p><?php if($level->trial_amount == '0.00') { ?><strong>Free</strong><?php } else { ?>$<?=$level->trial_amount?><?php } ?> for the next <?=$level->trial_limit.' ' .sornot("payment",$level->trial_limit)?>.</p>
 			<?php
 		  }		  
 		  
-		  if ($level->billing_limit > 0 ) 
+		  if($level->billing_limit > 0 && $level->initial_payment > 0) 
 		  {		
 			?>
-				<p>Membership ends after <strong><?=$level->billing_limit.' '.sornot($level->cycle_period,$level->billing_limit)?></strong>.</p>
+				<p><strong><?=($level->billing_limit+1).' '.sornot("payment",($level->billing_limit+1))?></strong> total.</p>
 			<?php
+		  }
+		  elseif($level->billing_limit)
+		  {
+		   ?>
+				<p><strong><?=$level->billing_limit.' '.sornot("payment",$level->billing_limit)?></strong> total.</p>
+		   <?php
+		  }
+		  
+		  $expiration_text = pmpro_getLevelExpiration($level);
+		  if($expiration_text)
+		  {
+		  ?>
+			<p><?=$expiration_text?></p>
+		  <?php
 		  }
 		?>
 		</td>
