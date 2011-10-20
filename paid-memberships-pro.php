@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships
-Version: 1.2.10
+Version: 1.3
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -51,7 +51,7 @@ $urlparts = split("//", get_bloginfo("home"));
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.2.10");
+define("PMPRO_VERSION", "1.3");
 
 global $gateway_environment;
 $gateway_environment = pmpro_getOption("gateway_environment");
@@ -72,6 +72,26 @@ function pmpro_discountcodes()
 function pmpro_membershiplevels()
 {	
 	require_once(dirname(__FILE__) . "/adminpages/membershiplevels.php");
+}
+
+function pmpro_pagesettings()
+{	
+	require_once(dirname(__FILE__) . "/adminpages/pagesettings.php");
+}
+
+function pmpro_paymentsettings()
+{	
+	require_once(dirname(__FILE__) . "/adminpages/paymentsettings.php");
+}
+
+function pmpro_emailsettings()
+{	
+	require_once(dirname(__FILE__) . "/adminpages/emailsettings.php");
+}
+
+function pmpro_advancedsettings()
+{	
+	require_once(dirname(__FILE__) . "/adminpages/advancedsettings.php");
 }
 
 function pmpro_set_current_user()
@@ -770,6 +790,10 @@ function pmpro_add_pages()
 	global $wpdb;
 	
 	add_menu_page('Memberships', 'Memberships', 'manage_options', 'pmpro-membershiplevels', 'pmpro_membershiplevels', PMPRO_URL . '/images/menu_users.png');	
+	add_submenu_page('pmpro-membershiplevels', 'Page Settings', 'Page Settings', 'manage_options', 'pmpro-pagesettings', 'pmpro_pagesettings');
+	add_submenu_page('pmpro-membershiplevels', 'Payment Settings', 'Payment Settings', 'manage_options', 'pmpro-paymentsettings', 'pmpro_paymentsettings');
+	add_submenu_page('pmpro-membershiplevels', 'Email Settings', 'Email Settings', 'manage_options', 'pmpro-emailsettings', 'pmpro_emailsettings');
+	add_submenu_page('pmpro-membershiplevels', 'Advanced Settings', 'Advanced Settings', 'manage_options', 'pmpro-advancedsettings', 'pmpro_advancedsettings');
 	add_submenu_page('pmpro-membershiplevels', 'Members List', 'Members List', 'manage_options', 'pmpro-memberslist', 'pmpro_memberslist');
 	add_submenu_page('pmpro-membershiplevels', 'Discount Codes', 'Discount Codes', 'manage_options', 'pmpro-discountcodes', 'pmpro_discountcodes');
 	
@@ -777,8 +801,8 @@ function pmpro_add_pages()
 	global $submenu;
 	if($submenu['pmpro-membershiplevels'])
 	{
-		$submenu['pmpro-membershiplevels'][0][0] = "Settings";
-		$submenu['pmpro-membershiplevels'][0][3] = "Settings";	
+		$submenu['pmpro-membershiplevels'][0][0] = "Membership Levels";
+		$submenu['pmpro-membershiplevels'][0][3] = "Membership Levels";	
 	}
 }
 add_action('admin_menu', 'pmpro_add_pages');
@@ -798,23 +822,27 @@ function pmpro_admin_bar_menu() {
 	$wp_admin_bar->add_menu( array(
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Page Settings'),
-	'href' => home_url('/wp-admin/admin.php?page=pmpro-membershiplevels&view=pages') ) );	
+	'href' => home_url('/wp-admin/admin.php?page=pmpro-pagesettings') ) );	
 	$wp_admin_bar->add_menu( array(
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'SSL & Payment Gateway Settings'),
-	'href' => home_url('/wp-admin/admin.php?page=pmpro-membershiplevels&view=payment') ) );	
+	'href' => home_url('/wp-admin/admin.php?page=pmpro-paymentsettings') ) );	
 	$wp_admin_bar->add_menu( array(
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Email Settings'),
-	'href' => home_url('/wp-admin/admin.php?page=pmpro-membershiplevels&view=email') ) );	
+	'href' => home_url('/wp-admin/admin.php?page=pmpro-emailsettings') ) );	
 	$wp_admin_bar->add_menu( array(
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Advanced Settings'),
-	'href' => home_url('/wp-admin/admin.php?page=pmpro-membershiplevels&view=advanced') ) );	
+	'href' => home_url('/wp-admin/admin.php?page=pmpro-advancedsettings') ) );	
 	$wp_admin_bar->add_menu( array(
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Members List'),
 	'href' => home_url('/wp-admin/admin.php?page=pmpro-memberslist') ) );	
+	$wp_admin_bar->add_menu( array(
+	'parent' => 'paid-memberships-pro',
+	'title' => __( 'Discount Codes'),
+	'href' => home_url('/wp-admin/admin.php?page=pmpro-discountcodes') ) );	
 	
 }
 add_action('admin_bar_menu', 'pmpro_admin_bar_menu', 1000);
@@ -1094,7 +1122,8 @@ add_filter('wp_signup_location', 'pmpro_wp_signup_location');
 
 function pmpro_login_head()
 {				
-	if(pmpro_is_login_page() || is_page("login"))
+	$login_redirect = apply_filters("pmpro_login_redirect", true);
+	if((pmpro_is_login_page() || is_page("login")) && $login_redirect)
 	{		
 		//redirect registration page to levels page
 		if($_REQUEST['action'] == "register" || $_REQUEST['registration'] == "disabled")
