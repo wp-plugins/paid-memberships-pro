@@ -341,6 +341,7 @@
 					{
 						$this->voidAuthorizationWithPayPal($authorization_id);						
 						$this->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod)) . "T0:0:0";
+						$this->ProfileStartDate = apply_filters("pmpro_profile_start_date", $this->ProfileStartDate, $this);
 						return $this->processWithPayPal();
 					}
 					else
@@ -359,6 +360,7 @@
 						if(pmpro_isLevelRecurring($this->membership_level))
 						{
 							$this->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod)) . "T0:0:0";
+							$this->ProfileStartDate = apply_filters("pmpro_profile_start_date", $this->ProfileStartDate, $this);
 							return $this->processWithPayPal();
 						}
 						else
@@ -382,6 +384,7 @@
 				if(pmpro_isLevelRecurring($this->membership_level))
 				{
 					$this->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod)) . "T0:0:0";
+					$this->ProfileStartDate = apply_filters("pmpro_profile_start_date", $this->ProfileStartDate, $this);
 					return $this->processWithPayPalExpress();				
 				}
 				else
@@ -395,6 +398,7 @@
 					if($this->authorizeWithAuthorizeNet())
 					{						
 						$this->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod)) . "T0:0:0";						
+						$this->ProfileStartDate = apply_filters("pmpro_profile_start_date", $this->ProfileStartDate, $this);
 						return $this->processWithAuthorizeNet();
 					}
 					else
@@ -413,6 +417,7 @@
 						if(pmpro_isLevelRecurring($this->membership_level))
 						{
 							$this->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod)) . "T0:0:0";
+							$this->ProfileStartDate = apply_filters("pmpro_profile_start_date", $this->ProfileStartDate, $this);
 							return $this->processWithAuthorizeNet();
 						}
 						else
@@ -1168,6 +1173,12 @@
 			$address = $this->Address1;
 			if($this->Address2)
 				$address .= "\n" . $this->Address2;
+				
+			//customer stuff
+			$customer_email = $this->Email;
+			$pmpro_force_phone = apply_filters("pmpro_force_phone", false);
+			if(strpos($this->billing->phone, "+") === false || $pmpro_force_phone)
+				$customer_phone = $this->billing->phone;
 			
 			$post_values = array(
 				
@@ -1197,7 +1208,9 @@
 				"x_state"			=> $this->billing->state,
 				"x_zip"				=> $this->billing->zip,
 				"x_country"			=> $this->billing->country,
-				"x_invoice_num"		=> $this->code
+				"x_invoice_num"		=> $this->code,
+				"x_phone"			=> $customer_phone,
+				"x_email"			=> $this->Email
 				// Additional fields can be added here as outlined in the AIM integration
 				// guide at: http://developer.authorize.net
 			);
@@ -1268,6 +1281,12 @@
 			if($this->Address2)
 				$address .= "\n" . $this->Address2;
 			
+			//customer stuff
+			$customer_email = $this->Email;
+			$pmpro_force_phone = apply_filters("pmpro_force_phone", false);
+			if(strpos($this->billing->phone, "+") === false || $pmpro_force_phone)
+				$customer_phone = $this->billing->phone;
+			
 			$post_values = array(
 				
 				// the API Login ID and Transaction Key must be replaced with valid values
@@ -1297,7 +1316,9 @@
 				"x_state"			=> $this->billing->state,
 				"x_zip"				=> $this->billing->zip,
 				"x_country"			=> $this->billing->country,
-				"x_invoice_num"		=> $this->code
+				"x_invoice_num"		=> $this->code,
+				"x_phone"			=> $customer_phone,
+				"x_email"			=> $this->Email
 				
 				// Additional fields can be added here as outlined in the AIM integration
 				// guide at: http://developer.authorize.net
@@ -1422,7 +1443,8 @@
 			
 			//customer stuff
 			$customer_email = $this->Email;
-			if(strpos($this->billing->phone, "+") === false)
+			$pmpro_force_phone = apply_filters("pmpro_force_phone", false);
+			if(strpos($this->billing->phone, "+") === false || $pmpro_force_phone)
 				$customer_phone = $this->billing->phone;
 			
 			//build xml to post
