@@ -1,6 +1,10 @@
 <?php
 	//is there a default level to redirect to?	
-	$default_level = intval(PMPRO_DEFAULT_LEVEL);
+	if(defined("PMPRO_DEFAULT_LEVEL"))
+		$default_level = intval(PMPRO_DEFAULT_LEVEL);
+	else
+		$default_level = false;
+		
 	if($default_level)
 	{
 		wp_redirect(pmpro_url("checkout", "?level=" . $default_level, "https"));
@@ -26,5 +30,6 @@
 	}
 	
 	global $pmpro_levels;
-	$pmpro_levels = $wpdb->get_results( "SELECT * FROM " . $wpdb->pmpro_membership_levels . " WHERE allow_signups = 1", OBJECT );	
+	$pmpro_levels = $wpdb->get_results( "SELECT * FROM " . $wpdb->pmpro_membership_levels . " WHERE allow_signups = 1 ORDER BY id", OBJECT );	
+	$pmpro_levels = apply_filters("pmpro_levels_array", $pmpro_levels);
 ?>
