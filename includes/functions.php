@@ -52,7 +52,7 @@
 	
 	function pmpro_getOption($s)
 	{
-		if($_REQUEST[$s])
+		if(isset($_REQUEST[$s]))
 			return $_REQUEST[$s];
 		elseif(get_option("pmpro_" . $s))
 			return get_option("pmpro_" . $s);
@@ -129,33 +129,48 @@
 			return false;
 	}
 	
+	function pmpro_isLevelExpiring(&$level)
+	{
+		if($level->expiration_number > 0)
+			return true;
+		else
+			return false;
+	}
+	
 	function pmpro_getLevelCost(&$level)
 	{
+		global $pmpro_currency_symbol;
 		$r = '
-		The price for membership is <strong>$' . number_format($level->initial_payment, 2) . '</strong> ';
+		The price for membership is <strong>' . $pmpro_currency_symbol . number_format($level->initial_payment, 2) . '</strong> now';
 		if($level->billing_amount != '0.00')
 		{
-			$r .= 'and then <strong>$' . $level->billing_amount;
+			$r .= ' and then <strong>' . $pmpro_currency_symbol . $level->billing_amount;
 			if($level->cycle_number == '1') 
 			{ 
 				$r .= ' per ';
 			}
+			elseif($level->billing_limit == 1)
+			{ 
+				$r .= ' after ' . $level->cycle_number . ' ';
+			}
 			else
 			{ 
-				$r .= 'every ' . $level->cycle_number . ' ';
+				$r .= ' every ' . $level->cycle_number . ' ';
 			}
 
 			$r .= sornot($level->cycle_period,$level->cycle_number);
 			
-			if($level->billing_limit) 
-			{  
-				$r .= ' for ' . $level->billing_limit . ' ' . sornot($level->cycle_period,$level->billing_limit) . '.';
-			} 
+			if($level->billing_limit > 1)
+			{
+				$r .= ' for ' . $level->billing_limit . ' more ' . sornot("payment",$level->billing_limit) . '.';
+			}
 			else
 				$r .= '.';
 			
 			$r .= '</strong>';
-		}		
+		}	
+		else
+			$r .= '.';
 		
 		if($level->trial_limit)
 		{ 
@@ -173,7 +188,7 @@
 			} 
 			else
 			{ 				
-				$r .= $level->trial_limit.' ' .sornot("payment", $level->trial_limit) . ' will cost $' . $level->trial_amount . '.';
+				$r .= $level->trial_limit.' ' .sornot("payment", $level->trial_limit) . ' will cost ' . $pmpro_currency_symbol . $level->trial_amount . '.';
 			} 
 		}  
 		
@@ -181,12 +196,26 @@
 		$tax_state = pmpro_getOption("tax_state");
 		$tax_rate = pmpro_getOption("tax_rate");
 		
-		if($tax_state && $tax_rate)
+		if($tax_state && $tax_rate && !pmpro_isLevelFree($level))
 		{
-			$r .= " Customers in " . $tax_state . " will be charged " . round($tax_rate * 100) . "% tax.";
+			$r .= " Customers in " . $tax_state . " will be charged " . round($tax_rate * 100, 2) . "% tax.";
 		}
 		
+		$r = apply_filters("pmpro_level_cost_text", $r, $level);		
 		return $r;
+	}
+	
+	function pmpro_getLevelExpiration(&$level)
+	{		
+		if($level->expiration_number)
+		{
+			$expiration_text = "Membership expires after " . $level->expiration_number . " " . sornot(strtolower($level->expiration_period), $level->expiration_number) . ".";
+		}
+		else
+			$expiration_text = "";
+			
+		$expiration_text = apply_filters("pmpro_level_expiration_text", $expiration_text, $level);
+		return $expiration_text;
 	}
 	
 	function pmpro_hideAds()
@@ -277,6 +306,10 @@
 	{
 		function cleanPhone($phone)
 		{
+			//if a + is passed, just pass it along
+			if(strpos($phone, "+") !== false)
+				return $phone;
+			
 			//clean the phone
 			$phone = str_replace("-", "", $phone);
 			$phone = str_replace(".", "", $phone);
@@ -464,20 +497,17 @@
 			//get last order
 			$order = new MemberOrder();
 			$order->getLastMemberOrder($user_id);						
-						
-			if($order->subscription_transaction_id)
+									
+			if($order->cancel())
 			{
-				if($order->cancel())
-				{
-					//we're good					
-				}
-				else
-				{				
-					//uh oh										
-					$pmpro_error = "There was an error canceling your membership: " . $order->error;				
-					return false;
-				}				
+				//we're good					
 			}
+			else
+			{				
+				//uh oh										
+				$pmpro_error = "There was an error canceling your membership: " . $order->error;				
+				return false;
+			}							
 		}
 			
 		//adding, changing, or deleting
@@ -776,7 +806,7 @@
 		
 		//query to sum initial payments
 		$sqlQuery = "SELECT SUM(initial_payment) FROM $wpdb->pmpro_memberships_users WHERE 1 ";
-		if($user_ids_query)	
+		if(!empty($user_ids_query))
 			$sqlQuery .= "AND user_id IN(" . $user_ids_query . ") ";
 		
 		$total = $wpdb->get_var($sqlQuery);
@@ -798,6 +828,8 @@
 				$user_ids_query .= "AND mu.membership_id = '$l' ";
 			$user_ids_query .= ")";
 		}
+		else
+			$user_ids_query = "";
 		
 		//4 queries to get annual earnings for each cycle period. currently ignoring trial periods and billing limits.
 		$sqlQuery = "
@@ -818,5 +850,198 @@
 		}
 		
 		return $total;
+	}
+	
+	function pmpro_generateUsername($firstname = "", $lastname = "", $email = "")
+	{
+		global $wpdb;
+		
+		//try first initial + last name, firstname, lastname
+		$firstname = preg_replace("/[^A-Za-z]/", "", $firstname);
+		$lastname = preg_replace("/[^A-Za-z]/", "", $lastname);
+		if($firstname && $lastname)
+		{
+			$username = substr($firstname, 0, 1) . $lastname;
+		}
+		elseif($firstname)
+		{
+			$username = $firstname;
+		}
+		elseif($lastname)
+		{
+			$username = $lastname;
+		}
+		
+		//is it taken?
+		$taken = $wpdb->get_var("SELECT user_login FROM $wpdb->users WHERE user_login = '" . $username . "' LIMIT 1");
+		
+		if(!$taken)
+			return $username;
+		
+		//try the beginning of the email address
+		$emailparts = explode("@", "email");
+		if(is_array($emailparts))
+			$email = preg_replace("/[^A-Za-z]/", "", $emailparts[0]);
+		
+		if($email)
+		{
+			$username = $email;
+		}
+				
+		//is this taken? if not, add numbers until it works
+		$taken = true;
+		$count = 0;
+		while($taken)
+		{	
+			//add a # to the end
+			if($count)
+			{
+				$username = preg_replace("/[0-9]/", "", $username) . $count;
+			}
+			
+			//taken?
+			$taken = $wpdb->get_var("SELECT user_login FROM $wpdb->users WHERE user_login = '" . $username . "' LIMIT 1");		
+			
+			//increment the number
+			$count++;
+		}
+		
+		//must have a good username now
+		return $username;
+	}
+	
+	//get a new random code for discount codes
+	function pmpro_getDiscountCode()
+	{
+		global $wpdb;
+		
+		while(!$code)
+		{
+			$scramble = md5(AUTH_KEY . time() . SECURE_AUTH_KEY);			
+			$code = substr($scramble, 0, 10);
+			$check = $wpdb->get_var("SELECT code FROM $wpdb->pmpro_discount_codes WHERE code = '$code' LIMIT 1");				
+			if($check || is_numeric($code))
+				$code = NULL;
+		}
+		
+		return strtoupper($code);
+	}
+	
+	//is a discount code valid
+	function pmpro_checkDiscountCode($code, $level_id = NULL, $return_errors = false)
+	{
+		global $wpdb;
+		
+		//no code, no code
+		if(!$code)
+		{
+			if($return_errors)
+				return array(false, "No code was given to check.");
+			else
+				return false;
+		}
+			
+		//get code from db
+		$dbcode = $wpdb->get_row("SELECT *, UNIX_TIMESTAMP(starts) as starts, UNIX_TIMESTAMP(expires) as expires FROM $wpdb->pmpro_discount_codes WHERE code ='" . $code . "' LIMIT 1");
+		
+		//fix the date timestamps
+		$dbcode->starts = strtotime(date("m/d/Y", $dbcode->starts));
+		$dbcode->expires = strtotime(date("m/d/Y", $dbcode->expires));
+		
+		//did we find it?
+		if(!$dbcode->id)
+		{
+			if($return_errors)
+				return array(false, "The code could not be found.");
+			else
+				return false;
+		}
+	
+		//today
+		$today = strtotime(date("m/d/Y 00:00:00"));		
+	
+		//has this code started yet?
+		if($dbcode->starts && $dbcode->starts > $today)
+		{
+			if($return_errors)
+				return array(false, "This discount code goes into effect on " . date("m/d/Y", $dbcode->starts) . ".");
+			else
+				return false;
+		}
+		
+		//has this code expired?
+		if($dbcode->expires && $dbcode->expires < $today)
+		{
+			if($return_errors)
+				return array(false, "This discount code expired on " . date("m/d/Y", $dbcode->expires) . ".");
+			else
+				return false;
+		}
+		
+		//have we run out of uses?
+		if($dbcode->uses > 0)
+		{
+			$used = $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->pmpro_discount_codes_uses WHERE code_id = '" . $dbcode->id . "'");
+			if($used >= $dbcode->uses)
+			{
+				if($return_errors)
+					return array(false, "This discount code is no longer valid.");
+				else
+					return false;
+			}
+		}
+		
+		//if a level was passed check if this code applies
+		if($level_id)
+		{
+			$code_level = $wpdb->get_row("SELECT l.id, cl.*, l.name, l.description, l.allow_signups FROM $wpdb->pmpro_discount_codes_levels cl LEFT JOIN $wpdb->pmpro_membership_levels l ON cl.level_id = l.id WHERE cl.code_id = '" . $dbcode->id . "' AND cl.level_id = '" . $level_id . "' LIMIT 1");
+			
+			if(!$code_level)
+			{
+				if($return_errors)
+					return array(false, "This code does not apply to this membership level.");
+				else
+					return false;
+			}
+		}
+		
+		//guess we're all good		
+		if($return_errors)
+			return array(true, "This discount code is okay.");
+		else
+			return true;
+	}
+	
+	function pmpro_no_quotes($s, $quotes = array("'", '"'))
+	{
+		return str_replace($quotes, "", $s);
+	}
+	
+	//from: http://www.php.net/manual/en/function.implode.php#86845
+	function pmpro_implodeToEnglish($array) 
+	{ 
+		// sanity check 
+		if (!$array || !count ($array)) 
+			return ''; 
+
+		// get last element    
+		$last = array_pop ($array); 
+
+		// if it was the only element - return it 
+		if (!count ($array)) 
+			return $last;    
+
+		return implode (', ', $array).' and '.$last; 
+	} 
+	
+	//from yoast wordpress seo
+	function pmpro_text_limit( $text, $limit, $finish = '&hellip;') 
+	{
+		if( strlen( $text ) > $limit ) {
+			$text = substr( $text, 0, $limit );
+			$text = substr( $text, 0, - ( strlen( strrchr( $text,' ') ) ) );
+			$text .= $finish;
+		}
+		return $text;
 	}
 ?>
