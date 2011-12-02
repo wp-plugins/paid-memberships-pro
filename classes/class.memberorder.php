@@ -31,7 +31,7 @@
 				$this->session_id = $dbobj->session_id;
 				$this->user_id = $dbobj->user_id;
 				$this->membership_id = $dbobj->membership_id;
-				$this->paypal_token = $dbobj->paypal_token;
+				$this->paypal_token = $dbobj->paypal_token;				
 				$this->billing->name = $dbobj->billing_name;
 				$this->billing->street = $dbobj->billing_street;
 				$this->billing->city = $dbobj->billing_city;
@@ -103,6 +103,27 @@
 				return false;
 		}
 		
+		function getMemberOrderByPayPalToken($token)
+		{
+			global $wpdb;
+			$id = $wpdb->get_var("SELECT id FROM $wpdb->pmpro_membership_orders WHERE paypal_token = '" . $token . "' LIMIT 1");
+			if($id)
+				return $this->getMemberOrderByID($id);
+			else
+				return false;
+		}
+		
+		function getDiscountCode($force = false)
+		{
+			if($this->discount_code && !$force)
+				return $this->discount_code;
+				
+			global $wpdb;
+			$this->discount_code = $wpdb->get_row("SELECT dc.* FROM $wpdb->pmpro_discount_codes dc LEFT JOIN $wpdb->pmpro_discount_codes_uses dcu ON dc.id = dcu.code_id WHERE dcu.order_id = '" . $this->id . "' LIMIT 1");
+			
+			return $this->discount_code;
+		}
+		
 		function getUser()
 		{
 			global $wpdb;
@@ -115,14 +136,32 @@
 			return $this->user;						
 		}
 		
-		function getMembershipLevel()
+		function getMembershipLevel($force = false)
 		{
 			global $wpdb;
 			
-			if($this->membership_level)
+			if(!empty($this->membership_level) && empty($force))
 				return $this->membership_level;
-				
-			$this->membership_level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . $this->membership_id . "' LIMIT 1");				
+			
+			//check if there is an entry in memberships_users first
+			if(!empty($this->user_id))
+			{
+				$this->membership_level = $wpdb->get_row("SELECT l.id, l.name, l.description, l.allow_signups, mu.*, UNIX_TIMESTAMP(mu.startdate) as startdate, UNIX_TIMESTAMP(mu.enddate) as enddate, l.name, l.description, l.allow_signups FROM $wpdb->pmpro_membership_levels l LEFT JOIN $wpdb->pmpro_memberships_users mu ON l.id = mu.membership_id WHERE l.id = '" . $this->membership_id . "' AND mu.user_id = '" . $this->user_id . "' LIMIT 1");			
+			}			
+			
+			//okay, do I have a discount code to check? (if there is no membership_level->membership_id value, that means there was no entry in memberships_users)
+			if(!empty($this->discount_code) && empty($this->membership_level->membership_id))
+			{
+				$sqlQuery = "SELECT l.id, cl.*, l.name, l.description, l.allow_signups FROM $wpdb->pmpro_discount_codes_levels cl LEFT JOIN $wpdb->pmpro_membership_levels l ON cl.level_id = l.id LEFT JOIN $wpdb->pmpro_discount_codes dc ON dc.id = cl.code_id WHERE dc.code = '" . $this->discount_code . "' AND cl.level_id = '" . $this->membership_id . "' LIMIT 1";			
+				$this->membership_level = $wpdb->get_row($sqlQuery);
+			}
+			
+			//just get the info from the membership table	(sigh, I really need to standardize the column names for membership_id/level_id) but we're checking if we got the information already or not
+			if(empty($this->membership_level->membership_id) && empty($this->membership_level->level_id))
+			{
+				$this->membership_level = $wpdb->get_row("SELECT l.* FROM $wpdb->pmpro_membership_levels l WHERE l.id = '" . $this->membership_id . "' LIMIT 1");			
+			}
+			
 			return $this->membership_level;	
 		}
 		
@@ -151,7 +190,7 @@
 		
 		function getTax($force = false)
 		{
-			if($this->tax && !$force)
+			if(!empty($this->tax) && !$force)
 				return $this->tax;
 		
 			//reset
@@ -176,18 +215,54 @@
 			//Todo: Tax?!, Coupons, Certificates, affiliates
 			$this->subtotal = $amount;
 			$tax = $this->getTax(true);
-			
-			//Todo: Different Payment Types?
-			$payment_type = "";
-			
+					
 			//build query			
-			$this->sqlQuery = "INSERT INTO $wpdb->pmpro_membership_orders  
+			if($this->id)
+			{
+				//update
+				$this->sqlQuery = "UPDATE $wpdb->pmpro_membership_orders
+									SET `code` = '" . $this->code . "',
+									`session_id` = '" . $this->session_id . "',
+									`user_id` = '" . $this->user_id . "',
+									`membership_id` = '" . $this->membership_id . "',
+									`paypal_token` = '" . $this->paypal_token . "',
+									`billing_name` = '" . $this->billing->name . "',
+									`billing_street` = '" . $this->billing->street . "',
+									`billing_city` = '" . $this->billing->city . "',
+									`billing_state` = '" . $this->billing->state . "',
+									`billing_zip` = '" . $this->billing->zip . "',
+									`billing_phone` = '" . $this->billing->phone . "',
+									`subtotal` = '" . $this->subtotal . "',
+									`tax` = '" . $this->tax . "',
+									`couponamount` = '" . $this->couponamount . "',
+									`certificate_id` = '" . $this->certificate_id . "',
+									`certificateamount` = '" . $this->certificateamount . "',
+									`total` = '" . $this->total . "',
+									`payment_type` = '" . $this->payment_type . "',
+									`cardtype` = '" . $this->cardtype . "',
+									`accountnumber` = '" . $this->accountnumber . "',
+									`expirationmonth` = '" . $this->expirationmonth . "',
+									`expirationyear` = '" . $this->expirationyear . "',
+									`status` = '" . $this->status . "',
+									`gateway` = '" . $this->gateway . "',
+									`gateway_environment` = '" . $this->gateway_environment . "',
+									`payment_transaction_id` = '" . $this->payment_transaction_id . "',
+									`subscription_transaction_id` = '" . $this->subscription_transaction_id . "',									
+									`affiliate_id` = '" . $this->affiliate_id . "',
+									`affiliate_subid` = '" . $this->affiliate_subid . "'
+									WHERE id = '" . $this->id . "'
+									LIMIT 1";
+			}
+			else
+			{
+				//insert
+				$this->sqlQuery = "INSERT INTO $wpdb->pmpro_membership_orders  
 								(`code`, `session_id`, `user_id`, `membership_id`, `paypal_token`, `billing_name`, `billing_street`, `billing_city`, `billing_state`, `billing_zip`, `billing_phone`, `subtotal`, `tax`, `couponamount`, `certificate_id`, `certificateamount`, `total`, `payment_type`, `cardtype`, `accountnumber`, `expirationmonth`, `expirationyear`, `status`, `gateway`, `gateway_environment`, `payment_transaction_id`, `subscription_transaction_id`, `timestamp`, `affiliate_id`, `affiliate_subid`) 
 								VALUES('" . $this->code . "',
 									   '" . session_id() . "',
 									   '" . $this->user_id . "',
 									   '" . $this->membership_id . "',
-									   '" . $this->Token . "',
+									   '" . $this->paypal_token . "',
 									   '" . $wpdb->escape(trim($this->billing->name)) . "',
 									   '" . $wpdb->escape(trim($this->billing->street)) . "',
 									   '" . $wpdb->escape($this->billing->city) . "',
@@ -200,7 +275,7 @@
 									   '" . $certificate_id . "',
 									   '" . $certficate_amount . "',
 									   '" . ((float)$amount + (float)$tax) . "',
-									   '" . $payment_type . "',
+									   '" . $this->payment_type . "',
 									   '" . $this->cardtype . "',
 									   '" . hideCardNumber($this->accountnumber, false) . "',
 									   '" . substr($this->ExpirationDate, 0, 2) . "',
@@ -213,7 +288,9 @@
 									   now(),
 									   '" . $affiliate_id . "',
 									   '" . $affiliate_subid . "'
-									   )";			
+									   )";		
+			}
+									   
 			if($wpdb->query($this->sqlQuery) !== false)
 				return $this->getMemberOrderByID($wpdb->insert_id);
 			else
@@ -224,7 +301,7 @@
 		{
 			global $wpdb;
 			
-			while(!$code)
+			while(empty($code))
 			{
 				$scramble = md5(AUTH_KEY . time() . SECURE_AUTH_KEY);			
 				$code = substr($scramble, 0, 10);
@@ -240,7 +317,7 @@
 		{
 			global $wpdb;
 			
-			if(!$this->id)
+			if(empty($this->id))
 				return false;
 		
 			$this->status = $newstatus;
@@ -263,7 +340,8 @@
 					if($authorization_id)
 					{
 						$this->voidAuthorizationWithPayPal($authorization_id);						
-						$this->ProfileStartDate = date("Y-m-d", strtotime("+ 1 " . $this->BillingPeriod)) . "T0:0:0";
+						$this->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod)) . "T0:0:0";
+						$this->ProfileStartDate = apply_filters("pmpro_profile_start_date", $this->ProfileStartDate, $this);
 						return $this->processWithPayPal();
 					}
 					else
@@ -281,13 +359,35 @@
 						//setup recurring billing
 						if(pmpro_isLevelRecurring($this->membership_level))
 						{
-							$this->ProfileStartDate = date("Y-m-d", strtotime("+ 1 " . $this->BillingPeriod)) . "T0:0:0";
-							return $this->processWithPayPal();
+							$this->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod)) . "T0:0:0";
+							$this->ProfileStartDate = apply_filters("pmpro_profile_start_date", $this->ProfileStartDate, $this);
+							if($this->processWithPayPal())
+							{
+								return true;
+							}
+							else
+							{
+								if($this->refundChargeWithPayPal($this->payment_transaction_id))
+								{
+									if(!$this->error)
+										$this->error = "Unknown error: Payment failed.";							
+								}
+								else
+								{
+									if(!$this->error)
+										$this->error = "Unknown error: Payment failed.";
+									
+									$this->error .= " A partial payment was made that we could not refund. Please contact the site owner immediately to correct this.";
+								}
+								
+								return false;	
+							}
 						}
 						else
 						{
 							//only a one time charge							
 							$this->status = "success";	//saved on checkout page											
+							$this->saveOrder();
 							return true;
 						}
 					}
@@ -295,10 +395,22 @@
 					{
 						if(!$this->error)
 							$this->error = "Unknown error: Payment failed.";
+						
 						return false;
 					}
 				}				
 			}				
+			elseif($gateway == "paypalexpress")
+			{																																		
+				if(pmpro_isLevelRecurring($this->membership_level))
+				{
+					$this->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod)) . "T0:0:0";
+					$this->ProfileStartDate = apply_filters("pmpro_profile_start_date", $this->ProfileStartDate, $this);
+					return $this->processWithPayPalExpress();				
+				}
+				else
+					return $this->chargeWithPayPalExpress();				
+			}	
 			elseif($gateway == "authorizenet")
 			{				
 				if(floatval($this->InitialPayment) == 0)
@@ -306,7 +418,42 @@
 					//auth first, then process
 					if($this->authorizeWithAuthorizeNet())
 					{						
-						$this->ProfileStartDate = date("Y-m-d", strtotime("+ 1 " . $this->BillingPeriod)) . "T0:0:0";						
+						$this->voidWithAuthorizeNet();	
+						
+						/*
+							Authorize.net complains if the credit card expires before the first subscription payment.
+							So we cheat as long as this subscription doesn't have a trial period already.
+						*/
+						if(!pmpro_isLevelTrial($this->membership_level))
+						{
+							//subscription will start today with a 1 period trial
+							$this->ProfileStartDate = date("Y-m-d") . "T0:0:0";
+							$this->TrialBillingPeriod = $this->BillingPeriod;
+							$this->TrialBillingFrequency = $this->BillingFrequency;													
+							$this->TrialBillingCycles = 1;
+							$this->TrialAmount = 0;
+							
+							//add a billing cycle to make up for the trial, if applicable
+							if($this->TotalBillingCycles)
+								$this->TotalBillingCycles++;
+						}
+						elseif($this->InitialPayment == 0 && $this->TrialAmount == 0)
+						{
+							//it has a trial, but the amount is the same as the initial payment, so we can squeeze it in there
+							$this->ProfileStartDate = date("Y-m-d") . "T0:0:0";														
+							$this->TrialBillingCycles++;
+							
+							//add a billing cycle to make up for the trial, if applicable
+							if($this->TotalBillingCycles)
+								$this->TotalBillingCycles++;
+						}
+						else
+						{
+							//add a period to the start date to account for the initial payment
+							$this->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod)) . "T0:0:0";				
+						}
+						
+						$this->ProfileStartDate = apply_filters("pmpro_profile_start_date", $this->ProfileStartDate, $this);
 						return $this->processWithAuthorizeNet();
 					}
 					else
@@ -324,8 +471,61 @@
 						//setup recurring billing
 						if(pmpro_isLevelRecurring($this->membership_level))
 						{
-							$this->ProfileStartDate = date("Y-m-d", strtotime("+ 1 " . $this->BillingPeriod)) . "T0:0:0";
-							return $this->processWithAuthorizeNet();
+							/*
+								Authorize.net complains if the credit card expires before the first subscription payment.
+								So we cheat as long as this subscription doesn't have a trial period already.
+							*/
+							if(!pmpro_isLevelTrial($this->membership_level))
+							{
+								//subscription will start today with a 1 period trial
+								$this->ProfileStartDate = date("Y-m-d") . "T0:0:0";
+								$this->TrialBillingPeriod = $this->BillingPeriod;
+								$this->TrialBillingFrequency = $this->BillingFrequency;													
+								$this->TrialBillingCycles = 1;
+								$this->TrialAmount = 0;
+								
+								//add a billing cycle to make up for the trial, if applicable
+								if($this->TotalBillingCycles)
+									$this->TotalBillingCycles++;
+							}
+							elseif($this->InitialPayment == 0 && $this->TrialAmount == 0)
+							{
+								//it has a trial, but the amount is the same as the initial payment, so we can squeeze it in there
+								$this->ProfileStartDate = date("Y-m-d") . "T0:0:0";														
+								$this->TrialBillingCycles++;
+								
+								//add a billing cycle to make up for the trial, if applicable
+								if($this->TotalBillingCycles)
+									$this->TotalBillingCycles++;
+							}
+							else
+							{
+								//add a period to the start date to account for the initial payment
+								$this->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod)) . "T0:0:0";				
+							}
+							
+							$this->ProfileStartDate = apply_filters("pmpro_profile_start_date", $this->ProfileStartDate, $this);
+							if($this->processWithAuthorizeNet())
+							{
+								return true;
+							}
+							else
+							{
+								if($this->voidWithAuthorizeNet())
+								{
+									if(!$this->error)
+										$this->error = "Unknown error: Payment failed.";							
+								}
+								else
+								{
+									if(!$this->error)
+										$this->error = "Unknown error: Payment failed.";
+									
+									$this->error .= " A partial payment was made that we could not void. Please contact the site owner immediately to correct this.";
+								}
+								
+								return false;								
+							}
 						}
 						else
 						{
@@ -338,8 +538,9 @@
 					{
 						if(!$this->error)
 							$this->error = "Unknown error: Payment failed.";
+						
 						return false;
-					}
+					}											
 				}				
 			}
 			else
@@ -356,11 +557,19 @@
 		{
 			$gateway = $this->gateway;
 			
+			//if there is no subscription id or this subscription has a status != success, it was already cancelled (or never existed)
+			if(!$this->subscription_transaction_id || !$this->status != "success")
+			{
+				//cancel
+				$this->updateStatus("cancelled");
+				return true;
+			}
+			
 			//if no gateway specified for the order, assume it is the current gateway
 			if(!$gateway)			
 				$gateway = pmpro_getOption("gateway");
 						
-			if($gateway == "paypal")
+			if($gateway == "paypal" || $gateway == "paypalexpress")
 				return $this->cancelWithPayPal();
 			elseif($gateway == "authorizenet")
 				return $this->cancelWithAuthorizeNet();
@@ -404,7 +613,7 @@
 				$API_Endpoint = "https://api-3t.$environment.paypal.com/nvp";
 			}						
 			
-			$version = urlencode('51.0');
+			$version = urlencode('72.0');
 		
 			// setting the curl parameters.
 			$ch = curl_init();
@@ -458,7 +667,7 @@
 			$nvpStr = "";
 			if($this->Token)
 				$nvpStr .= "&TOKEN=" . $this->Token;
-			$nvpStr .="&AMT=1.00&CURRENCYCODE=USD";			
+			$nvpStr .="&AMT=1.00&CURRENCYCODE=" . pmpro_getOption("currency");			
 			$nvpStr .= "&NOTIFYURL=" . urlencode(PMPRO_URL . "/services/ipnhandler.php");
 			//$nvpStr .= "&L_BILLINGTYPE0=RecurringPayments&L_BILLINGAGREEMENTDESCRIPTION0=" . $this->PaymentAmount;
 			
@@ -467,8 +676,10 @@
 			//credit card fields
 			if($this->cardtype == "American Express")
 				$cardtype = "Amex";
+			else
+				$cardtype = $this->cardtype;
 			
-			if($this->cardtype)			
+			if($cardtype)			
 				$nvpStr .= "&CREDITCARDTYPE=" . $cardtype . "&ACCT=" . $this->accountnumber . "&EXPDATE=" . $this->ExpirationDate . "&CVV2=" . $this->CVV2;
 
 			//Maestro/Solo card fields. (Who uses these?) :)
@@ -486,6 +697,8 @@
 				$nvpStr .= "&CITY=" . $this->billing->city . "&STATE=" . $this->billing->state . "&COUNTRYCODE=" . $this->billing->country . "&ZIP=" . $this->billing->zip . "&SHIPTOPHONENUM=" . $this->billing->phone;
 			}
 
+			$this->nvpStr = $nvpStr;
+			
 			$this->httpParsedResponseAr = $this->PPHttpPost('DoDirectPayment', $nvpStr);
 						
 			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {
@@ -503,6 +716,9 @@
 		
 		function voidAuthorizationWithPayPal($authorization_id)
 		{
+			if(empty($authorization_id))
+				return false;
+			
 			//paypal profile stuff
 			$nvpStr="&AUTHORIZATIONID=" . $authorization_id . "&NOTE=Voiding an authorization for a recurring payment setup.";
 		
@@ -519,9 +735,32 @@
 			}	
 		}
 		
+		function refundChargeWithPayPal($transaction_id)
+		{
+			if(empty($transaction_id))
+				return false;
+			
+			//paypal profile stuff
+			$nvpStr="&TRANSACTIONID=" . $transaction_id . "&NOTE=Refunding a charge.";
+		
+			$this->httpParsedResponseAr = $this->PPHttpPost('RefundTransaction', $nvpStr);
+											
+			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {				
+				return true;				
+			} else  {				
+				$this->status = "error";
+				$this->errorcode = $this->httpParsedResponseAr[L_ERRORCODE0];
+				$this->error = urldecode($this->httpParsedResponseAr[L_LONGMESSAGE0]);
+				$this->shorterror = urldecode($this->httpParsedResponseAr[L_SHORTMESSAGE0]);
+				return false;				
+			}	
+		}
+		
 		function chargeWithPayPal()
 		{			
-			if(!$this->code)
+			global $pmpro_currency;
+			
+			if(empty($this->code))
 				$this->code = $this->getRandomCode();
 			
 			//taxes on the amount
@@ -534,7 +773,7 @@
 			$nvpStr = "";
 			if($this->Token)
 				$nvpStr .= "&TOKEN=" . $this->Token;
-			$nvpStr .="&AMT=" . $amount . "&ITEMAMT=" . $this->InitialPayment . "&TAXAMT=" . $amount_tax . "&CURRENCYCODE=USD";			
+			$nvpStr .="&AMT=" . $amount . "&ITEMAMT=" . $this->InitialPayment . "&TAXAMT=" . $amount_tax . "&CURRENCYCODE=" . $pmpro_currency;			
 			$nvpStr .= "&NOTIFYURL=" . urlencode(PMPRO_URL . "/services/ipnhandler.php");
 			//$nvpStr .= "&L_BILLINGTYPE0=RecurringPayments&L_BILLINGAGREEMENTDESCRIPTION0=" . $this->PaymentAmount;
 			
@@ -543,8 +782,10 @@
 			//credit card fields
 			if($this->cardtype == "American Express")
 				$cardtype = "Amex";
+			else
+				$cardtype = $this->cardtype;
 
-			if($this->cardtype)			
+			if($cardtype)			
 				$nvpStr .= "&CREDITCARDTYPE=" . $cardtype . "&ACCT=" . $this->accountnumber . "&EXPDATE=" . $this->ExpirationDate . "&CVV2=" . $this->CVV2;
 
 			//Maestro/Solo card fields. (Who uses these?) :)
@@ -563,7 +804,7 @@
 			}
 
 			$this->httpParsedResponseAr = $this->PPHttpPost('DoDirectPayment', $nvpStr);
-						
+								
 			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {
 				$this->payment_transaction_id = $this->httpParsedResponseAr[TRANSACTIONID];
 				$this->updateStatus("firstpayment");				
@@ -578,8 +819,10 @@
 		}
 		
 		function processWithPayPal()
-		{										
-			if(!$this->code)
+		{													
+			global $pmpro_currency;
+			
+			if(empty($this->code))
 				$this->code = $this->getRandomCode();			
 			
 			//taxes on the amount
@@ -592,7 +835,7 @@
 			$nvpStr = "";
 			if($this->Token)
 				$nvpStr .= "&TOKEN=" . $this->Token;
-			$nvpStr .="&AMT=" . $this->PaymentAmount . "&TAXAMT=" . $amount_tax . "&CURRENCYCODE=USD" . "&PROFILESTARTDATE=" . $this->ProfileStartDate;
+			$nvpStr .="&AMT=" . $this->PaymentAmount . "&TAXAMT=" . $amount_tax . "&CURRENCYCODE=" . $pmpro_currency . "&PROFILESTARTDATE=" . $this->ProfileStartDate;
 			$nvpStr .= "&BILLINGPERIOD=" . $this->BillingPeriod . "&BILLINGFREQUENCY=" . $this->BillingFrequency . "&AUTOBILLAMT=AddToNextBilling";
 			$nvpStr .= "&DESC=" . $amount;
 			$nvpStr .= "&NOTIFYURL=" . urlencode(PMPRO_URL . "/services/ipnhandler.php");
@@ -617,8 +860,10 @@
 			//credit card fields
 			if($this->cardtype == "American Express")
 				$cardtype = "Amex";
+			else
+				$cardtype = $this->cardtype;
 			
-			if($this->cardtype)			
+			if($cardtype)			
 				$nvpStr .= "&CREDITCARDTYPE=" . $cardtype . "&ACCT=" . $this->accountnumber . "&EXPDATE=" . $this->ExpirationDate . "&CVV2=" . $this->CVV2;
 
 			//Maestro/Solo card fields. (Who uses these?) :)
@@ -636,6 +881,8 @@
 				$nvpStr .= "&CITY=" . $this->billing->city . "&STATE=" . $this->billing->state . "&COUNTRYCODE=" . $this->billing->country . "&ZIP=" . $this->billing->zip . "&SHIPTOPHONENUM=" . $this->billing->phone;
 			}
 
+			$this->nvpStr = $nvpStr;
+			
 			$this->httpParsedResponseAr = $this->PPHttpPost('CreateRecurringPaymentsProfile', $nvpStr);
 						
 			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {
@@ -661,8 +908,8 @@
 			
 			$this->httpParsedResponseAr = $this->PPHttpPost('ManageRecurringPaymentsProfileStatus', $nvpStr);
 									
-			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {
-				$this->status = "success";				
+			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {				
+				$this->updateStatus("cancelled");					
 				return true;
 				//exit('CreateRecurringPaymentsProfile Completed Successfully: '.print_r($this->httpParsedResponseAr, true));
 			} else  {				
@@ -682,8 +929,14 @@
 			$nvpStr .= "&PROFILEID=" . $this->subscription_transaction_id;
 			
 			//credit card fields
-			if($this->cardtype)			
-				$nvpStr .= "&CREDITCARDTYPE=" . $this->cardtype . "&ACCT=" . $this->accountnumber . "&EXPDATE=" . $this->ExpirationDate . "&CVV2=" . $this->CVV2;
+			if($this->cardtype == "American Express")
+				$cardtype = "Amex";
+			else
+				$cardtype = $this->cardtype;
+			
+			//credit card fields
+			if($cardtype)			
+				$nvpStr .= "&CREDITCARDTYPE=" . $cardtype . "&ACCT=" . $this->accountnumber . "&EXPDATE=" . $this->ExpirationDate . "&CVV2=" . $this->CVV2;
 
 			//Maestro/Solo card fields. (Who uses these?) :)
 			if($this->StartDate)
@@ -714,6 +967,239 @@
 				$this->shorterror = urldecode($this->httpParsedResponseAr[L_SHORTMESSAGE0]);
 				return false;
 				//exit('CreateRecurringPaymentsProfile failed: ' . print_r($httpParsedResponseAr, true));
+			}
+		}
+		
+		//PayPal Express, this is run first to authorize from PayPal
+		function setExpressCheckout()
+		{			
+			global $pmpro_currency;
+			
+			if(empty($this->code))
+				$this->code = $this->getRandomCode();			
+			
+			//clean up a couple values
+			$this->payment_type = "PayPal Express";
+			$this->CardType = "";
+			$this->cardtype = "";
+			
+			//taxes on initial amount
+			$initial_payment = $this->InitialPayment;
+			$initial_payment_tax = $this->getTaxForPrice($initial_payment);
+			$initial_payment = round((float)$initial_payment + (float)$initial_payment_tax, 2);
+			
+			//taxes on the amount
+			$amount = $this->PaymentAmount;
+			$amount_tax = $this->getTaxForPrice($amount);						
+			$this->subtotal = $amount;
+			$amount = round((float)$amount + (float)$amount_tax, 2);
+						
+			//paypal profile stuff
+			$nvpStr = "";
+			$nvpStr .="&AMT=" . $initial_payment . "&TAXAMT=" . $amount_tax . "&CURRENCYCODE=" . $pmpro_currency . "&PROFILESTARTDATE=" . $this->ProfileStartDate;
+			$nvpStr .= "&BILLINGPERIOD=" . $this->BillingPeriod . "&BILLINGFREQUENCY=" . $this->BillingFrequency . "&AUTOBILLAMT=AddToNextBilling";
+			$nvpStr .= "&DESC=" . $amount;
+			$nvpStr .= "&NOTIFYURL=" . urlencode(PMPRO_URL . "/services/ipnhandler.php");
+			$nvpStr .= "&NOSHIPPING=1&L_BILLINGTYPE0=RecurringPayments&L_BILLINGAGREEMENTDESCRIPTION0=" . urlencode($this->membership_level->name . " at " . get_bloginfo("name")) . "&L_PAYMENTTYPE0=Any";
+					
+			//if billing cycles are defined						
+			if($this->TotalBillingCycles)
+				$nvpStr .= "&TOTALBILLINGCYCLES=" . $this->TotalBillingCycles;
+			
+			//if a trial period is defined
+			if($this->TrialBillingPeriod)
+			{
+				$trial_amount = $this->TrialAmount;
+				$trial_tax = $this->getTaxForPrice($trial_amount);
+				$trial_amount = round((float)$trial_amount + (float)$trial_tax, 2);
+				
+				$nvpStr .= "&TRIALBILLINGPERIOD=" . $this->TrialBillingPeriod . "&TRIALBILLINGFREQUENCY=" . $this->TrialBillingFrequency . "&TRIALAMNT=" . $trial_amount;
+			}
+			if($this->TrialBillingCycles)
+				$nvpStr .= "&TRIALTOTALBILLINGCYCLES=" . $this->TrialBillingCycles;
+			
+			if($this->discount_code)
+			{
+				$nvpStr .= "&ReturnUrl=" . urlencode(pmpro_url("checkout", "?level=" . $this->membership_level->id . "&discount_code=" . $this->discount_code . "&review=" . $this->code));				
+			}
+			else
+			{
+				$nvpStr .= "&ReturnUrl=" . urlencode(pmpro_url("checkout", "?level=" . $this->membership_level->id . "&review=" . $this->code));				
+			}
+			$nvpStr .= "&CANCELURL=" . urlencode(pmpro_url("levels"));			
+						
+			$this->httpParsedResponseAr = $this->PPHttpPost('SetExpressCheckout', $nvpStr);
+						
+			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {
+				$this->status = "token";				
+				$this->paypal_token = urldecode($this->httpParsedResponseAr[TOKEN]);
+				$this->subscription_transaction_id = urldecode($this->httpParsedResponseAr[PROFILEID]);
+												
+				//update order
+				$this->saveOrder();							
+							
+				//redirect to paypal
+				$paypal_url = "https://www.paypal.com/webscr&cmd=_express-checkout&token=" . $this->httpParsedResponseAr[TOKEN];
+				$environment = pmpro_getOption("gateway_environment");				
+				if("sandbox" === $environment || "beta-sandbox" === $environment) 
+				{
+					$paypal_url = "https://www.sandbox.paypal.com/webscr&cmd=_express-checkout&token="  . $this->httpParsedResponseAr[TOKEN];
+				}		
+								
+				wp_redirect($paypal_url);				
+				exit;
+				
+				//exit('SetExpressCheckout Completed Successfully: '.print_r($this->httpParsedResponseAr, true));
+			} else  {				
+				$this->status = "error";
+				$this->errorcode = $this->httpParsedResponseAr[L_ERRORCODE0];
+				$this->error = urldecode($this->httpParsedResponseAr[L_LONGMESSAGE0]);
+				$this->shorterror = urldecode($this->httpParsedResponseAr[L_SHORTMESSAGE0]);
+				return false;
+				//exit('SetExpressCheckout failed: ' . print_r($httpParsedResponseAr, true));
+			}
+			
+			//write session?
+			
+			//redirect to PayPal
+		}
+		
+		function getPayPalExpressCheckoutDetails()
+		{			
+			$nvpStr="&TOKEN=".$this->Token;
+			
+			/* Make the API call and store the results in an array.  If the
+			call was a success, show the authorization details, and provide
+			an action to complete the payment.  If failed, show the error
+			*/
+			$this->httpParsedResponseAr = $this->PPHttpPost('GetExpressCheckoutDetails', $nvpStr);
+			
+			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {
+				$this->status = "review";				
+				
+				//update order
+				$this->saveOrder();		
+				
+				return true;										
+			} else  {				
+				$this->status = "error";
+				$this->errorcode = $this->httpParsedResponseAr[L_ERRORCODE0];
+				$this->error = urldecode($this->httpParsedResponseAr[L_LONGMESSAGE0]);
+				$this->shorterror = urldecode($this->httpParsedResponseAr[L_SHORTMESSAGE0]);
+				return false;
+				//exit('SetExpressCheckout failed: ' . print_r($httpParsedResponseAr, true));
+			}
+		}
+				
+		function chargeWithPayPalExpress()
+		{
+			global $pmpro_currency;
+			
+			if(empty($this->code))
+				$this->code = $this->getRandomCode();			
+														
+			//taxes on the amount
+			$amount = $this->InitialPayment;
+			$amount_tax = $this->getTaxForPrice($amount);						
+			$this->subtotal = $amount;
+			$amount = round((float)$amount + (float)$amount_tax, 2);
+						
+			//paypal profile stuff
+			$nvpStr = "";
+			if($this->Token)
+				$nvpStr .= "&TOKEN=" . $this->Token;
+			$nvpStr .="&AMT=" . $this->InitialPayment . "&TAXAMT=" . $amount_tax . "&CURRENCYCODE=" . $pmpro_currency . "&PROFILESTARTDATE=" . $this->ProfileStartDate;
+			$nvpStr .= "&BILLINGPERIOD=" . $this->BillingPeriod . "&BILLINGFREQUENCY=" . $this->BillingFrequency . "&AUTOBILLAMT=AddToNextBilling";
+			$nvpStr .= "&DESC=" . $amount;
+			$nvpStr .= "&NOTIFYURL=" . urlencode(PMPRO_URL . "/services/ipnhandler.php");
+			$nvpStr .= "&NOSHIPPING=1";
+			
+			$nvpStr .= "&PAYERID=" . $_SESSION['payer_id'] . "&PAYMENTACTION=sale";								
+			$this->nvpStr = $nvpStr;
+			
+			$this->httpParsedResponseAr = $this->PPHttpPost('DoExpressCheckoutPayment', $nvpStr);
+						
+			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {			
+				$this->payment_transaction_id = urldecode($this->httpParsedResponseAr[PROFILEID]);								
+				$this->status = "firstpayment";				
+				
+				//update order
+				$this->saveOrder();	
+				
+				return true;	
+			} else  {				
+				$this->status = "error";
+				$this->errorcode = $this->httpParsedResponseAr[L_ERRORCODE0];
+				$this->error = urldecode($this->httpParsedResponseAr[L_LONGMESSAGE0]);
+				$this->shorterror = urldecode($this->httpParsedResponseAr[L_SHORTMESSAGE0]);
+				return false;
+				//exit('SetExpressCheckout failed: ' . print_r($httpParsedResponseAr, true));
+			}
+		}
+		
+		function processWithPayPalExpress()
+		{
+			global $pmpro_currency;
+			
+			if(empty($this->code))
+				$this->code = $this->getRandomCode();						
+			
+			//taxes on initial amount
+			$initial_payment = $this->InitialPayment;
+			$initial_payment_tax = $this->getTaxForPrice($initial_payment);
+			$initial_payment = round((float)$initial_payment + (float)$initial_payment_tax, 2);
+						
+			//taxes on the amount
+			$amount = $this->PaymentAmount;
+			$amount_tax = $this->getTaxForPrice($amount);						
+			$this->subtotal = $amount;
+			$amount = round((float)$amount + (float)$amount_tax, 2);
+						
+			//paypal profile stuff
+			$nvpStr = "";
+			if($this->Token)
+				$nvpStr .= "&TOKEN=" . $this->Token;		
+			$nvpStr .="&INITAMT=" . $initial_payment . "&AMT=" . $this->PaymentAmount . "&TAXAMT=" . $amount_tax . "&CURRENCYCODE=" . $pmpro_currency . "&PROFILESTARTDATE=" . $this->ProfileStartDate;
+			$nvpStr .= "&BILLINGPERIOD=" . $this->BillingPeriod . "&BILLINGFREQUENCY=" . $this->BillingFrequency . "&AUTOBILLAMT=AddToNextBilling";			
+			$nvpStr .= "&NOTIFYURL=" . urlencode(PMPRO_URL . "/services/ipnhandler.php");
+			$nvpStr .= "&DESC=" . urlencode($this->membership_level->name . " at " . get_bloginfo("name"));
+			
+			//if billing cycles are defined						
+			if($this->TotalBillingCycles)
+				$nvpStr .= "&TOTALBILLINGCYCLES=" . $this->TotalBillingCycles;
+			
+			//if a trial period is defined
+			if($this->TrialBillingPeriod)
+			{
+				$trial_amount = $this->TrialAmount;
+				$trial_tax = $this->getTaxForPrice($trial_amount);
+				$trial_amount = round((float)$trial_amount + (float)$trial_tax, 2);
+				
+				$nvpStr .= "&TRIALBILLINGPERIOD=" . $this->TrialBillingPeriod . "&TRIALBILLINGFREQUENCY=" . $this->TrialBillingFrequency . "&TRIALAMNT=" . $trial_amount;
+			}
+			if($this->TrialBillingCycles)
+				$nvpStr .= "&TRIALTOTALBILLINGCYCLES=" . $this->TrialBillingCycles;
+			
+			$this->nvpStr = $nvpStr;
+			
+			$this->httpParsedResponseAr = $this->PPHttpPost('CreateRecurringPaymentsProfile', $nvpStr);
+						
+			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {
+				$this->status = "success";				
+				$this->payment_transaction_id = urldecode($this->httpParsedResponseAr[PROFILEID]);
+				$this->subscription_transaction_id = urldecode($this->httpParsedResponseAr[PROFILEID]);
+				
+				//update order
+				$this->saveOrder();					
+				
+				return true;				
+			} else  {				
+				$this->status = "error";
+				$this->errorcode = $this->httpParsedResponseAr[L_ERRORCODE0];
+				$this->error = urldecode($this->httpParsedResponseAr[L_LONGMESSAGE0]);
+				$this->shorterror = urldecode($this->httpParsedResponseAr[L_SHORTMESSAGE0]);
+				
+				return false;				
 			}
 		}
 		
@@ -798,11 +1284,11 @@
 		//authorize just $1 to test credit card
 		function authorizeWithAuthorizeNet()
 		{
-			if(!$this->code)
+			if(empty($this->code))
 				$this->code = $this->getRandomCode();
 			
 			$gateway_environment = $this->gateway_environment;
-			if(!$gateway_environment)
+			if(empty($gateway_environment))
 				$gateway_environment = pmpro_getOption("gateway_environment");
 			if($gateway_environment == "live")
 					$host = "secure.authorize.net";		
@@ -819,6 +1305,13 @@
 			$address = $this->Address1;
 			if($this->Address2)
 				$address .= "\n" . $this->Address2;
+				
+			//customer stuff
+			$customer_email = $this->Email;
+			$customer_phone = $this->billing->phone;
+			
+			if(!isset($this->level->name))
+				$this->level->name = "";
 			
 			$post_values = array(
 				
@@ -848,7 +1341,9 @@
 				"x_state"			=> $this->billing->state,
 				"x_zip"				=> $this->billing->zip,
 				"x_country"			=> $this->billing->country,
-				"x_invoice_num"		=> $this->code
+				"x_invoice_num"		=> $this->code,
+				"x_phone"			=> $customer_phone,
+				"x_email"			=> $this->Email
 				// Additional fields can be added here as outlined in the AIM integration
 				// guide at: http://developer.authorize.net
 			);
@@ -857,7 +1352,7 @@
 			// for an http post.  For example: "x_login=username&x_tran_key=a1B2c3D4"
 			$post_string = "";
 			foreach( $post_values as $key => $value )
-				{ $post_string .= "$key=" . urlencode( $value ) . "&"; }
+				{ $post_string .= "$key=" . urlencode( str_replace("#", "%23", $value) ) . "&"; }
 			$post_string = rtrim( $post_string, "& " );
 						
 			//curl
@@ -870,13 +1365,85 @@
 				// additional options may be required depending upon your server configuration
 				// you can find documentation on curl options at http://www.php.net/curl_setopt
 			curl_close ($request); // close curl object
+			
+			// This line takes the response and breaks it into an array using the specified delimiting character
+			$response_array = explode($post_values["x_delim_char"],$post_response);
+						
+			if($response_array[0] == 1)
+			{
+				$this->payment_transaction_id = $response_array[6];
+				$this->updateStatus("authorized");					
+									
+				return true;
+			}
+			else
+			{
+				//$this->status = "error";
+				$this->errorcode = $response_array[2];
+				$this->error = $response_array[3];
+				$this->shorterror = $response_array[3];
+				return false;
+			}			
+		}
+		
+		//authorize just $1 to test credit card
+		function voidWithAuthorizeNet()
+		{			
+			if(empty($this->payment_transaction_id))
+				return false;
+			
+			$gateway_environment = $this->gateway_environment;
+			if(empty($gateway_environment))
+				$gateway_environment = pmpro_getOption("gateway_environment");
+			if($gateway_environment == "live")
+				$host = "secure.authorize.net";		
+			else
+				$host = "test.authorize.net";	
+			
+			$path = "/gateway/transact.dll";												
+			$post_url = "https://" . $host . $path;
+												
+			$post_values = array(
+				
+				// the API Login ID and Transaction Key must be replaced with valid values
+				"x_login"			=> pmpro_getOption("loginname"),
+				"x_tran_key"		=> pmpro_getOption("transactionkey"),
 
+				"x_version"			=> "3.1",
+				"x_delim_data"		=> "TRUE",
+				"x_delim_char"		=> "|",
+				"x_relay_response"	=> "FALSE",
+
+				"x_type"			=> "VOID",
+				"x_trans_id"			=> $this->payment_transaction_id
+				// Additional fields can be added here as outlined in the AIM integration
+				// guide at: http://developer.authorize.net
+			);
+			
+			// This section takes the input fields and converts them to the proper format
+			// for an http post.  For example: "x_login=username&x_tran_key=a1B2c3D4"
+			$post_string = "";
+			foreach( $post_values as $key => $value )
+				{ $post_string .= "$key=" . urlencode( str_replace("#", "%23", $value) ) . "&"; }
+			$post_string = rtrim( $post_string, "& " );
+						
+			//curl
+			$request = curl_init($post_url); // initiate curl object
+				curl_setopt($request, CURLOPT_HEADER, 0); // set to 0 to eliminate header info from response
+				curl_setopt($request, CURLOPT_RETURNTRANSFER, 1); // Returns response data instead of TRUE(1)
+				curl_setopt($request, CURLOPT_POSTFIELDS, $post_string); // use HTTP POST to send form data
+				curl_setopt($request, CURLOPT_SSL_VERIFYPEER, FALSE); // uncomment this line if you get no gateway response.
+				$post_response = curl_exec($request); // execute curl post and store results in $post_response
+				// additional options may be required depending upon your server configuration
+				// you can find documentation on curl options at http://www.php.net/curl_setopt
+			curl_close ($request); // close curl object
+			
 			// This line takes the response and breaks it into an array using the specified delimiting character
 			$response_array = explode($post_values["x_delim_char"],$post_response);
 			if($response_array[0] == 1)
 			{
 				$this->payment_transaction_id = $response_array[4];
-				$this->updateStatus("authorized");					
+				$this->updateStatus("voided");					
 				return true;
 			}
 			else
@@ -892,16 +1459,17 @@
 		//charge first periods payment
 		function chargeWithAuthorizeNet()
 		{
-			if(!$this->code)
+			if(empty($this->code))
 				$this->code = $this->getRandomCode();
 			
-			$gateway_environment = $this->gateway_environment;
-			if(!$gateway_environment)
+			if(!empty($this->gateway_environment))
+				$gateway_environment = $this->gateway_environment;
+			if(empty($gateway_environment))
 				$gateway_environment = pmpro_getOption("gateway_environment");
 			if($gateway_environment == "live")
-					$host = "secure.authorize.net";		
-				else
-					$host = "test.authorize.net";	
+				$host = "secure.authorize.net";		
+			else
+				$host = "test.authorize.net";	
 			
 			$path = "/gateway/transact.dll";												
 			$post_url = "https://" . $host . $path;
@@ -918,6 +1486,13 @@
 			$address = $this->Address1;
 			if($this->Address2)
 				$address .= "\n" . $this->Address2;
+			
+			//customer stuff
+			$customer_email = $this->Email;
+			$customer_phone = $this->billing->phone;
+			
+			if(!isset($this->level->name))
+				$this->level->name = "";
 			
 			$post_values = array(
 				
@@ -948,7 +1523,9 @@
 				"x_state"			=> $this->billing->state,
 				"x_zip"				=> $this->billing->zip,
 				"x_country"			=> $this->billing->country,
-				"x_invoice_num"		=> $this->code
+				"x_invoice_num"		=> $this->code,
+				"x_phone"			=> $customer_phone,
+				"x_email"			=> $this->Email
 				
 				// Additional fields can be added here as outlined in the AIM integration
 				// guide at: http://developer.authorize.net
@@ -958,7 +1535,7 @@
 			// for an http post.  For example: "x_login=username&x_tran_key=a1B2c3D4"
 			$post_string = "";
 			foreach( $post_values as $key => $value )
-				{ $post_string .= "$key=" . urlencode( $value ) . "&"; }
+				{ $post_string .= "$key=" . urlencode( str_replace("#", "%23", $value) ) . "&"; }
 			$post_string = rtrim( $post_string, "& " );
 						
 			//curl
@@ -976,7 +1553,7 @@
 			$response_array = explode($post_values["x_delim_char"],$post_response);
 			if($response_array[0] == 1)
 			{
-				$this->payment_transaction_id = $response_array[4];
+				$this->payment_transaction_id = $response_array[6];
 				$this->updateStatus("firstpayment");					
 				return true;
 			}
@@ -994,11 +1571,12 @@
 		{		
 			//define variables to send
 
-			if(!$this->code)
+			if(empty($this->code))
 				$this->code = $this->getRandomCode();
 			
-			$gateway_environment = $this->gateway_environment;
-			if(!$gateway_environment)
+			if(!empty($this->gateway_environment))
+				$gateway_environment = $this->gateway_environment;
+			if(empty($gateway_environment))
 				$gateway_environment = pmpro_getOption("gateway_environment");
 			if($gateway_environment == "live")
 					$host = "api.authorize.net";		
@@ -1034,10 +1612,16 @@
 				
 			$startDate = substr($this->ProfileStartDate, 0, 10);
 			$totalOccurrences = (int)$this->TotalBillingCycles;
-			if(!$totalOccurrences)
-				$totalOccurrences = 9999;
-			$trialOccurrences = (int)$this->TrialBillingCycles;
-			$trialAmount = $this->TrialAmount;
+			if(empty($totalOccurrences))
+				$totalOccurrences = 9999;	
+			if(isset($this->TrialBillingCycles))						
+				$trialOccurrences = (int)$this->TrialBillingCycles;
+			else
+				$trialOccurrences = 0;
+			if(isset($this->TrialAmount))
+				$trialAmount = $this->TrialAmount;
+			else
+				$trialAmount = NULL;
 			
 			//taxes
 			$amount_tax = $this->getTaxForPrice($amount);
@@ -1049,7 +1633,7 @@
 			
 			//authorize.net doesn't support different periods between trial and actual
 			
-			if($this->TrialBillingPeriod && $this->TrialBillingPeriod != $this->BillingPeriod)
+			if(!empty($this->TrialBillingPeriod) && $this->TrialBillingPeriod != $this->BillingPeriod)
 			{
 				echo "F";
 				return false;
@@ -1073,10 +1657,18 @@
 			
 			//customer stuff
 			$customer_email = $this->Email;
-			$customer_phone = $this->billing->phone;
+			if(strpos($this->billing->phone, "+") === false)
+				$customer_phone = $this->billing->phone;
+			else
+				$customer_phone = "";
+				
+			//make sure the phone is in an okay format
+			$customer_phone = preg_replace("/[^0-9]/", "", $customer_phone);
+			if(strlen($customer_phone) > 10)
+				$customer_phone = "";
 			
 			//build xml to post
-			$content =
+			$this->content =
 					"<?xml version=\"1.0\" encoding=\"utf-8\"?>" .
 					"<ARBCreateSubscriptionRequest xmlns=\"AnetApi/xml/v1/schema/AnetApiSchema.xsd\">" .
 					"<merchantAuthentication>".
@@ -1094,15 +1686,15 @@
 					"<startDate>" . $startDate . "</startDate>".
 					"<totalOccurrences>". $totalOccurrences . "</totalOccurrences>";
 			if($trialOccurrences)
-				$content .= 
+				$this->content .= 
 					"<trialOccurrences>". $trialOccurrences . "</trialOccurrences>";
-			$content .= 
+			$this->content .= 
 					"</paymentSchedule>".
 					"<amount>". $amount ."</amount>";
 			if($trialOccurrences)
-				$content .=
+				$this->content .=
 					"<trialAmount>" . $trialAmount . "</trialAmount>";
-			$content .=
+			$this->content .=
 					"<payment>".
 					"<creditCard>".
 					"<cardNumber>" . $cardNumber . "</cardNumber>".
@@ -1128,14 +1720,14 @@
 					"</ARBCreateSubscriptionRequest>";
 		
 			//send the xml via curl
-			$response = $this->send_request_via_curl($host,$path,$content);
+			$this->response = $this->send_request_via_curl($host,$path,$this->content);
 			//if curl is unavilable you can try using fsockopen
 			/*
 			$response = send_request_via_fsockopen($host,$path,$content);
 			*/
 						
-			if($response) {				
-				list ($refId, $resultCode, $code, $text, $subscriptionId) = $this->parse_return($response);
+			if($this->response) {				
+				list ($refId, $resultCode, $code, $text, $subscriptionId) = $this->parse_return($this->response);
 				if($resultCode == "Ok")
 				{
 					$this->status = "success";	//saved on checkout page				
@@ -1166,7 +1758,7 @@
 			$transactionkey = pmpro_getOption("transactionkey");
 		
 			$gateway_environment = $this->gateway_environment;
-			if(!$gateway_environment)
+			if(empty($gateway_environment))
 				$gateway_environment = pmpro_getOption("gateway_environment");
 			if($gateway_environment == "live")
 					$host = "api.authorize.net";		
@@ -1228,7 +1820,7 @@
 		{		
 			//define variables to send					
 			$gateway_environment = $this->gateway_environment;
-			if(!$gateway_environment)
+			if(empty($gateway_environment))
 				$gateway_environment = pmpro_getOption("gateway_environment");
 			if($gateway_environment == "live")
 					$host = "api.authorize.net";		
@@ -1262,7 +1854,8 @@
 			
 			//customer stuff
 			$customer_email = $this->Email;
-			$customer_phone = $this->billing->phone;
+			if(strpos($this->billing->phone, "+") === false)
+				$customer_phone = $this->billing->phone;
 			
 			//build xml to post
 			$content =
