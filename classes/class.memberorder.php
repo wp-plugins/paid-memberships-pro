@@ -419,7 +419,40 @@
 					if($this->authorizeWithAuthorizeNet())
 					{						
 						$this->voidWithAuthorizeNet();	
-						$this->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod)) . "T0:0:0";						
+						
+						/*
+							Authorize.net complains if the credit card expires before the first subscription payment.
+							So we cheat as long as this subscription doesn't have a trial period already.
+						*/
+						if(!pmpro_isLevelTrial($this->membership_level))
+						{
+							//subscription will start today with a 1 period trial
+							$this->ProfileStartDate = date("Y-m-d") . "T0:0:0";
+							$this->TrialBillingPeriod = $this->BillingPeriod;
+							$this->TrialBillingFrequency = $this->BillingFrequency;													
+							$this->TrialBillingCycles = 1;
+							$this->TrialAmount = 0;
+							
+							//add a billing cycle to make up for the trial, if applicable
+							if($this->TotalBillingCycles)
+								$this->TotalBillingCycles++;
+						}
+						elseif($this->InitialPayment == 0 && $this->TrialAmount == 0)
+						{
+							//it has a trial, but the amount is the same as the initial payment, so we can squeeze it in there
+							$this->ProfileStartDate = date("Y-m-d") . "T0:0:0";														
+							$this->TrialBillingCycles++;
+							
+							//add a billing cycle to make up for the trial, if applicable
+							if($this->TotalBillingCycles)
+								$this->TotalBillingCycles++;
+						}
+						else
+						{
+							//add a period to the start date to account for the initial payment
+							$this->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod)) . "T0:0:0";				
+						}
+						
 						$this->ProfileStartDate = apply_filters("pmpro_profile_start_date", $this->ProfileStartDate, $this);
 						return $this->processWithAuthorizeNet();
 					}
@@ -438,7 +471,39 @@
 						//setup recurring billing
 						if(pmpro_isLevelRecurring($this->membership_level))
 						{
-							$this->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod)) . "T0:0:0";
+							/*
+								Authorize.net complains if the credit card expires before the first subscription payment.
+								So we cheat as long as this subscription doesn't have a trial period already.
+							*/
+							if(!pmpro_isLevelTrial($this->membership_level))
+							{
+								//subscription will start today with a 1 period trial
+								$this->ProfileStartDate = date("Y-m-d") . "T0:0:0";
+								$this->TrialBillingPeriod = $this->BillingPeriod;
+								$this->TrialBillingFrequency = $this->BillingFrequency;													
+								$this->TrialBillingCycles = 1;
+								$this->TrialAmount = 0;
+								
+								//add a billing cycle to make up for the trial, if applicable
+								if($this->TotalBillingCycles)
+									$this->TotalBillingCycles++;
+							}
+							elseif($this->InitialPayment == 0 && $this->TrialAmount == 0)
+							{
+								//it has a trial, but the amount is the same as the initial payment, so we can squeeze it in there
+								$this->ProfileStartDate = date("Y-m-d") . "T0:0:0";														
+								$this->TrialBillingCycles++;
+								
+								//add a billing cycle to make up for the trial, if applicable
+								if($this->TotalBillingCycles)
+									$this->TotalBillingCycles++;
+							}
+							else
+							{
+								//add a period to the start date to account for the initial payment
+								$this->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod)) . "T0:0:0";				
+							}
+							
 							$this->ProfileStartDate = apply_filters("pmpro_profile_start_date", $this->ProfileStartDate, $this);
 							if($this->processWithAuthorizeNet())
 							{
@@ -754,7 +819,7 @@
 		}
 		
 		function processWithPayPal()
-		{										
+		{													
 			global $pmpro_currency;
 			
 			if(empty($this->code))
@@ -1603,7 +1668,7 @@
 				$customer_phone = "";
 			
 			//build xml to post
-			$content =
+			$this->content =
 					"<?xml version=\"1.0\" encoding=\"utf-8\"?>" .
 					"<ARBCreateSubscriptionRequest xmlns=\"AnetApi/xml/v1/schema/AnetApiSchema.xsd\">" .
 					"<merchantAuthentication>".
@@ -1621,15 +1686,15 @@
 					"<startDate>" . $startDate . "</startDate>".
 					"<totalOccurrences>". $totalOccurrences . "</totalOccurrences>";
 			if($trialOccurrences)
-				$content .= 
+				$this->content .= 
 					"<trialOccurrences>". $trialOccurrences . "</trialOccurrences>";
-			$content .= 
+			$this->content .= 
 					"</paymentSchedule>".
 					"<amount>". $amount ."</amount>";
 			if($trialOccurrences)
-				$content .=
+				$this->content .=
 					"<trialAmount>" . $trialAmount . "</trialAmount>";
-			$content .=
+			$this->content .=
 					"<payment>".
 					"<creditCard>".
 					"<cardNumber>" . $cardNumber . "</cardNumber>".
@@ -1655,14 +1720,14 @@
 					"</ARBCreateSubscriptionRequest>";
 		
 			//send the xml via curl
-			$response = $this->send_request_via_curl($host,$path,$content);
+			$this->response = $this->send_request_via_curl($host,$path,$this->content);
 			//if curl is unavilable you can try using fsockopen
 			/*
 			$response = send_request_via_fsockopen($host,$path,$content);
 			*/
 						
-			if($response) {				
-				list ($refId, $resultCode, $code, $text, $subscriptionId) = $this->parse_return($response);
+			if($this->response) {				
+				list ($refId, $resultCode, $code, $text, $subscriptionId) = $this->parse_return($this->response);
 				if($resultCode == "Ok")
 				{
 					$this->status = "success";	//saved on checkout page				
