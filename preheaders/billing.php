@@ -6,29 +6,55 @@
 	global $bfirstname, $blastname, $baddress1, $baddress2, $bcity, $bstate, $bzipcode, $bphone, $bemail, $bconfirmemail, $CardType, $AccountNumber, $ExpirationMonth, $ExpirationYear;
 	
 	//_x stuff in case they clicked on the image button with their mouse
-	$submit = $_REQUEST['update-billing'];
-	if(!$submit) $submit = $_REQUEST['update-billing_x'];	
-	if($submit === "0") $submit = true;
+	if(isset($_REQUEST['update-billing']))
+		$submit = $_REQUEST['update-billing'];
+	else
+		$submit = false;		
+	
+	if(!$submit && isset($_REQUEST['update-billing_x']))
+		$submit = $_REQUEST['update-billing_x'];	
+	
+	if($submit === "0") 
+		$submit = true;
 		
 	//check their fields if they clicked continue
 	if($submit)
 	{		
 		//load em up (other fields)	
-		$bfirstname = $_REQUEST['bfirstname'];	
-		$blastname = $_REQUEST['blastname'];	
-		$baddress1 = $_REQUEST['baddress1'];
-		$baddress2 = $_REQUEST['baddress2'];
-		$bcity = $_REQUEST['bcity'];
-		$bstate = $_REQUEST['bstate'];
-		$bzipcode = $_REQUEST['bzipcode'];
-		$bphone = $_REQUEST['bphone'];
-		$bemail = $_REQUEST['bemail'];
-		$bconfirmemail = $_REQUEST['bconfirmemail'];
-		$CardType = $_REQUEST['CardType'];
-		$AccountNumber = $_REQUEST['AccountNumber'];
-		$ExpirationMonth = $_REQUEST['ExpirationMonth'];
-		$ExpirationYear = $_REQUEST['ExpirationYear'];
-		$CVV = $_REQUEST['CVV'];	
+		if(isset($_REQUEST['bfirstname']))
+			$bfirstname = trim(stripslashes($_REQUEST['bfirstname']));	
+		if(isset($_REQUEST['blastname']))
+			$blastname = trim(stripslashes($_REQUEST['blastname']));	
+		if(isset($_REQUEST['fullname']))
+			$fullname = $_REQUEST['fullname'];		//honeypot for spammers
+		if(isset($_REQUEST['baddress1']))
+			$baddress1 = trim(stripslashes($_REQUEST['baddress1']));		
+		if(isset($_REQUEST['baddress2']))
+			$baddress2 = trim(stripslashes($_REQUEST['baddress2']));
+		if(isset($_REQUEST['bcity']))
+			$bcity = trim(stripslashes($_REQUEST['bcity']));
+		if(isset($_REQUEST['bstate']))
+			$bstate = trim(stripslashes($_REQUEST['bstate']));
+		if(isset($_REQUEST['bzipcode']))
+			$bzipcode = trim(stripslashes($_REQUEST['bzipcode']));
+		if(isset($_REQUEST['bcountry']))
+			$bcountry = trim(stripslashes($_REQUEST['bcountry']));
+		if(isset($_REQUEST['bphone']))
+			$bphone = trim(stripslashes($_REQUEST['bphone']));
+		if(isset($_REQUEST['bemail']))
+			$bemail = trim(stripslashes($_REQUEST['bemail']));
+		if(isset($_REQUEST['bconfirmemail']))
+				$bconfirmemail = trim(stripslashes($_REQUEST['bconfirmemail']));
+		if(isset($_REQUEST['CardType']))
+			$CardType = $_REQUEST['CardType'];
+		if(isset($_REQUEST['AccountNumbe']))
+			$AccountNumber = trim($_REQUEST['AccountNumber']);
+		if(isset($_REQUEST['ExpirationMonth']))
+			$ExpirationMonth = $_REQUEST['ExpirationMonth'];
+		if(isset($_REQUEST['ExpirationYear']))
+			$ExpirationYear = $_REQUEST['ExpirationYear'];
+		if(isset($_REQUEST['CVV']))
+			$CVV = trim($_REQUEST['CVV']);	
 		
 		if(!$bfirstname || !$blastname || !$baddress1 || !$bcity || !$bstate || !$bzipcode || !$bphone || !$bemail || !$CardType || !$AccountNumber || !$ExpirationMonth || !$ExpirationYear || !$CVV)
 		{
