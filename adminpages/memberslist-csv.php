@@ -6,20 +6,36 @@
 	require('../../../../wp-load.php');
 
 	//get users	
-	$s = $_REQUEST['s'];
-	$l = $_REQUEST['l'];
+	if(isset($_REQUEST['s']))
+		$s = $_REQUEST['s'];
+	else
+		$s = "";
+	
+	if(isset($_REQUEST['l']))
+		$l = $_REQUEST['l'];
+	else
+		$l = false;
 	
 	//some vars for the search
-	$pn = $_REQUEST['pn'];
-		if(!$pn) $pn = 1;
-	$limit = $_REQUEST['limit'];
-		if(!$limit) $limit = 15;
-	$end = $pn * $limit;
-	$start = $end - $limit;		
+	if(!empty($_REQUEST['pn']))
+		$pn = $_REQUEST['pn'];
+	else
+		$pn = 1;
 	
+	if(!empty($_REQUEST['limit']))
+		$limit = $_REQUEST['limit'];
+	else
+		$limit = false;
+		
+	if($limit)
+	{	
+		$end = $pn * $limit;
+		$start = $end - $limit;		
+	}
+		
 	if($s)
 	{
-		$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, mu.membership_id, mu.billing_amount, mu.cycle_period, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->usermeta um ON u.ID = um.user_id LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id WHERE mu.membership_id > 0 AND (u.user_login LIKE '%$s%' OR u.user_email LIKE '%$s%' OR um.meta_value LIKE '%$s%') ";
+		$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, mu.membership_id, mu.billing_amount, mu.cycle_period, UNIX_TIMESTAMP(mu.enddate) as enddate, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->usermeta um ON u.ID = um.user_id LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id WHERE mu.membership_id > 0 AND (u.user_login LIKE '%$s%' OR u.user_email LIKE '%$s%' OR um.meta_value LIKE '%$s%') ";
 	
 		if($l)
 			$sqlQuery .= " AND mu.membership_id = '" . $l . "' ";					
@@ -28,15 +44,17 @@
 	}
 	else
 	{
-		$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, mu.membership_id, mu.billing_amount, mu.cycle_period, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id ";
+		$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, mu.membership_id, mu.billing_amount, mu.cycle_period, UNIX_TIMESTAMP(mu.enddate) as enddate, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id ";
 		$sqlQuery .= "WHERE mu.membership_id > 0 ";
 		if($l)
 			$sqlQuery .= " AND mu.membership_id = '" . $l . "' ";										
-		$sqlQuery .= "ORDER BY user_registered DESC LIMIT $start, $limit";
+		$sqlQuery .= "ORDER BY user_registered DESC ";
+		if($limit)
+			$sqlQuery .= "LIMIT $start, $limit";
 	}
 		
 	$theusers = $wpdb->get_results($sqlQuery);	
-	$csvoutput = "id,username,firstname,lastname,email,membership,fee,term,joined\n";	
+	$csvoutput = "id,username,firstname,lastname,email,billing firstname,billing lastname,address1,address2,city,state,zipcode,phone,membership,fee,term,joined,expires\n";	
 	
 	if($theusers)
 	{
@@ -51,10 +69,23 @@
 						  enclose($metavalues->first_name) . "," .
 						  enclose($metavalues->last_name) . "," .
 						  enclose($theuser->user_email) . "," .
+						  enclose($metavalues->pmpro_bfirstname) . "," .
+						  enclose($metavalues->pmpro_blastname) . "," .
+						  enclose($metavalues->pmpro_baddress1) . "," .
+						  enclose($metavalues->pmpro_baddress2) . "," .
+						  enclose($metavalues->pmpro_bcity) . "," .
+						  enclose($metavalues->pmpro_bstate) . "," .
+						  enclose($metavalues->pmpro_bzipcode) . "," .
+						  enclose($metavalues->pmpro_bphone) . "," .
 						  enclose($theuser->membership) . "," .
 						  enclose($theuser->billing_amount) . "," .
 						  enclose($theuser->cycle_period) . "," .					  
-						  enclose(date("m/d/Y", $theuser->joindate)) . "\n";
+						  enclose(date("m/d/Y", $theuser->joindate)) . ",";
+			if($theuser->enddate)
+				$csvoutput .= enclose(date("m/d/Y", $theuser->enddate));
+			else
+				$csvoutput .= enclose("Never");
+			$csvoutput .= "\n";
 											
 		}
 	}
