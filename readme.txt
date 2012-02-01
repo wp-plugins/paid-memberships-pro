@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal
 Requires at least: 3.0
 Tested up to: 3.3.1
-Stable tag: 1.3.12
+Stable tag: 1.3.13
 
 A customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -34,6 +34,12 @@ Please visit our premium support site at http://www.paidmembershipspro.com for m
 3. Use Discount Codes to offer access at lower prices for special customers.
 
 == Changelog ==
+= 1.3.13 =
+* Fixed warning on checkout page. (Thanks Caps!)
+* Fixed bug in PayPal Express checkout that resulted in trying to load the confirmation page over SSL (which would break on some servers). (Thanks Caps!)
+* Updated getTaxFromPrice method of order class to allow for better filtering, by level, etc. The pmpro_tax filter now passes the $tax amount, $values (array with price passed and other values), and $this (the order object). It's a little clunky, but must be for backwards compatibility. Custom tax example here: http://www.paidmembershipspro.com/2012/02/custom-tax-structure-using-the-pmpro_tax-hook/
+* Removed all TAXAMT NVP parameters in PayPal Express calls. Including these would sometimes introduce errors during checkout. The tax amount is still included in the total amounts passed. Not sure what impact dropping the TAXAMT property will have on reporting in PayPal. I don't believe their tax reporting is the best anyway. Maybe we can build a tax report into PMPro.
+
 = 1.3.12 =
 * Fixed bug in members list pagination on sites installed in a subdirectory.
 * Now swapping out the PayPal Express checkout button if the level is free or becomes free with a discount code. (Thanks, Caps!)
