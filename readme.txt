@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal
 Requires at least: 3.0
 Tested up to: 3.3.1
-Stable tag: 1.3.13
+Stable tag: 1.3.14
 
 A customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -34,6 +34,16 @@ Please visit our premium support site at http://www.paidmembershipspro.com for m
 3. Use Discount Codes to offer access at lower prices for special customers.
 
 == Changelog ==
+= 1.3.14 =
+* Added pmpro_show_cvv filter to hide the CVV from the checkout and billing information pages.
+* Updated the billing page to use the pmpro_required_billing_fields like the checkout page does.
+* Updated the Authorize.net integration to not pass an empty CVV if the value is empty. Authorize.net will still throw an error if you require CVV via your gateway settings. If you update your settings and PMpro to not require a CVV, you won't get an error.
+* Passing the level cost to PayPal Express through the description.
+* The billing page doesn't require SSL now if the gateway for the order was PayPal Express. A link to PayPal is shown instead of the form. (Be sure to remove the "becesure" custom field from your billing page if it has one and you don't want this page served over SSL.)
+* Fixed bug where the membership level name wasn't being passed to Authorize.net in the description field for the order.
+* Added a second paramter ($tags = true) to the pmpro_getLevelCost function. If this is false, strip_tags is run on the cost before returning it. (By default we wrap the prices in <strong> tags which is not good for passing to PayPal for example.)
+* Some bug fixes for updating billing against Authorize.net.
+
 = 1.3.13 =
 * Fixed warning on checkout page. (Thanks Caps!)
 * Fixed bug in PayPal Express checkout that resulted in trying to load the confirmation page over SSL (which would break on some servers). (Thanks Caps!)

@@ -1006,7 +1006,7 @@
 			$nvpStr .= "&BILLINGPERIOD=" . $this->BillingPeriod . "&BILLINGFREQUENCY=" . $this->BillingFrequency . "&AUTOBILLAMT=AddToNextBilling";
 			$nvpStr .= "&DESC=" . $amount;
 			$nvpStr .= "&NOTIFYURL=" . urlencode(PMPRO_URL . "/services/ipnhandler.php");
-			$nvpStr .= "&NOSHIPPING=1&L_BILLINGTYPE0=RecurringPayments&L_BILLINGAGREEMENTDESCRIPTION0=" . urlencode($this->membership_level->name . " at " . get_bloginfo("name")) . "&L_PAYMENTTYPE0=Any";
+			$nvpStr .= "&NOSHIPPING=1&L_BILLINGTYPE0=RecurringPayments&L_BILLINGAGREEMENTDESCRIPTION0=" . urlencode($this->membership_level->name . " at " . get_bloginfo("name") . ". " . str_replace("&#36;", "$", pmpro_getLevelCost($this->membership_level, false))) . "&L_PAYMENTTYPE0=Any";
 					
 			//if billing cycles are defined						
 			if(!empty($this->TotalBillingCycles))
@@ -1040,8 +1040,8 @@
 					$nvpStr .= urlencode("&" . $key . "=" . $value);
 			}						
 			
-			$nvpStr .= "&CANCELURL=" . urlencode(pmpro_url("levels"));			
-						
+			$nvpStr .= "&CANCELURL=" . urlencode(pmpro_url("levels"));									
+			
 			$this->httpParsedResponseAr = $this->PPHttpPost('SetExpressCheckout', $nvpStr);					
 						
 			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {
@@ -1176,7 +1176,7 @@
 			$nvpStr .="&INITAMT=" . $initial_payment . "&AMT=" . $this->PaymentAmount . "&CURRENCYCODE=" . $pmpro_currency . "&PROFILESTARTDATE=" . $this->ProfileStartDate;
 			$nvpStr .= "&BILLINGPERIOD=" . $this->BillingPeriod . "&BILLINGFREQUENCY=" . $this->BillingFrequency . "&AUTOBILLAMT=AddToNextBilling";			
 			$nvpStr .= "&NOTIFYURL=" . urlencode(PMPRO_URL . "/services/ipnhandler.php");
-			$nvpStr .= "&DESC=" . urlencode($this->membership_level->name . " at " . get_bloginfo("name"));
+			$nvpStr .= "&DESC=" . urlencode($this->membership_level->name . " at " . get_bloginfo("name") . ". " . str_replace("&#36;", "$", pmpro_getLevelCost($this->membership_level, false)));
 			
 			//if billing cycles are defined						
 			if($this->TotalBillingCycles)
@@ -1324,8 +1324,8 @@
 			$customer_email = $this->Email;
 			$customer_phone = $this->billing->phone;
 			
-			if(!isset($this->level->name))
-				$this->level->name = "";
+			if(!isset($this->membership_level->name))
+				$this->membership_level->name = "";
 			
 			$post_values = array(
 				
@@ -1343,10 +1343,9 @@
 				"x_card_type"		=> $this->cardtype,
 				"x_card_num"		=> $this->accountnumber,
 				"x_exp_date"		=> $this->ExpirationDate,
-				"x_card_code"		=> $this->CVV2,
 				
 				"x_amount"			=> $amount,
-				"x_description"		=> $this->level->name . " Membership",
+				"x_description"		=> $this->membership_level->name . " Membership",
 
 				"x_first_name"		=> $this->FirstName,
 				"x_last_name"		=> $this->LastName,
@@ -1361,6 +1360,9 @@
 				// Additional fields can be added here as outlined in the AIM integration
 				// guide at: http://developer.authorize.net
 			);
+			
+			if(!empty($this->CVV2))
+				$post_values["x_card_code"] = $this->CVV2;
 			
 			// This section takes the input fields and converts them to the proper format
 			// for an http post.  For example: "x_login=username&x_tran_key=a1B2c3D4"
@@ -1505,8 +1507,8 @@
 			$customer_email = $this->Email;
 			$customer_phone = $this->billing->phone;
 			
-			if(!isset($this->level->name))
-				$this->level->name = "";
+			if(!isset($this->membership_level->name))
+				$this->membership_level->name = "";
 			
 			$post_values = array(
 				
@@ -1523,12 +1525,11 @@
 				"x_method"			=> "CC",
 				"x_card_type"		=> $this->cardtype,
 				"x_card_num"		=> $this->accountnumber,
-				"x_exp_date"		=> $this->ExpirationDate,
-				"x_card_code"		=> $this->CVV2,
+				"x_exp_date"		=> $this->ExpirationDate,				
 				
 				"x_amount"			=> $amount,
 				"x_tax"				=> $tax,
-				"x_description"		=> $this->level->name . " Membership",
+				"x_description"		=> $this->membership_level->name . " Membership",
 
 				"x_first_name"		=> $this->FirstName,
 				"x_last_name"		=> $this->LastName,
@@ -1543,8 +1544,11 @@
 				
 				// Additional fields can be added here as outlined in the AIM integration
 				// guide at: http://developer.authorize.net
-			);
-						
+			);						
+			
+			if(!empty($this->CVV2))
+				$post_values["x_card_code"] = $this->CVV2;
+			
 			// This section takes the input fields and converts them to the proper format
 			// for an http post.  For example: "x_login=username&x_tran_key=a1B2c3D4"
 			$post_string = "";
@@ -1712,8 +1716,10 @@
 					"<payment>".
 					"<creditCard>".
 					"<cardNumber>" . $cardNumber . "</cardNumber>".
-					"<expirationDate>" . $expirationDate . "</expirationDate>".
-					"<cardCode>" . $cardCode . "</cardCode>".
+					"<expirationDate>" . $expirationDate . "</expirationDate>";
+			if(!empty($cardCode))
+				$this->content .= "<cardCode>" . $cardCode . "</cardCode>";
+			$this->content .=					
 					"</creditCard>".
 					"</payment>".
 					"<order><invoiceNumber>" . $this->code . "</invoiceNumber></order>".
@@ -1871,8 +1877,9 @@
 			if(strpos($this->billing->phone, "+") === false)
 				$customer_phone = $this->billing->phone;
 			
+			
 			//build xml to post
-			$content =
+			$this->content =
 					"<?xml version=\"1.0\" encoding=\"utf-8\"?>" .
 					"<ARBUpdateSubscriptionRequest xmlns=\"AnetApi/xml/v1/schema/AnetApiSchema.xsd\">".
 					"<merchantAuthentication>".
@@ -1885,13 +1892,15 @@
 					"<payment>".
 					"<creditCard>".
 					"<cardNumber>" . $cardNumber . "</cardNumber>".
-					"<expirationDate>" . $expirationDate . "</expirationDate>".
-					"<cardCode>" . $cardCode . "</cardCode>".
+					"<expirationDate>" . $expirationDate . "</expirationDate>";
+			if(!empty($cardCode))
+				$this->content .= "<cardCode>" . $cardCode . "</cardCode>";
+			$this->content .= 					
 					"</creditCard>".
 					"</payment>".
 					"<customer>".
 					"<email>". $customer_email . "</email>".
-					"<phoneNumber>". formatPhone($customer_phone) . "</phoneNumber>".
+					"<phoneNumber>". str_replace("1 (", "(", formatPhone($customer_phone)) . "</phoneNumber>".
 					"</customer>".
 					"<billTo>".
 					"<firstName>". $firstName . "</firstName>".
@@ -1906,15 +1915,15 @@
 					"</ARBUpdateSubscriptionRequest>";
 		
 			//send the xml via curl
-			$response = $this->send_request_via_curl($host,$path,$content);
+			$this->response = $this->send_request_via_curl($host,$path,$this->content);
 			//if curl is unavilable you can try using fsockopen
 			/*
-			$response = send_request_via_fsockopen($host,$path,$content);
+			$response = send_request_via_fsockopen($host,$path,$this->content);
 			*/
 			
 			
-			if($response) {				
-				list ($resultCode, $code, $text, $subscriptionId) = $this->parse_return($response);		
+			if($this->response) {				
+				list ($resultCode, $code, $text, $subscriptionId) = $this->parse_return($this->response);		
 				
 				if($resultCode == "Ok" || $code == "Ok")
 				{					
