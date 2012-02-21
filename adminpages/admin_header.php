@@ -9,10 +9,14 @@
 	if(!$pmpro_ready)
 	{
 		global $pmpro_level_ready, $pmpro_gateway_ready, $pmpro_pages_ready;		
-		if(isset($_REQUEST['edit']))
-			$edit = $_REQUEST['edit'];
-		else
-			$edit = false;
+		if(!isset($edit))
+		{
+			if(isset($_REQUEST['edit']))
+				$edit = $_REQUEST['edit'];
+			else
+				$edit = false;
+		}
+		
 		if(empty($msg))
 			$msg = -1;		
 		if(empty($pmpro_level_ready) && empty($edit))
@@ -42,15 +46,14 @@
 		<div class="pmpro_meta"><a href="<?php echo pmpro_https_filter("http://www.paidmembershipspro.com")?>">Plugin Support</a> | <a href="http://www.paidmembershipspro.com/forums/">User Forum</a> | <strong>Version <?php echo PMPRO_VERSION?></strong></div>
 	</div>
 	<br style="clear:both;" />
-	
-	<?php
-		//include(pmpro_https_filter("http://www.paidmembershipspro.com/notifications/?v=" . PMPRO_VERSION));
-	?>
+		
 	<div id="pmpro_notifications">
 	</div>
 	<script>
-		jQuery.get('<?php echo pmpro_https_filter("http://www.paidmembershipspro.com/notifications/?v=" . PMPRO_VERSION)?>', function(data) {
-		  jQuery('#pmpro_notifications').html(data);		 
+		jQuery(document).ready(function() {
+			jQuery.get('<?php echo home_url("/wp-admin/admin-ajax.php?action=pmpro_notifications"); ?>', function(data) {
+			  jQuery('#pmpro_notifications').html(data);		 
+			});
 		});
 	</script>
 	
