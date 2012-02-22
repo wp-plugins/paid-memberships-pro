@@ -10,6 +10,22 @@
 		}
 	}
 	
+	//setup wpdb for the tables we need
+	function pmpro_setDBTables()
+	{
+		global $table_prefix, $wpdb;
+		$wpdb->hide_errors();
+		$wpdb->pmpro_membership_levels = $table_prefix . 'pmpro_membership_levels';
+		$wpdb->pmpro_memberships_users = $table_prefix . 'pmpro_memberships_users';
+		$wpdb->pmpro_memberships_categories = $table_prefix . 'pmpro_memberships_categories';
+		$wpdb->pmpro_memberships_pages = $table_prefix . 'pmpro_memberships_pages';
+		$wpdb->pmpro_membership_orders = $table_prefix . 'pmpro_membership_orders';
+		$wpdb->pmpro_discount_codes = $wpdb->prefix . 'pmpro_discount_codes';
+		$wpdb->pmpro_discount_codes_levels = $wpdb->prefix . 'pmpro_discount_codes_levels';
+		$wpdb->pmpro_discount_codes_uses = $wpdb->prefix . 'pmpro_discount_codes_uses';
+	}	
+	pmpro_setDBTables();
+	
 	//from: http://stackoverflow.com/questions/5266945/wordpress-how-detect-if-current-page-is-the-login-page/5892694#5892694
 	function pmpro_is_login_page() {
 		return in_array($GLOBALS['pagenow'], array('wp-login.php', 'wp-register.php'));
@@ -443,17 +459,34 @@
 					$r = false;
 			}		
 								
+			if(!is_array($levels))
+				$levels = array($levels);
+			
 			//okay, so something to check let's set the levels
-			if(!empty($membership_level))
+			if(empty($membership_level))
 			{
-				if(!is_array($levels))
-					$levels = array($levels);
-					
-				//and check each one
+				//non member check
 				foreach($levels as $level)
 				{
-					if($level == $membership_level->ID || $level == $membership_level->name)
+					if(is_numeric($level) && (int)$level < 0)
+						$r = true;	//they don't have a membership level so they don't have this one
+				}
+			}
+			else
+			{						
+				//check levels against the user's level
+				foreach($levels as $level)
+				{
+					if(is_numeric($level) && (int)$level < 0)
+					{
+						//passing -1 will return true if the user does not have membership level #1
+						$abs_level = abs($level);						
+						if($abs_level != $membership_level->ID)
+							$r = true;
+					}
+					elseif($level == $membership_level->ID || $level == $membership_level->name)
 					{				
+						//the user has this level
 						$r = true;
 					}
 				}
