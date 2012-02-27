@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships
-Version: 1.3.17.1
+Version: 1.3.18
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -41,7 +41,7 @@ $urlparts = explode("//", home_url());
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.3.17.1");
+define("PMPRO_VERSION", "1.3.18");
 
 global $gateway_environment;
 $gateway_environment = pmpro_getOption("gateway_environment");
@@ -306,7 +306,7 @@ function pmpro_membership_level_profile_fields($user)
 			<th><label for="membership_level"><?php _e("Current Level"); ?></label></th>
 			<td>
 				<select name="membership_level" onchange="pmpro_mchange_warning();">
-					<option value="" <?php if(!$user->membership_level->ID) { ?>selected="selected"<?php } ?>>-- None --</option>
+					<option value="" <?php if(empty($user->membership_level->ID)) { ?>selected="selected"<?php } ?>>-- None --</option>
 				<?php
 					foreach($levels as $level)
 					{
@@ -330,7 +330,7 @@ function pmpro_membership_level_profile_fields($user)
 				</script>
 				<?php
 					$membership_values = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_memberships_users WHERE user_id = '" . $user->ID . "' LIMIT 1");
-					if($membership_values->billing_amount > 0 || $membership_values->trial_amount > 0)
+					if(!empty($membership_values->billing_amount) || !empty($membership_values->trial_amount))
 					{
 					?>
 						<?php if($membership_values->billing_amount > 0) { ?>
@@ -469,10 +469,17 @@ function pmpro_membership_level_profile_fields_update()
 	//send email
 	if(!empty($level_changed) || !empty($expiration_changed))
 	{
+		//email to member
 		$pmproemail = new PMProEmail();
 		if(!empty($expiration_changed))
 			$pmproemail->expiration_changed = true;
 		$pmproemail->sendAdminChangeEmail(get_userdata($user_ID));
+		
+		//email to admin
+		$pmproemail = new PMProEmail();
+		if(!empty($expiration_changed))
+			$pmproemail->expiration_changed = true;
+		$pmproemail->sendAdminChangeAdminEmail(get_userdata($user_ID));
 	}
 }
 add_action( 'show_user_profile', 'pmpro_membership_level_profile_fields' );
@@ -909,30 +916,37 @@ function pmpro_admin_bar_menu() {
 	'title' => __( 'Memberships'),
 	'href' => home_url('/wp-admin/admin.php?page=pmpro-membershiplevels') ) );
 	$wp_admin_bar->add_menu( array(
+	'id' => 'pmpro-membership-levels',
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Membership Levels'),
 	'href' => home_url('/wp-admin/admin.php?page=pmpro-membershiplevels') ) );
 	$wp_admin_bar->add_menu( array(
+	'id' => 'pmpro-page-settings',
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Page Settings'),
 	'href' => home_url('/wp-admin/admin.php?page=pmpro-pagesettings') ) );
 	$wp_admin_bar->add_menu( array(
+	'id' => 'pmpro-payment-settings',
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Payment Settings'),
 	'href' => home_url('/wp-admin/admin.php?page=pmpro-paymentsettings') ) );
 	$wp_admin_bar->add_menu( array(
+	'id' => 'pmpro-email-settings',
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Email Settings'),
 	'href' => home_url('/wp-admin/admin.php?page=pmpro-emailsettings') ) );
 	$wp_admin_bar->add_menu( array(
+	'id' => 'pmpro-advanced-settings',
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Advanced Settings'),
 	'href' => home_url('/wp-admin/admin.php?page=pmpro-advancedsettings') ) );
 	$wp_admin_bar->add_menu( array(
+	'id' => 'pmpro-members-list',
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Members List'),
 	'href' => home_url('/wp-admin/admin.php?page=pmpro-memberslist') ) );
 	$wp_admin_bar->add_menu( array(
+	'id' => 'pmpro-discount-codes',
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Discount Codes'),
 	'href' => home_url('/wp-admin/admin.php?page=pmpro-discountcodes') ) );
