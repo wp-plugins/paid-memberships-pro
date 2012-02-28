@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal
 Requires at least: 3.0
 Tested up to: 3.3.1
-Stable tag: 1.3.16
+Stable tag: 1.3.18.1
 
 A customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -15,7 +15,12 @@ Paid Memberships Pro is a WordPress Plugin and support community for membership 
 
 1. Upload the `paid-memberships-pro` directory to the `/wp-content/plugins/` directory of your site.
 1. Activate the plugin through the 'Plugins' menu in WordPress.
-1. Follow the instructions here to setup your memberships: http://www.paidmembershipspro.com/support/initial-plugin-setup/
+1. Follow the instructions in the video below:
+
+[youtube http://www.youtube.com/watch?v=BfKqlO0NRiU]
+
+Written instructions:
+http://www.paidmembershipspro.com/support/initial-plugin-setup/
 
 == Frequently Asked Questions ==
 
@@ -44,10 +49,34 @@ If you would like more help using PMPro on a network install, sign up for suppor
 3. Use Discount Codes to offer access at lower prices for special customers.
 
 == Changelog ==
+= 1.3.18.1 =
+* Added the new email .html templates to svn.
+
+= 1.3.18 =
+* Fixed some warnings: admin bar warning that showed up on admin pages; warning issued by pmpro_setOption(); warning in pmpro_hasMembershipLevel(); warning in billing update; warnings on the user edit page; warnings in the getTax method of the order class; warnings in save method of order class.
+* Added a pmpro_checkout_confirm_email filter that can return false to hide and not require the "Confirm E-mail" field at checkout.
+* Added a pmpro_checkout_confirm_password filter that can return false to hide and not require the "Confirm Password" field at checkout.
+* If the PMPRO_DEFAULT_LEVEL constant is set, traffic on the levels page is redirected to the checkout page. This redirect no longer forces HTTPS.
+* Moved the pmpro_paypalexpress_session_vars hook call so it will run even if existing users are checking out (upgrades, etc).
+* Added some confirmation emails for admins: (1) for new user signups, (2) when an admin changes a member's level, (3) when a user cancel's their membership, and (4) when a user update's their billing information. New email templates (ending with "_admin.html") have been added to the /email/ folder of the plugin.
+* Added new email settings to enable/disable the new admin emails. They will be enabled by default on install and upgrade to 1.3.18. The settings are on the email tab of the PMPro settings.
+* Added a couple hooks to the checkout page to have more control over where you add fields, etc. pmpro_checkout_before_submit_button and pmpro_checkout_after_billing_fields.
+
+= 1.3.17.1 =
+* Fixing activation bug from 1.3.17.
+
+= 1.3.17 =
+* Updated pmpro_hasMembershipLevel() and [membership] shortcode to allow passing a level like "-5" which will return true if the user does NOT have level #5.
+* Updated how PMPro notifications are retrieved and shown on the PMPro admin pages. We're using admin-ajax to call the pmpro_notifications function which uses WP's HTTP API to call the www.paidmembershipspro.com server. Only the PMPro version number is passed to check if a notification should be shown. This method shouldn't slow page load since the javascript is called using jQuery's ready function. If the PMPro server is unavailable, you'll get a JS error instead of a PHP one.
+* Fixed warning on discount codes page. Fixed some other warnings.
+* Updated expiration/trial crons to avoid blank ('') and zero ('0000-00-00 00:00:00') DB values in addition to NULLs. (Some backup programs will incorrectly export NULL dates as '' which could be interpretted as 1/1/1970... meaning the membership has expired.)
+* Fixed bug where "Billing Information" was shown on the account page for some free levels.
+
 = 1.3.16 =
 * Moved the SSL Seal box lower on the payment settings page.
 * Made dashboard menu and admin bar menus consistent. 
 * Fixed bug with selecting categories when adding a new level.
+* Fixed bug where the user was sometimes redirected to the add level page after adding a level.
 
 = 1.3.15 =
 * Fixed SSL handling on the billing page for members without an order.
