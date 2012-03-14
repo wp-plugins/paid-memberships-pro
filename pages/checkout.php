@@ -3,7 +3,7 @@
 	global $discount_code, $username, $password, $password2, $bfirstname, $blastname, $baddress1, $baddress2, $bcity, $bstate, $bzipcode, $bcountry, $bphone, $bemail, $bconfirmemail, $CardType, $AccountNumber, $ExpirationMonth,$ExpirationYear;		
 ?>
 
-<form class="pmpro_form" action="<?php echo pmpro_url("checkout", "", "https")?>" method="post">
+<form class="pmpro_form" action="<?php if(!empty($_REQUEST['review'])) echo pmpro_url("checkout", "?level=" . $pmpro_level->id); ?>" method="post">
 
 	<input type="hidden" id="level" name="level" value="<?php echo esc_attr($pmpro_level->id) ?>" />		
 	<?php if($pmpro_msg) 
@@ -167,10 +167,24 @@
 					<label for="password">Password</label>
 					<input id="password" name="password" type="password" class="input" size="30" value="<?php echo esc_attr($password)?>" /> 
 				</div>
-				<div>
-					<label for="password2">Confirm Password</label>
-					<input id="password2" name="password2" type="password" class="input" size="30" value="<?php echo esc_attr($password2)?>" /> 
-				</div>
+				<?php
+					$pmpro_checkout_confirm_password = apply_filters("pmpro_checkout_confirm_password", true);					
+					if($pmpro_checkout_confirm_password)
+					{
+					?>
+					<div>
+						<label for="password2">Confirm Password</label>
+						<input id="password2" name="password2" type="password" class="input" size="30" value="<?php echo esc_attr($password2)?>" /> 
+					</div>
+					<?php
+					}
+					else
+					{
+					?>
+					<input type="hidden" name="password2_copy" value="1" />
+					<?php
+					}
+				?>
 				
 				<?php
 					do_action('pmpro_checkout_after_password');
@@ -180,10 +194,25 @@
 					<label for="bemail">E-mail Address</label>
 					<input id="bemail" name="bemail" type="text" class="input" size="30" value="<?php echo esc_attr($bemail)?>" /> 
 				</div>
-				<div>
-					<label for="bconfirmemail">Confirm E-mail</label>
-					<input id="bconfirmemail" name="bconfirmemail" type="text" class="input" size="30" value="<?php echo esc_attr($bconfirmemail)?>" /> 
-				</div>
+				<?php
+					$pmpro_checkout_confirm_email = apply_filters("pmpro_checkout_confirm_email", true);					
+					if($pmpro_checkout_confirm_email)
+					{
+					?>
+					<div>
+						<label for="bconfirmemail">Confirm E-mail</label>
+						<input id="bconfirmemail" name="bconfirmemail" type="text" class="input" size="30" value="<?php echo esc_attr($bconfirmemail)?>" /> 
+
+					</div>	                        
+					<?php
+					}
+					else
+					{
+					?>
+					<input type="hidden" name="bconfirmemail_copy" value="1" />
+					<?php
+					}
+				?>			
 				
 				<?php
 					do_action('pmpro_checkout_after_email');
@@ -211,7 +240,8 @@
 			</td>
 	</table>   
 	<?php } elseif($current_user->ID && !$pmpro_review) { ?>                        	                       										
-		<p>You are logged in as <strong><?php echo $current_user->user_login?></strong>. If you would like to use a different account for this membership, <a href="<?php echo wp_logout_url(pmpro_url("checkout", "?level=" . $pmpro_level->id));?>">log out now</a>.</p>
+		
+		<p>You are logged in as <strong><?php echo $current_user->user_login?></strong>. If you would like to use a different account for this membership, <a href="<?php echo wp_logout_url($_SERVER['REQUEST_URI']);?>">log out now</a>.</p>
 	<?php } ?>
 	
 	<?php					
@@ -299,8 +329,8 @@
 						<input id="bcity" name="bcity" type="text" class="input" size="30" value="<?php echo esc_attr($bcity)?>" /> 
 					</div>
 					<div>
-						<label for="bstate">State</label>
-						<input id="bstate" name="bstate" type="text" class="input" size="30" value="<?php echo esc_attr($bstate)?>" /> 
+						<label for="bstate">State</label>																
+						<input id="bstate" name="bstate" type="text" class="input" size="30" value="<?php echo esc_attr($bstate)?>" /> 					
 					</div>
 					<div>
 						<label for="bzipcode">Zip/Postal Code</label>
@@ -313,7 +343,47 @@
 					?>
 					<div>
 						<label for="bcity_state_zip">City, State Zip</label>
-						<input id="bcity" name="bcity" type="text" class="input" size="14" value="<?php echo esc_attr($bcity)?>" />, <input id="bstate" name="bstate" type="text" class="input" size="2" value="<?php echo esc_attr($bstate)?>" /> <input id="bzipcode" name="bzipcode" type="text" class="input" size="5" value="<?php echo esc_attr($bzipcode)?>" /> 
+						<input id="bcity" name="bcity" type="text" class="input" size="14" value="<?php echo esc_attr($bcity)?>" />, 
+						<?php
+							$state_dropdowns = apply_filters("pmpro_state_dropdowns", false);							
+							if($state_dropdowns === true || $state_dropdowns == "names")
+							{
+								global $pmpro_states;
+							?>
+							<select name="bstate">
+								<option value="">--</option>
+								<?php 									
+									foreach($pmpro_states as $ab => $st) 
+									{ 
+								?>
+									<option value="<?=$ab?>" <?php if($ab == $bstate) { ?>selected="selected"<?php } ?>><?=$st?></option>
+								<?php } ?>
+							</select>
+							<?php
+							}
+							elseif($state_dropdowns == "abbreviations")
+							{
+								global $pmpro_states_abbreviations;
+							?>
+								<select name="bstate">
+									<option value="">--</option>
+									<?php 									
+										foreach($pmpro_states_abbreviations as $ab) 
+										{ 
+									?>
+										<option value="<?=$ab?>" <?php if($ab == $bstate) { ?>selected="selected"<?php } ?>><?=$ab?></option>
+									<?php } ?>
+								</select>
+							<?php
+							}
+							else
+							{
+							?>	
+							<input id="bstate" name="bstate" type="text" class="input" size="2" value="<?php echo esc_attr($bstate)?>" /> 
+							<?php
+							}
+						?>
+						<input id="bzipcode" name="bzipcode" type="text" class="input" size="5" value="<?php echo esc_attr($bzipcode)?>" /> 
 					</div>
 					<?php
 					}
@@ -368,17 +438,33 @@
 					<label for="bemail">E-mail Address</label>
 					<input id="bemail" name="bemail" type="text" class="input" size="30" value="<?php echo esc_attr($bemail)?>" /> 
 				</div>
-				<div>
-					<label for="bconfirmemail">Confirm E-mail</label>
-					<input id="bconfirmemail" name="bconfirmemail" type="text" class="input" size="30" value="<?php echo esc_attr($bconfirmemail)?>" /> 
+				<?php
+					$pmpro_checkout_confirm_email = apply_filters("pmpro_checkout_confirm_email", true);					
+					if($pmpro_checkout_confirm_email)
+					{
+					?>
+					<div>
+						<label for="bconfirmemail">Confirm E-mail</label>
+						<input id="bconfirmemail" name="bconfirmemail" type="text" class="input" size="30" value="<?php echo esc_attr($bconfirmemail)?>" /> 
 
-				</div>	                        
+					</div>	                        
+					<?php
+						}
+						else
+						{
+					?>
+					<input type="hidden" name="bconfirmemail_copy" value="1" />
+					<?php
+						}
+					?>
 				<?php } ?>    
 			</td>						
 		</tr>											
 	</tbody>
 	</table>                   
-		
+	
+	<?php do_action("pmpro_checkout_after_billing_fields"); ?>		
+	
 	<?php
 		$pmpro_accepted_credit_cards = pmpro_getOption("accepted_credit_cards");
 		$pmpro_accepted_credit_cards = explode(",", $pmpro_accepted_credit_cards);
@@ -524,6 +610,8 @@
 			}																		
 		});
 	</script>
+	
+	<?php do_action("pmpro_checkout_before_submit_button"); ?>			
 	
 	<div align="center">		
 		<?php if($pmpro_review) { ?>

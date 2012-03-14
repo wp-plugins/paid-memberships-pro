@@ -187,7 +187,15 @@
 			}
 			
 			//set values array for filter
-			$values = array("price" => $price, "tax_state" => $tax_state, "tax_rate" => $tax_rate, "billing_state" => $this->billing->state, "billing_city" => $this->billing_city, "billing_zip" => $this->billing->zip, "billing_country" => $this->billing->country);			
+			$values = array("price" => $price, "tax_state" => $tax_state, "tax_rate" => $tax_rate);
+			if(!empty($this->billing->state))
+				$values['billing_state'] = $this->billing->state;
+			if(!empty($this->billing->city))
+				$values['billing_city'] = $this->billing->city;
+			if(!empty($this->billing->zip))
+				$values['billing_zip'] = $this->billing->zip;
+			if(!empty($this->billing->country))
+				$values['billing_country'] = $this->billing->country;
 						
 			//filter
 			$tax = apply_filters("pmpro_tax", $tax, $values, $this);			
@@ -214,7 +222,10 @@
 				$this->code = $this->getRandomCode();
 			
 			//figure out how much we charged
-			$amount = $this->InitialPayment;
+			if(!empty($this->InitialPayment))
+				$amount = $this->InitialPayment;
+			else
+				$amount = 0;
 			
 			//Todo: Make sure the session is started
 			
@@ -843,7 +854,7 @@
 				$nvpStr .= "&TOKEN=" . $this->Token;
 			$nvpStr .="&AMT=" . $this->PaymentAmount . "&TAXAMT=" . $amount_tax . "&CURRENCYCODE=" . $pmpro_currency . "&PROFILESTARTDATE=" . $this->ProfileStartDate;
 			$nvpStr .= "&BILLINGPERIOD=" . $this->BillingPeriod . "&BILLINGFREQUENCY=" . $this->BillingFrequency . "&AUTOBILLAMT=AddToNextBilling";
-			$nvpStr .= "&DESC=" . $amount;
+			$nvpStr .= "&DESC=" . urlencode(substr($this->membership_level->name . " at " . get_bloginfo("name"), 0, 127));
 			$nvpStr .= "&NOTIFYURL=" . urlencode(PMPRO_URL . "/services/ipnhandler.php");
 			//$nvpStr .= "&L_BILLINGTYPE0=RecurringPayments&L_BILLINGAGREEMENTDESCRIPTION0=" . $this->PaymentAmount;
 			
@@ -1004,9 +1015,9 @@
 			$nvpStr = "";
 			$nvpStr .="&AMT=" . $initial_payment . "&CURRENCYCODE=" . $pmpro_currency . "&PROFILESTARTDATE=" . $this->ProfileStartDate;
 			$nvpStr .= "&BILLINGPERIOD=" . $this->BillingPeriod . "&BILLINGFREQUENCY=" . $this->BillingFrequency . "&AUTOBILLAMT=AddToNextBilling";
-			$nvpStr .= "&DESC=" . $amount;
+			$nvpStr .= "&DESC=" . urlencode(substr($this->membership_level->name . " at " . get_bloginfo("name"), 0, 127));
 			$nvpStr .= "&NOTIFYURL=" . urlencode(PMPRO_URL . "/services/ipnhandler.php");
-			$nvpStr .= "&NOSHIPPING=1&L_BILLINGTYPE0=RecurringPayments&L_BILLINGAGREEMENTDESCRIPTION0=" . urlencode($this->membership_level->name . " at " . get_bloginfo("name") . ". " . str_replace("&#36;", "$", pmpro_getLevelCost($this->membership_level, false))) . "&L_PAYMENTTYPE0=Any";
+			$nvpStr .= "&NOSHIPPING=1&L_BILLINGTYPE0=RecurringPayments&L_BILLINGAGREEMENTDESCRIPTION0=" . urlencode(substr($this->membership_level->name . " at " . get_bloginfo("name"), 0, 127)) . "&L_PAYMENTTYPE0=Any";
 					
 			//if billing cycles are defined						
 			if(!empty($this->TotalBillingCycles))
@@ -1041,7 +1052,7 @@
 			}						
 			
 			$nvpStr .= "&CANCELURL=" . urlencode(pmpro_url("levels"));									
-			
+						
 			$this->httpParsedResponseAr = $this->PPHttpPost('SetExpressCheckout', $nvpStr);					
 						
 			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {
@@ -1124,13 +1135,13 @@
 				$nvpStr .= "&TOKEN=" . $this->Token;
 			$nvpStr .="&AMT=" . $amount . "&CURRENCYCODE=" . $pmpro_currency . "&PROFILESTARTDATE=" . $this->ProfileStartDate;
 			$nvpStr .= "&BILLINGPERIOD=" . $this->BillingPeriod . "&BILLINGFREQUENCY=" . $this->BillingFrequency . "&AUTOBILLAMT=AddToNextBilling";
-			$nvpStr .= "&DESC=" . $amount;
+			$nvpStr .= "&DESC=" . urlencode(substr($this->membership_level->name . " at " . get_bloginfo("name"), 0, 127));
 			$nvpStr .= "&NOTIFYURL=" . urlencode(PMPRO_URL . "/services/ipnhandler.php");
 			$nvpStr .= "&NOSHIPPING=1";
 			
 			$nvpStr .= "&PAYERID=" . $_SESSION['payer_id'] . "&PAYMENTACTION=sale";								
 			$this->nvpStr = $nvpStr;
-			
+						
 			$this->httpParsedResponseAr = $this->PPHttpPost('DoExpressCheckoutPayment', $nvpStr);
 						
 			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {			
@@ -1176,7 +1187,7 @@
 			$nvpStr .="&INITAMT=" . $initial_payment . "&AMT=" . $this->PaymentAmount . "&CURRENCYCODE=" . $pmpro_currency . "&PROFILESTARTDATE=" . $this->ProfileStartDate;
 			$nvpStr .= "&BILLINGPERIOD=" . $this->BillingPeriod . "&BILLINGFREQUENCY=" . $this->BillingFrequency . "&AUTOBILLAMT=AddToNextBilling";			
 			$nvpStr .= "&NOTIFYURL=" . urlencode(PMPRO_URL . "/services/ipnhandler.php");
-			$nvpStr .= "&DESC=" . urlencode($this->membership_level->name . " at " . get_bloginfo("name") . ". " . str_replace("&#36;", "$", pmpro_getLevelCost($this->membership_level, false)));
+			$nvpStr .= "&DESC=" . urlencode(substr($this->membership_level->name . " at " . get_bloginfo("name"), 0, 127));
 			
 			//if billing cycles are defined						
 			if($this->TotalBillingCycles)
@@ -1195,7 +1206,7 @@
 				$nvpStr .= "&TRIALTOTALBILLINGCYCLES=" . $this->TrialBillingCycles;
 			
 			$this->nvpStr = $nvpStr;						
-			
+						
 			$this->httpParsedResponseAr = $this->PPHttpPost('CreateRecurringPaymentsProfile', $nvpStr);
 						
 			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {
@@ -1300,10 +1311,11 @@
 		{
 			if(empty($this->code))
 				$this->code = $this->getRandomCode();
-			
-			$gateway_environment = $this->gateway_environment;
-			if(empty($gateway_environment))
+						
+			if(empty($this->gateway_environment))
 				$gateway_environment = pmpro_getOption("gateway_environment");
+			else
+				$gateway_environment = $this->gateway_environment;
 			if($gateway_environment == "live")
 					$host = "secure.authorize.net";		
 				else
@@ -1407,10 +1419,11 @@
 		{			
 			if(empty($this->payment_transaction_id))
 				return false;
-			
-			$gateway_environment = $this->gateway_environment;
-			if(empty($gateway_environment))
+						
+			if(empty($this->gateway_environment))
 				$gateway_environment = pmpro_getOption("gateway_environment");
+			else
+				$gateway_environment = $this->gateway_environment;
 			if($gateway_environment == "live")
 				$host = "secure.authorize.net";		
 			else
@@ -1852,7 +1865,7 @@
 			$loginname = pmpro_getOption("loginname");
 			$transactionkey = pmpro_getOption("transactionkey");
 			
-			$amount = $this->PaymentAmount;
+			//$amount = $this->PaymentAmount;
 			$refId = $this->code;
 			$subscriptionId = $this->subscription_transaction_id;			
 			

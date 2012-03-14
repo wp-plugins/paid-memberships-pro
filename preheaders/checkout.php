@@ -1,6 +1,6 @@
 <?php
-	global $gateway, $wpdb, $besecure, $discount_code, $pmpro_level, $pmpro_levels, $pmpro_msg, $pmpro_msgt, $pmpro_review, $skip_account_fields, $pmpro_paypal_token, $pmpro_show_discount_code;
-	
+	global $post, $gateway, $wpdb, $besecure, $discount_code, $pmpro_level, $pmpro_levels, $pmpro_msg, $pmpro_msgt, $pmpro_review, $skip_account_fields, $pmpro_paypal_token, $pmpro_show_discount_code;
+		
 	//was a gateway passed?
 	if(!empty($_REQUEST['gateway']))
 		$gateway = $_REQUEST['gateway'];
@@ -34,15 +34,24 @@
 	}
 	
 	//what level are they purchasing? (no discount code)
-	if(!$pmpro_level && $_REQUEST['level'])
+	if(empty($pmpro_level) && !empty($_REQUEST['level']))
 	{
 		$pmpro_level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . $wpdb->escape($_REQUEST['level']) . "' AND allow_signups = 1 LIMIT 1");	
+	}
+	elseif(empty($pmpro_level))
+	{
+		//check if a level is defined in custom fields
+		$default_level = get_post_meta($post->ID, "pmpro_default_level", true);
+		if(!empty($default_level))
+		{
+			$pmpro_level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . $wpdb->escape($default_level) . "' AND allow_signups = 1 LIMIT 1");	
+		}
 	}
 	
 	//filter the level (for upgrades, etc)
 	$pmpro_level = apply_filters("pmpro_checkout_level", $pmpro_level);		
 		
-	if(!$pmpro_level)
+	if(empty($pmpro_level->id))
 	{
 		wp_redirect(pmpro_url("levels"));
 		exit(0);
@@ -57,7 +66,7 @@
 		if($gateway != "paypalexpress" || (!empty($_REQUEST['gateway']) && $_REQUEST['gateway'] != "paypalexpress"))
 			$besecure = true;			
 		else
-			$besecure = false;		
+			$besecure = false;				
 	}		
 	else
 	{
@@ -123,8 +132,11 @@
 		$bphone = trim(stripslashes($_REQUEST['bphone']));
 	if(isset($_REQUEST['bemail']))
 		$bemail = trim(stripslashes($_REQUEST['bemail']));
-	if(isset($_REQUEST['bconfirmemail']))
+	if(isset($_REQUEST['bconfirmemail_copy']))
+		$bconfirmemail = $bemail;
+	elseif(isset($_REQUEST['bconfirmemail']))
 		$bconfirmemail = trim(stripslashes($_REQUEST['bconfirmemail']));
+		
 	if(isset($_REQUEST['CardType']))
 		$CardType = $_REQUEST['CardType'];
 	if(isset($_REQUEST['AccountNumber']))
@@ -142,7 +154,9 @@
 		$username = trim($_REQUEST['username']);
 	if(isset($_REQUEST['password']))
 		$password = $_REQUEST['password'];
-	if(isset($_REQUEST['password2']))
+	if(isset($_REQUEST['password2_copy']))
+		$password2 = $password;
+	elseif(isset($_REQUEST['password2']))
 		$password2 = $_REQUEST['password2'];
 	if(isset($_REQUEST['tos']))
 		$tos = $_REQUEST['tos'];		
@@ -282,21 +296,28 @@
 						else 
 						{
 							// Your code here to handle a successful verification
-							$pmpro_msg = "All good!";
+							if($pmpro_msgt != "pmpro_error")
+								$pmpro_msg = "All good!";
 						}
 					}
 					else
-						$pmpro_msg = "All good!";										
+					{
+						if($pmpro_msgt != "pmpro_error")
+							$pmpro_msg = "All good!";										
+					}
 					
 					//no errors yet
 					if($pmpro_msgt != "pmpro_error")
 					{				
 						//save user fields for PayPal Express
-						if(!$current_user->ID && $gateway == "paypalexpress")
+						if($gateway == "paypalexpress")
 						{
-							$_SESSION['pmpro_signup_username'] = $username;
-							$_SESSION['pmpro_signup_password'] = $password;
-							$_SESSION['pmpro_signup_email'] = $bemail;
+							if(!$current_user->ID)
+							{
+								$_SESSION['pmpro_signup_username'] = $username;
+								$_SESSION['pmpro_signup_password'] = $password;
+								$_SESSION['pmpro_signup_email'] = $bemail;														
+							}
 							
 							//can use this hook to save some other variables to the session
 							do_action("pmpro_paypalexpress_session_vars");
@@ -405,10 +426,14 @@
 	//PayPal Express Call Backs
 	if(!empty($_REQUEST['review']))
 	{
-		$_SESSION['payer_id'] = $_REQUEST['PayerID'];
-		$_SESSION['paymentAmount']=$_REQUEST['paymentAmount'];
-		$_SESSION['currCodeType']=$_REQUEST['currencyCodeType'];
-		$_SESSION['paymentType']=$_REQUEST['paymentType'];
+		if(!empty($_REQUEST['PayerID']))
+			$_SESSION['payer_id'] = $_REQUEST['PayerID'];
+		if(!empty($_REQUEST['paymentAmount']))
+			$_SESSION['paymentAmount'] = $_REQUEST['paymentAmount'];
+		if(!empty($_REQUEST['currencyCodeType']))
+			$_SESSION['currCodeType'] = $_REQUEST['currencyCodeType'];
+		if(!empty($_REQUEST['paymentType']))
+			$_SESSION['paymentType'] = $_REQUEST['paymentType'];
 		
 		$morder = new MemberOrder();
 		$morder->getMemberOrderByPayPalToken($_REQUEST['token']);
@@ -615,15 +640,22 @@
 									
 				//hook
 				do_action("pmpro_after_checkout", $user_id);						
-				do_action("pmpro_after_change_membership_level", $pmpro_level->id, $user_id);																									
-				//send email
-				$pmproemail = new PMProEmail();
+				do_action("pmpro_after_change_membership_level", $pmpro_level->id, $user_id);								
+				
+				//setup some values for the emails
 				if($morder)
 					$invoice = new MemberOrder($morder->id);						
 				else
 					$invoice = NULL;
 				$user->membership_level = $pmpro_level;		//make sure they have the right level info
+				
+				//send email to member
+				$pmproemail = new PMProEmail();				
 				$pmproemail->sendCheckoutEmail($current_user, $invoice);
+												
+				//send email to admin
+				$pmproemail = new PMProEmail();
+				$pmproemail->sendCheckoutAdminEmail($current_user, $invoice);
 												
 				//redirect to confirmation			
 				wp_redirect(pmpro_url("confirmation"));
