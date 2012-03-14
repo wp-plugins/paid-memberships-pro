@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships
-Version: 1.3.18.1
+Version: 1.3.19
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -41,7 +41,10 @@ $urlparts = explode("//", home_url());
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.3.18.1");
+define("PMPRO_VERSION", "1.3.19");
+$domainparts = parse_url(site_url());
+$domainparts = explode(".", $domainparts['host']);
+define("PMPRO_DOMAIN", $domainparts[count($domainparts)-2] . "." . $domainparts[count($domainparts)-1]);
 
 global $gateway_environment;
 $gateway_environment = pmpro_getOption("gateway_environment");
@@ -126,7 +129,7 @@ function pmpro_set_current_user()
 	$hideadslevels = explode(",", pmpro_getOption("hideadslevels"));
 	if($hideads && $hideadslevels)
 	{
-		if(in_array($current_user->membership_level->ID, $hideadslevels))
+		if(!empty($current_user->membership_level->ID) && in_array($current_user->membership_level->ID, $hideadslevels))
 		{
 			//disable ads in ezAdsense
 			if(class_exists("ezAdSense"))
@@ -207,6 +210,7 @@ function pmpro_is_ready()
 function pmpro_init()
 {
 	require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/countries.php");
+	require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/states.php");
 	require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/currencies.php");
 
 	wp_enqueue_script('ssmemberships_js', '/wp-content/plugins/paid-memberships-pro/js/paid-memberships-pro.js', array('jquery'));
@@ -250,14 +254,19 @@ function pmpro_wp()
 {
 	if(!is_admin())
 	{
-		global $post, $pmpro_pages, $pmpro_page_name, $pmpro_page_id;
-
+		global $post, $pmpro_pages, $pmpro_page_name, $pmpro_page_id;		
+		
 		//run the appropriate preheader function
 		foreach($pmpro_pages as $pmpro_page_name => $pmpro_page_id)
 		{
-			if($pmpro_page_id == $post->ID)
+			if($pmpro_page_name == "checkout")
+			{								
+				continue;		//we do the checkout shortcode every time now
+			}
+				
+			if(!empty($post->ID) && $pmpro_page_id == $post->ID)
 			{
-				include(ABSPATH . "/wp-content/plugins/paid-memberships-pro/preheaders/" . $pmpro_page_name . ".php");
+				require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/preheaders/" . $pmpro_page_name . ".php");
 
 				function pmpro_pages_shortcode($atts, $content=null, $code="")
 				{
@@ -272,9 +281,26 @@ function pmpro_wp()
 				break;	//only the first page found gets a shortcode replacement
 			}
 		}
+		
+		//make sure you load the preheader for the checkout page. the shortcode for checkout is loaded below
+		if(strpos($post->post_content, "[pmpro_checkout]") !== false)
+		{
+			require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/preheaders/checkout.php");	
+		}
 	}
 }
-add_action("wp", "pmpro_wp");
+add_action("wp", "pmpro_wp", 1);
+
+//checkout shortcode separated out so we can have multiple checkout pages
+function pmpro_checkout_shortcode($atts, $content=null, $code="")
+{	
+	ob_start();
+	include(plugin_dir_path(__FILE__) . "/pages/checkout.php");
+	$temp_content = ob_get_contents();
+	ob_end_clean();
+	return $temp_content;
+}
+add_shortcode("pmpro_checkout", "pmpro_checkout_shortcode");
 
 function pmpro_membership_level_profile_fields($user)
 {
@@ -562,9 +588,9 @@ function pmpro_has_membership_access($post_id = NULL, $user_id = NULL, $return_m
 			//always block restricted feeds
 			$hasaccess = false;
 		}
-		elseif($myuser->id)
+		elseif(!empty($myuser->ID))
 		{
-			if(in_array($myuser->membership_level->ID, $post_membership_levels_ids))
+			if(!empty($myuser->membership_level->ID) && in_array($myuser->membership_level->ID, $post_membership_levels_ids))
 			{
 				//the users membership id is one that will grant access
 				$hasaccess = true;
@@ -835,7 +861,10 @@ function pmpro_page_save($post_id)
 {
 	global $wpdb;
 
-	if ( !wp_verify_nonce( $_POST['pmpro_noncename'], plugin_basename(__FILE__) )) {
+	if(empty($post_id))
+		return false;
+	
+	if (!empty($_POST['pmpro_noncename']) && !wp_verify_nonce( $_POST['pmpro_noncename'], plugin_basename(__FILE__) )) {
 		return $post_id;
 	}
 
@@ -845,7 +874,7 @@ function pmpro_page_save($post_id)
 		return $post_id;
 
 	// Check permissions
-	if ( 'page' == $_POST['post_type'] )
+	if(!empty($_POST['post_type']) && 'page' == $_POST['post_type'] )
 	{
 		if ( !current_user_can( 'edit_page', $post_id ) )
 			return $post_id;
@@ -856,8 +885,11 @@ function pmpro_page_save($post_id)
 			return $post_id;
 	}
 
-	// OK, we're authenticated: we need to find and save the data
-	$mydata = $_POST['page_levels'];
+	// OK, we're authenticated: we need to find and save the data	
+	if(!empty($_POST['page_levels']))
+		$mydata = $_POST['page_levels'];
+	else
+		$mydata = array();	
 
 	//remove all memberships for this page
 	$wpdb->query("DELETE FROM {$wpdb->pmpro_memberships_pages} WHERE page_id = '$post_id'");
@@ -899,7 +931,7 @@ function pmpro_add_pages()
 
 	//rename the automatically added Memberships submenu item
 	global $submenu;
-	if($submenu['pmpro-membershiplevels'])
+	if(!empty($submenu['pmpro-membershiplevels']))
 	{
 		$submenu['pmpro-membershiplevels'][0][0] = "Membership Levels";
 		$submenu['pmpro-membershiplevels'][0][3] = "Membership Levels";
@@ -987,29 +1019,31 @@ function pmpro_login_redirect($redirect_to, $request, $user)
 	if(!empty($user->ID))
 	{
 		//logging in, let's figure out where to send them
-
-		//admins go to dashboard
 		if(pmpro_isAdmin($user->ID))
-			return apply_filters("pmpro_login_redirect", get_bloginfo("url") . "/wp-admin/");
-
-		//if the redirect url includes the word checkout, go there
-		if(strpos($redirect_to, "checkout") !== false)
-			return $redirect_to;
-
-		//if logged in and a member, send to wherever they were going
-		if($wpdb->get_var("SELECT membership_id FROM $wpdb->pmpro_memberships_users WHERE user_id = '" . $user->ID . "' LIMIT 1"))
 		{
-			return apply_filters("pmpro_login_redirect", $redirect_to, $request, $user);
+			//admins go to dashboard
+			$redirect_to = get_bloginfo("url") . "/wp-admin/";			
 		}
-
-		//not a member, send to subscription page
-		return pmpro_url("levels");
+		elseif(strpos($redirect_to, "checkout") !== false)
+		{
+			//if the redirect url includes the word checkout, leave it alone
+		}
+		elseif($wpdb->get_var("SELECT membership_id FROM $wpdb->pmpro_memberships_users WHERE user_id = '" . $user->ID . "' LIMIT 1"))
+		{
+			//if logged in and a member, send to wherever they were going			
+		}
+		else
+		{
+			//not a member, send to subscription page
+			$redirect_to = pmpro_url("levels");
+		}
 	}
 	else
 	{
-		//not logging in (login form) so return what was given
-		return $redirect_to;
+		//not logging in (login form) so return what was given		
 	}
+	
+	return apply_filters("pmpro_login_redirect_url", $redirect_to, $request, $user);
 }
 add_filter('login_redirect','pmpro_login_redirect', 10, 3);
 
@@ -1026,6 +1060,7 @@ function pmpro_https_filter($s)
 {
 	global $besecure;
 	$besecure = apply_filters('pmpro_besecure', $besecure);
+		
 	if($besecure)
 		return str_replace("http:", "https:", $s);
 	else
@@ -1040,6 +1075,20 @@ add_filter('logout_url', 'pmpro_https_filter');
 add_filter('login_url', 'pmpro_https_filter');
 add_filter('home_url', 'pmpro_https_filter');
 
+//this function sets the besecure global which may be used in early code
+/*
+function pmpro_besecure_set()
+{	
+	global $besecure;		
+	if(force_ssl_admin() || force_ssl_login() || is_ssl())
+		$besecure = true;
+	
+	$besecure = apply_filters("pmpro_besecure", $besecure);
+}
+add_action('init', 'pmpro_besecure_set', 2);
+*/
+
+//this function updates the besecure global with post data and redirects if needed
 function pmpro_besecure()
 {
 	global $besecure, $post;
@@ -1047,7 +1096,7 @@ function pmpro_besecure()
 	//check the post option
 	if(!empty($post->ID) && !$besecure)
 		$besecure = get_post_meta($post->ID, "besecure", true);
-
+	
 	if(!$besecure && (force_ssl_admin() || force_ssl_login()))
 		$besecure = true;
 
@@ -1066,8 +1115,8 @@ function pmpro_besecure()
 		exit;
 	}
 }
-add_action('wp', 'pmpro_besecure');
-add_action('login_head', 'pmpro_besecure');
+add_action('wp', 'pmpro_besecure', 2);
+add_action('login_head', 'pmpro_besecure', 2);
 
 //capturing case where a user links to https admin without admin over https
 function pmpro_admin_https_handler()
@@ -1092,7 +1141,7 @@ function pmpro_hide_pages_redirect()
 {
 	global $post;
 
-	if(!is_admin())
+	if(!is_admin() && !empty($post->ID))
 	{
 		if($post->post_type == "attachment")
 		{
@@ -1145,7 +1194,7 @@ add_action('delete_category', 'pmpro_delete_category');
 //deleting a post? remove any level associations
 function pmpro_delete_post($post_id = NULL)
 {
-	global $wpdb;
+	global $wpdb;		
 	$sqlQuery = "DELETE FROM $wpdb->pmpro_memberships_pages WHERE page_id = '" . $post_id . "'";
 	$wpdb->query($sqlQuery);
 }
@@ -1186,7 +1235,7 @@ function pmpro_shortcode($atts, $content=null, $code="")
 	else
 	{
 		//didn't specify a membership level, so check for any
-		if($current_user->membership_level->ID)
+		if(!empty($current_user->membership_level->ID))
 			return apply_filters("the_content", $content);
 	}
 
@@ -1382,7 +1431,7 @@ register_activation_hook(__FILE__, 'pmpro_activation');
 register_deactivation_hook(__FILE__, 'pmpro_deactivation');
 
 /*
-This code calls the server at www.memberlitetheme.com to see if there are any notifications to display to the user.
+This code calls the server at www.paidmembershipspro.com to see if there are any notifications to display to the user.
 */
 function pmpro_notifications()
 {
@@ -1415,4 +1464,37 @@ function pmpro_notifications()
 	exit;
 }
 add_action('wp_ajax_pmpro_notifications', 'pmpro_notifications');	
+
+/*
+	This code is for the "nuke" option to make URLs secure on secure pages.
+*/
+function pmpro_NuclearHTTPS()
+{
+	//did they choose the option?
+	$nuking = pmpro_getOption("nuclear_HTTPS");
+	if(!empty($nuking))
+	{
+		ob_start("pmpro_replaceURLsInBuffer");
+	}
+}
+add_action("init", "pmpro_NuclearHTTPS");
+
+function pmpro_replaceURLsInBuffer($buffer)
+{
+	global $besecure;
+	
+	//only swap URLs if this page is secure
+	if($besecure)
+	{
+		/*
+			okay swap out all links like these:
+			* http://domain.com
+			* http://anysubdomain.domain.com
+			* http://any.number.of.sub.domains.domain.com
+		*/
+		$buffer = preg_replace("/http\:\/\/([a-zA-Z0-9\.\-]*" . str_replace(".", "\.", PMPRO_DOMAIN) . ")/i", "https://$1", $buffer);		
+	}
+	
+	return $buffer;
+}
 ?>
