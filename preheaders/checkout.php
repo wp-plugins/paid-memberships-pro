@@ -76,6 +76,88 @@
 		$besecure = false;		
 	}
 		
+	//code for stripe
+	if($gateway == "stripe")
+	{
+		//stripe js library
+		wp_enqueue_script("stripe", "https://js.stripe.com/v1/", array(), NULL);
+		
+		//stripe js code for checkout
+		function pmpro_stripe_javascript()
+		{
+		?>
+		<script type="text/javascript">
+			// this identifies your website in the createToken call below			
+			Stripe.setPublishableKey('<?php echo pmpro_getOption("stripe_publishablekey"); ?>');
+			
+			jQuery(document).ready(function() {
+				jQuery(".pmpro_form").submit(function(event) {
+				
+				Stripe.createToken({
+					number: jQuery('#AccountNumber').val(),
+					cvc: jQuery('#CVV').val(),
+					exp_month: jQuery('#ExpirationMonth').val(),
+					exp_year: jQuery('#ExpirationYear').val(),
+					name: jQuery.trim(jQuery('#bfirstname').val() + ' ' + jQuery('#blastname').val())					
+					<?php
+						$pmpro_stripe_verify_address = apply_filters("pmpro_stripe_verify_address", true);
+						if(!empty($pmpro_strip_verify_address))
+						{
+						?>
+						,address_line1: jQuery('#baddress1').val(),
+						address_line2: jQuery('#baddress2').val(),
+						address_zip: jQuery('#bzipcode').val(),
+						address_state: jQuery('#bstate').val(),					
+						address_country: jQuery('#bcountry').val()
+					<?php
+						}
+					?>					
+				}, stripeResponseHandler);
+
+				// prevent the form from submitting with the default action
+				return false;
+				});
+			});
+
+			function stripeResponseHandler(status, response) {
+				if (response.error) {
+					// re-enable the submit button
+                    jQuery('.pmpro_btn-submit-checkout').removeAttr("disabled");
+					
+					// show the errors on the form
+					alert(response.error.message);
+					jQuery(".payment-errors").text(response.error.message);
+				} else {
+					var form$ = jQuery(".pmpro_form");					
+					// token contains id, last4, and card type
+					var token = response['id'];					
+					// insert the token into the form so it gets submitted to the server
+					form$.append("<input type='hidden' name='stripeToken' value='" + token + "'/>");
+										
+					//insert fields for other card fields
+					form$.append("<input type='hidden' name='CardType' value='" + response['card']['type'] + "'/>");
+					form$.append("<input type='hidden' name='AccountNumber' value='XXXXXXXXXXXXX" + response['card']['last4'] + "'/>");
+					form$.append("<input type='hidden' name='ExpirationMonth' value='" + response['card']['exp_month'] + "'/>");
+					form$.append("<input type='hidden' name='ExpirationYear' value='" + response['card']['exp_year'] + "'/>");							
+					
+					// and submit
+					form$.get(0).submit();
+				}
+			}
+		</script>
+		<?php
+		}
+		add_action("wp_head", "pmpro_stripe_javascript");
+		
+		//don't require the CVV
+		function pmpro_stripe_dont_require_CVV($fields)
+		{
+			unset($fields['CVV']);			
+			return $fields;
+		}
+		add_filter("pmpro_required_billing_fields", "pmpro_stripe_dont_require_CVV");
+	}
+		
 	//get all levels in case we need them
 	global $pmpro_levels;
 	$pmpro_levels = $wpdb->get_results( "SELECT * FROM " . $wpdb->pmpro_membership_levels . " WHERE allow_signups = 1", OBJECT );	
@@ -161,6 +243,12 @@
 	if(isset($_REQUEST['tos']))
 		$tos = $_REQUEST['tos'];		
 	
+	//for stripe, load up token values
+	if(isset($_REQUEST['stripeToken']))
+	{
+		$stripeToken = $_REQUEST['stripeToken'];				
+	}
+	
 	//_x stuff in case they clicked on the image button with their mouse
 	if(isset($_REQUEST['submit-checkout']))
 		$submit = $_REQUEST['submit-checkout'];
@@ -183,7 +271,38 @@
 		}	
 		
 		if($pmpro_requirebilling && $gateway != "paypalexpress")
-		{
+		{			
+			//avoid warnings for these fields
+			if(!isset($bfirstname))
+				$bfirstname = "";
+			if(!isset($blastname))
+				$blastname = "";
+			if(!isset($baddress1))
+				$baddress1 = "";
+			if(!isset($bcity))
+				$bcity = "";
+			if(!isset($bstate))
+				$bstate = "";
+			if(!isset($bzipcode))
+				$bzipcode = "";
+			if(!isset($bphone))
+				$bphone = "";
+			if(!isset($bemail))
+				$bemail = "";
+			if(!isset($bcountry))
+				$bcountry = "";
+			if(!isset($CardType))
+				$CardType = "";
+			if(!isset($AccountNumber))
+				$AccountNumber = "";
+			if(!isset($ExpirationMonth))
+				$ExpirationMonth = "";
+			if(!isset($ExpirationYear))
+				$ExpirationYear = "";
+			if(!isset($CVV))
+				$CVV = "";				
+			
+			//require fields
 			$pmpro_required_billing_fields = array(
 				"bfirstname" => $bfirstname,
 				"blastname" => $blastname,
@@ -207,7 +326,7 @@
 			foreach($pmpro_required_billing_fields as $key => $field)
 			{
 				if(!$field)
-				{										
+				{															
 					$missing_billing_field = true;										
 					break;
 				}
@@ -280,7 +399,7 @@
 				{								
 					//check recaptch first
 					global $recaptcha;
-					if(!$skip_account_fields && ($recaptcha == 2 || ($recaptcha == 1 && !(float)$pmpro_level->billing_amount && !(float)$pmpro_level->trial_amount)))
+					if(!$skip_account_fields && ($recaptcha == 2 || ($recaptcha == 1 && pmpro_isLevelFree($pmpro_level))))
 					{
 						global $recaptcha_privatekey;					
 						$resp = recaptcha_check_answer($recaptcha_privatekey,
@@ -355,6 +474,10 @@
 							$morder->ExpirationDate_YdashM = $ExpirationYear . "-" . $ExpirationMonth;
 							$morder->CVV2 = $CVV;												
 							
+							//stripeToken
+							if(isset($stripeToken))
+								$morder->stripeToken = $stripeToken;
+							
 							//not saving email in order table, but the sites need it
 							$morder->Email = $bemail;
 							
@@ -376,6 +499,7 @@
 									
 							//$gateway = pmpro_getOption("gateway");										
 							$morder->gateway = $gateway;
+							$morder->setGateway();
 							
 							//setup level var
 							$morder->getMembershipLevel();
@@ -390,7 +514,7 @@
 								$morder->cardtype = "";
 								$morder->ProfileStartDate = date("Y-m-d", strtotime("+ " . $morder->BillingFrequency . " " . $morder->BillingPeriod)) . "T0:0:0";
 								$morder->ProfileStartDate = apply_filters("pmpro_profile_start_date", $morder->ProfileStartDate, $morder);							
-								$pmpro_processed = $morder->setExpressCheckout();
+								$pmpro_processed = $morder->Gateway->setExpressCheckout($morder);
 							}
 							else
 							{
@@ -440,7 +564,7 @@
 		$morder->Token = $morder->paypal_token; $pmpro_paypal_token = $morder->paypal_token;				
 		if($morder->Token)
 		{
-			if($morder->getPayPalExpressCheckoutDetails())
+			if($morder->Gateway->getExpressCheckoutDetails($morder))
 			{
 				$pmpro_review = true;
 			}
@@ -637,6 +761,15 @@
 									
 				//show the confirmation
 				$ordersaved = true;
+				
+				//for Stripe, let's save the customer id in user meta
+				if($gateway == "stripe")
+				{
+					if(!empty($morder->Gateway->customer->id))
+					{
+						update_user_meta($user_id, "pmpro_stripe_customerid", $morder->Gateway->customer->id);
+					}
+				}
 									
 				//hook
 				do_action("pmpro_after_checkout", $user_id);						

@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal
 Requires at least: 3.0
 Tested up to: 3.3.1
-Stable tag: 1.3.19
+Stable tag: 1.4
 
 A customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -49,6 +49,20 @@ If you would like more help using PMPro on a network install, sign up for suppor
 3. Use Discount Codes to offer access at lower prices for special customers.
 
 == Changelog ==
+= 1.4 =
+* Rewrote how gateways are handled to make it easier to add and manage new gateway options.
+* Added Stripe as a gateway option. (http://www.stripe.com)
+* Added a "confirmation message" field to the level editor that is shown on the confirmation page after checking out. The message is added to the text that can be filtered using the pmpro_confirmation_message hook.
+* Now applying "the_content" filters on the confirmation message on the confirmation page. e.g. wpautop will be run on the text to automatically add paragraphs.
+* Now showing the level description on the checkout page. You can use this code to remove the description from the checkout page: https://gist.github.com/2323424
+* The description and confirmation fields of the membership level editor now use WP Editor fields with full WYSIWYG support.
+* Fixed the logic around setting the $pmpro_display_ads global, used by the pmpro_displayAds() and pmpro_hideAds() functions.
+* Fixed bug with recaptcha logic.
+* Updated /pages/checkout.php to use wp_login_url function for login link.
+* Small changes to pmpro_changeMembershipLevel function to support deleting users when they cancel their account.
+* Added the pmpro_member_links_top and pmpro_member_links_bottom hooks so you can add links to the "Member Links" list of the account page. Just output an a tag wrapped in a li tag. (May tweak this to build an array of links that can be filters, but this is good for now.)
+* Fixed some more notices.
+
 = 1.3.19 =
 * Rewrote the pmpro_login_redirect function. It's cleaner now. Important: there was a pmpro_login_redirect hook in there that was fairly redundant with the core login_redirect hook. I've renamed the pmpro hook to pmpro_login_redirect_to because I had a hook with the same name (pmpro_login_redirect) used in a different place to control whether or not PMPro redirects the register page to the levels page. Having one hook for two things is a bad idea. It seems like more people were using the hook for controlling the registration redirect, so I left that one alone and renamed these.
 * Changed PMPro page creation to set all membership pages as subpages of the membership account page. This results in nicer menus for themes that add all top level pages to the menu.

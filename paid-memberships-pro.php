@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships
-Version: 1.3.19
+Version: 1.4
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -24,13 +24,14 @@ else
 }
 
 //require_once(ABSPATH . '/wp-admin/upgrade-functions.php');
-require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/lib/name-parser.php");
-require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/functions.php");
-require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/upgradecheck.php");
-require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/scheduled/crons.php");
-require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/classes/class.memberorder.php");
-require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/classes/class.pmproemail.php");
-require_once(ABSPATH . "/wp-includes/class-phpmailer.php");
+require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/includes/lib/name-parser.php");
+require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/includes/functions.php");
+require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/includes/upgradecheck.php");
+require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/scheduled/crons.php");
+//require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/classes/class.pmprogateway.php");
+require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/classes/class.memberorder.php");
+require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/classes/class.pmproemail.php");
+require_once(ABSPATH . "wp-includes/class-phpmailer.php");
 
 //setup the DB
 global $wpdb;
@@ -41,7 +42,7 @@ $urlparts = explode("//", home_url());
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.3.19");
+define("PMPRO_VERSION", "1.4");
 $domainparts = parse_url(site_url());
 $domainparts = explode(".", $domainparts['host']);
 define("PMPRO_DOMAIN", $domainparts[count($domainparts)-2] . "." . $domainparts[count($domainparts)-1]);
@@ -127,29 +128,84 @@ function pmpro_set_current_user()
 	//hiding ads?
 	$hideads = pmpro_getOption("hideads");
 	$hideadslevels = explode(",", pmpro_getOption("hideadslevels"));
-	if($hideads && $hideadslevels)
+	if($hideads == 1 && pmpro_hasMembershipLevel() || $hideads == 2 && pmpro_hasMembershipLevel($hideadslevels))
 	{
-		if(!empty($current_user->membership_level->ID) && in_array($current_user->membership_level->ID, $hideadslevels))
+		//disable ads in ezAdsense
+		if(class_exists("ezAdSense"))
 		{
-			//disable ads in ezAdsense
-			if(class_exists("ezAdSense"))
-			{
-				global $ezCount, $urCount;
-				$ezCount = 100;
-				$urCount = 100;
-			}
-
-			//set a global variable to hide ads
-			global $pmpro_display_ads;
-			$pmpro_display_ads = false;
+			global $ezCount, $urCount;
+			$ezCount = 100;
+			$urCount = 100;
 		}
+
+		//set a global variable to hide ads
+		global $pmpro_display_ads;
+		$pmpro_display_ads = false;
+	}
+	else
+	{
+		global $pmpro_display_ads;
+		$pmpro_display_ads = true;
 	}
 
 	do_action("pmpro_after_set_current_user");
 }
 add_action('set_current_user', 'pmpro_set_current_user');
 
-//init code
+/*
+	Checks if PMPro settings are complete or if there are any errors.
+*/
+function pmpro_checkLevelForStripeCompatibilty($level = NULL)
+{
+	$gateway = pmpro_getOption("gateway");
+	if($gateway == "stripe")
+	{
+		global $wpdb;
+		
+		//check ALL the levels
+		if(empty($level))
+		{
+			$sqlQuery = "SELECT * FROM $wpdb->pmpro_membership_levels ORDER BY id ASC";		
+			$levels = $wpdb->get_results($sqlQuery, OBJECT);
+			if(!empty($levels))
+			{
+				foreach($levels as $level)
+				{
+					/*
+						Stripe currently does not support:
+						* Trial Amounts > 0.
+						* Daily or Weekly billing periods.
+						* Cycle numbers > 1
+						* Billing Limits.										
+					*/
+					if($level->trial_amount > 0 ||
+					   $level->cycle_period == "Day" || $level->cycle_period == "Week" ||
+					   $level->cycle_number > 1 || $level->billing_limit > 0)
+					{
+						return false;
+					}
+				}
+			}
+		}
+		else
+		{
+			//need to look it up?
+			if(is_numeric($level))
+				$level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . $wpdb->escape($level) . "' LIMIT 1");
+			
+			//check this level
+			if($level->trial_amount > 0 ||
+			   $level->cycle_period == "Day" || $level->cycle_period == "Week" ||
+			   $level->cycle_number > 1 || $level->billing_limit > 0)
+			{
+				return false;
+			}
+		}
+	}
+	
+	return true;
+}
+
 function pmpro_is_ready()
 {
 	global $wpdb, $pmpro_pages, $pmpro_level_ready, $pmpro_gateway_ready, $pmpro_pages_ready;
@@ -183,6 +239,13 @@ function pmpro_is_ready()
 			else
 				$pmpro_gateway_ready = false;
 		}
+		elseif($gateway == "stripe")
+		{
+			if(pmpro_getOption("gateway_environment") && pmpro_getOption("stripe_secretkey") && pmpro_getOption("stripe_publishablekey"))
+				$pmpro_gateway_ready = true;
+			else
+				$pmpro_gateway_ready = false;
+		}
 		else
 		{
 			$pmpro_gateway_ready = false;
@@ -207,6 +270,8 @@ function pmpro_is_ready()
 	else
 		return false;
 }
+
+//init code
 function pmpro_init()
 {
 	require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/countries.php");
@@ -1101,7 +1166,7 @@ function pmpro_besecure()
 		$besecure = true;
 
 	$besecure = apply_filters("pmpro_besecure", $besecure);
-
+	
 	if($besecure && empty($_SERVER['HTTPS']))
 	{
 		//need to be secure
@@ -1113,7 +1178,7 @@ function pmpro_besecure()
 		//don't need to be secure
 		wp_redirect("http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 		exit;
-	}
+	}	
 }
 add_action('wp', 'pmpro_besecure', 2);
 add_action('login_head', 'pmpro_besecure', 2);
@@ -1171,12 +1236,16 @@ function pmpro_delete_user($user_id = NULL)
 	{
 		//couldn't delete the subscription
 		//we should probably notify the admin
-		$pmproemail = new PMProEmail();
-		$pmproemail->data = array("body"=>"<p>There was an error canceling the subscription for user with ID=" . $user_id . ". You will want to check your payment gateway to see if their subscription is still active.</p>");
-		$last_order = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_orders WHERE user_id = '" . $user_id . "' ORDER BY timestamp DESC LIMIT 1");
-		if($last_order)
-			$pmproemail->data["body"] .= "<p>Last Invoice:<br />" . nl2br(var_export($last_order, true)) . "</p>";
-		$pmproemail->sendEmail(get_bloginfo("admin_email"));
+		global $pmpro_error;
+		if(!empty($pmpro_error))
+		{
+			$pmproemail = new PMProEmail();
+			$pmproemail->data = array("body"=>"<p>There was an error canceling the subscription for user with ID=" . $user_id . ". You will want to check your payment gateway to see if their subscription is still active.</p><p>Error: " . $pmpro_error . "</p>");
+			$last_order = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_orders WHERE user_id = '" . $user_id . "' ORDER BY timestamp DESC LIMIT 1");
+			if(!empty($last_order))
+				$pmproemail->data["body"] .= "<p>Last Invoice:<br />" . nl2br(var_export($last_order, true)) . "</p>";
+			$pmproemail->sendEmail(get_bloginfo("admin_email"));
+		}
 	}
 }
 add_action('delete_user', 'pmpro_delete_user');
@@ -1497,4 +1566,5 @@ function pmpro_replaceURLsInBuffer($buffer)
 	
 	return $buffer;
 }
+
 ?>
