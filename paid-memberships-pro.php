@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships
-Version: 1.4.1
+Version: 1.4.2
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -42,7 +42,7 @@ $urlparts = explode("//", home_url());
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.4.1");
+define("PMPRO_VERSION", "1.4.2");
 $domainparts = parse_url(site_url());
 $domainparts = explode(".", $domainparts['host']);
 define("PMPRO_DOMAIN", $domainparts[count($domainparts)-2] . "." . $domainparts[count($domainparts)-1]);
@@ -50,7 +50,12 @@ define("PMPRO_DOMAIN", $domainparts[count($domainparts)-2] . "." . $domainparts[
 global $gateway_environment;
 $gateway_environment = pmpro_getOption("gateway_environment");
 
-global $all_membership_levels; //when checking levels, we save the info here for caching
+//when checking levels for users, we save the info here for caching. each key is a user id for level object for that user.
+global $all_membership_levels; 
+
+//we sometimes refer to this array of levels
+global $membership_levels;
+$membership_levels = $wpdb->get_results( "SELECT * FROM {$wpdb->pmpro_membership_levels}", OBJECT );
 
 function pmpro_memberslist()
 {
@@ -127,7 +132,9 @@ function pmpro_set_current_user()
 
 	//hiding ads?
 	$hideads = pmpro_getOption("hideads");
-	$hideadslevels = explode(",", pmpro_getOption("hideadslevels"));
+	$hideadslevels = pmpro_getOption("hideadslevels");
+	if(!is_array($hideadslevels))
+		$hideadslevels = explode(",", $hideadslevels);
 	if($hideads == 1 && pmpro_hasMembershipLevel() || $hideads == 2 && pmpro_hasMembershipLevel($hideadslevels))
 	{
 		//disable ads in ezAdsense
@@ -310,7 +317,7 @@ function pmpro_init()
 	elseif($pmpro_currency == "JPY")
 		$pmpro_currency_symbol = "&yen;";
 	else
-		$pmpro_currency_symbol = $pmpro_currency . " ";	//just use the code
+		$pmpro_currency_symbol = $pmpro_currency . " ";	//just use the code			
 }
 add_action("init", "pmpro_init");
 
@@ -340,7 +347,7 @@ function pmpro_wp()
 					include(plugin_dir_path(__FILE__) . "/pages/" . $pmpro_page_name . ".php");
 					$temp_content = ob_get_contents();
 					ob_end_clean();
-					return $temp_content;
+					return apply_filters("pmpro_pages_shortcode_" . $pmpro_page_name, $temp_content);
 				}
 				add_shortcode("pmpro_" . $pmpro_page_name, "pmpro_pages_shortcode");
 				break;	//only the first page found gets a shortcode replacement
@@ -363,7 +370,7 @@ function pmpro_checkout_shortcode($atts, $content=null, $code="")
 	include(plugin_dir_path(__FILE__) . "/pages/checkout.php");
 	$temp_content = ob_get_contents();
 	ob_end_clean();
-	return $temp_content;
+	return apply_filters("pmpro_pages_shortcode_checkout", $temp_content);			
 }
 add_shortcode("pmpro_checkout", "pmpro_checkout_shortcode");
 
@@ -892,9 +899,6 @@ function pmpro_comments_filter($comments, $post_id = NULL)
 }
 add_filter("comments_array", "pmpro_comments_filter");
 add_filter("comments_open", "pmpro_comments_filter");
-
-global $membership_levels;
-$membership_levels = $wpdb->get_results( "SELECT * FROM {$wpdb->pmpro_membership_levels}", OBJECT );
 
 function pmpro_page_meta()
 {

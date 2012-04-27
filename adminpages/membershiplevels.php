@@ -3,7 +3,7 @@
 
 	//some vars
 	$gateway = pmpro_getOption("gateway");
-	global $pmpro_stripe_error;
+	global $pmpro_stripe_error, $wp_version;
 	
 	if(isset($_REQUEST['edit']))
 		$edit = $_REQUEST['edit'];	
@@ -32,8 +32,8 @@
 	if($action == "save_membershiplevel")
 	{
 		$ml_name = addslashes($_REQUEST['name']);
-		$ml_description = addslashes($_REQUEST['description']);
-		$ml_confirmation = addslashes($_REQUEST['confirmation']);
+		$ml_description = $_REQUEST['description'];
+		$ml_confirmation = $_REQUEST['confirmation'];
 		$ml_initial_payment = addslashes($_REQUEST['initial_payment']);
 		if(!empty($_REQUEST['recurring']))
 			$ml_recurring = 1;
@@ -127,7 +127,8 @@
 			$wpdb->query($sqlQuery);
 			if(!mysql_errno())
 			{
-				pmpro_updateMembershipCategories( $wpdb->insert_id, $ml_categories );
+				$saveid = $wpdb->insert_id;
+				pmpro_updateMembershipCategories( $saveid, $ml_categories );
 				
 				$edit = false;
 				$msg = 1;
@@ -139,6 +140,8 @@
 				$msgt = "Error adding membership level.";
 			}
 		}
+		
+		do_action("pmpro_save_membership_level", $saveid);
 	}	
 	elseif($action == "delete_membership_level")
 	{
@@ -284,11 +287,17 @@
 				<tr>
 					<th scope="row" valign="top"><label for="description">Description:</label></th>
 					<td>
-						<div id="poststuff" class="pmpro_description">
-						<?php /*
-						<textarea rows="10" cols="80" name="description" id="description"><?php echo str_replace("\"", "&quot;", stripslashes($level->description))?></textarea>
-						*/ ?>
-						<?php wp_editor($level->description, "description", array("textarea_rows"=>5)); ?>	
+						<div id="poststuff" class="pmpro_description">						
+						<?php 							
+							if(version_compare($wp_version, "3.3") >= 0)
+								wp_editor(stripslashes($level->description), "description", array("textarea_rows"=>5)); 
+							else
+							{
+							?>
+							<textarea rows="10" cols="80" name="description" id="description"><?php echo stripslashes($level->description)?></textarea>
+							<?php
+							}
+						?>	
 						</div>    
 					</td>
 				</tr>
@@ -296,11 +305,17 @@
 				<tr>
 					<th scope="row" valign="top"><label for="confirmation">Confirmation Message:</label></th>
 					<td>
-						<div class="pmpro_confirmation">
-						<?php /*
-						<textarea rows="10" cols="80" name="confirmation" id="confirmation"><?php echo str_replace("\"", "&quot;", stripslashes($level->confirmation))?></textarea>						
-						*/?>
-						<?php wp_editor($level->confirmation, "confirmation", array("textarea_rows"=>5)); ?>	
+						<div class="pmpro_confirmation">					
+						<?php 
+							if(version_compare($wp_version, "3.3") >= 0)
+								wp_editor(stripslashes($level->confirmation), "confirmation", array("textarea_rows"=>5)); 
+							else
+							{
+							?>
+							<textarea rows="10" cols="80" name="confirmation" id="confirmation"><?php echo stripslashes($level->confirmation)?></textarea>	
+							<?php
+							}
+						?>	
 						</div>    
 					</td>
 				</tr>
@@ -408,9 +423,12 @@
 						</select>
 						<br /><small>How long before the expiration expires. Not that any future payments will be canceled when the membership expires.</small>							
 					</td>
-				</tr> 
+				</tr> 								
 			</tbody>
 		</table>
+		
+		<?php do_action("pmpro_membership_level_after_other_settings"); ?>				
+		
 		<h3 class="topborder">Content Settings</h3>
 		<table class="form-table">
 			<tbody>

@@ -230,10 +230,10 @@
 
 				<div class="pmpro_captcha">
 				<?php 																								
-					global $recaptcha, $recaptcha_publickey;
-					if($recaptcha == 2 || ($recaptcha == 1 && !(float)$pmpro_level->billing_amount && !(float)$pmpro_level->trial_amount)) 
+					global $recaptcha, $recaptcha_publickey;					
+					if($recaptcha == 2 || ($recaptcha == 1 && pmpro_isLevelFree($pmpro_level))) 
 					{											
-						echo recaptcha_get_html($recaptcha_publickey, NULL, true);
+						echo recaptcha_get_html($recaptcha_publickey, NULL, true);						
 					}								
 				?>								
 				</div>
@@ -243,6 +243,8 @@
 				?>
 				
 			</td>
+		</tr>
+	</tbody>
 	</table>   
 	<?php } elseif($current_user->ID && !$pmpro_review) { ?>                        	                       										
 		
@@ -287,7 +289,7 @@
 			<tr>
 				<td>
 					<div>
-						<input type="radio" gateway" name="gateway" value="paypal" <?php if(!$gateway || $gateway == "paypal") { ?>checked="checked"<?php } ?> />
+						<input type="radio" name="gateway" value="paypal" <?php if(!$gateway || $gateway == "paypal") { ?>checked="checked"<?php } ?> />
 							<a href="javascript:void(0);" class="pmpro_radio">Checkout with a Credit Card Here</a> &nbsp;
 						<input type="radio" name="gateway" value="paypalexpress" <?php if($gateway == "paypalexpress") { ?>checked="checked"<?php } ?> />
 							<a href="javascript:void(0);" class="pmpro_radio">Checkout with PayPal</a> &nbsp;					
