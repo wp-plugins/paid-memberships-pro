@@ -66,7 +66,7 @@
 				$ssorder = new MemberOrder();
 				$ssorder->getLastMemberOrder();
 				$invoices = $wpdb->get_results("SELECT *, UNIX_TIMESTAMP(timestamp) as timestamp FROM $wpdb->pmpro_membership_orders WHERE user_id = '$current_user->ID' ORDER BY timestamp DESC");
-				if($ssorder)
+				if(!empty($ssorder->id))
 				{
 					//default values from DB (should be last order or last update)
 					$bfirstname = get_user_meta($current_user->ID, "pmpro_bfirstname", true);
@@ -85,7 +85,7 @@
 					$ExpirationYear = get_user_meta($current_user->ID, "pmpro_ExpirationYear", true);	
 				?>		
 				<div class="pmpro_box">				
-					<h3><a class="pmpro_a-right" href="<?php echo pmpro_url("billing", "")?>">Edit</a>Billing Information</h3>
+					<h3><?php if((isset($ssorder->status) && $ssorder->status == "success") && (isset($ssorder->gateway) && in_array($ssorder->gateway, array("authorizenet", "paypal", "stripe")))) { ?><a class="pmpro_a-right" href="<?php echo pmpro_url("billing", "")?>">Edit</a><?php } ?>Billing Information</h3>
 					<p>
 						<strong>Billing Address</strong><br />
 						<?php echo $bfirstname . " " . $blastname?>
@@ -109,19 +109,25 @@
 			<div class="pmpro_box">
 				<h3>Member Links</h3>
 				<ul>
-					<?php if($ssorder->status == "success" && in_array($ssorder->gateway, array("authorizenet", "paypal"))) { ?>
+					<?php 
+						do_action("pmpro_member_links_top");
+					?>
+					<?php if((isset($ssorder->status) && $ssorder->status == "success") && (isset($ssorder->gateway) && in_array($ssorder->gateway, array("authorizenet", "paypal", "stripe")))) { ?>
 						<li><a href="<?php echo pmpro_url("billing", "", "https")?>">Update Billing Information</a></li>
 					<?php } ?>
 					<?php if(count($pmpro_levels) > 1) { ?>
 						<li><a href="<?php echo pmpro_url("levels")?>">Change Membership Level</a></li>
 					<?php } ?>
 					<li><a href="<?php echo pmpro_url("cancel")?>">Cancel Membership</a></li>
+					<?php 
+						do_action("pmpro_member_links_bottom");
+					?>
 				</ul>
 			</div>
 		</div> <!-- end pmpro_left -->
 		
 		<div class="pmpro_right">
-			<?php if($invoices) { ?>
+			<?php if(!empty($invoices)) { ?>
 			<div class="pmpro_box">
 				<h3>Past Invoices</h3>
 				<ul>
