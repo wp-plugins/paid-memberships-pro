@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal, stripe
 Requires at least: 3.0
 Tested up to: 3.3.2
-Stable tag: 1.4.3
+Stable tag: 1.4.4
 
 A customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -51,6 +51,10 @@ If you would like more help using PMPro on a network install, sign up for suppor
 3. Use Discount Codes to offer access at lower prices for special customers.
 
 == Changelog ==
+= 1.4.4 =
+* Using get_admin_url instead of home_url in various places so the links will work on sites installed in a subdirectory. (Notifications, admin bar, pagination in admin screens, etc.)
+* Wrapping some XML fields in Authorize.net API calls in <![CDATA[ ]]> to avoid issues when non-text characters (e.g. &) are included in the level name, etc.
+
 = 1.4.3 =
 * Fixed a bunch of notices and warnings on discount codes page in admin.
 * Added hooks for changing the discount code page: pmpro_save_discount_code_level, pmpro_save_discount_code, pmpro_discount_code_after_settings, pmpro_discount_code_after_level_settings. Look them up in discountcodes.php to see how they work.
