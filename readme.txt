@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal, stripe
 Requires at least: 3.0
 Tested up to: 3.3.2
-Stable tag: 1.4.5.1
+Stable tag: 1.4.6
 
 A customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -51,6 +51,13 @@ If you would like more help using PMPro on a network install, sign up for suppor
 3. Use Discount Codes to offer access at lower prices for special customers.
 
 == Changelog ==
+= 1.4.6 =
+* No longer trying to setup a subscription with Stripe for levels with only an Initial Payment amount.
+* Updated recaptchalib.php, which fixes issues with using recaptcha.
+* Now setting the first_name and last_name meta fields at checkout to match the business first and last name. (Previous scripts to add additional first/last names to the checkout field should override these.)
+* Updated the save profile code to only null out the expiration date for a membership if a blank expiration is explicitly passed through the form. If you had other plugins allowing users to edit their profile, etc, it might not have been passing the expiration date and thus updating users expiration dates. Admins and users would have gotten emails.
+* Some updates to applydiscountcodes.php service to support plugging into how discount codes function. Added the pmpro_discount_code_level filter to applydiscountcodes.php.
+
 = 1.4.5.1 =
 * Removed debug calls to krumo() which would cause fatal errors in certain situations. Please upgrade. (Note that PMPro versions that go three dots deep are usually the most important ones :)
 
