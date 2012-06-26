@@ -18,18 +18,7 @@
 		
 		<div class="pmpro_meta"><a href="<?php echo pmpro_https_filter("http://www.paidmembershipspro.com")?>">Plugin Support</a> | <a href="http://www.paidmembershipspro.com/forums/">User Forum</a> | <strong>Version <?php echo PMPRO_VERSION?></strong></div>
 	</div>
-	<br style="clear:both;" />
-	
-	<?php
-		//include(pmpro_https_filter("http://www.paidmembershipspro.com/notifications/?v=" . PMPRO_VERSION));
-	?>
-	<div id="pmpro_notifications">
-	</div>
-	<script>
-		jQuery.get('<?php echo pmpro_https_filter("http://www.paidmembershipspro.com/notifications/?v=" . PMPRO_VERSION)?>', function(data) {
-		  jQuery('#pmpro_notifications').html(data);		 
-		});
-	</script>
+	<br style="clear:both;" />		
 
 	<form id="posts-filter" method="get" action="">	
 	<h2>
@@ -141,7 +130,7 @@
 								<?php echo $metavalues->pmpro_baddress1; ?><br />
 								<?php if(!empty($metavalues->pmpro_baddress2)) echo $metavalues->pmpro_baddress2 . "<br />"; ?>										
 								<?php if($metavalues->pmpro_bcity && $metavalues->pmpro_bstate) { ?>
-									<?php echo $metavalues->pmpro_bcity?>, <?php echo $metavalues->pmpro_bstate?> <?php echo $metavalues->pmpro_bzipcode?><br />												
+									<?php echo $metavalues->pmpro_bcity?>, <?php echo $metavalues->pmpro_bstate?> <?php echo $metavalues->pmpro_bzipcode?>  <?php if(!empty($metavalues->pmpro_bcountry)) echo $metavalues->pmpro_bcountry?><br />												
 								<?php } ?>
 								<?php echo formatPhone($metavalues->pmpro_bphone)?>
 							</td>
@@ -180,9 +169,7 @@
 	</form>
 	
 	<?php
-	echo pmpro_getPaginationString($pn, $totalrows, $limit, 1, home_url("/wp-admin/admin.php?page=pmpro-memberslist&s=" . urlencode($s)), "&l=$l&limit=$limit&pn=");
+	echo pmpro_getPaginationString($pn, $totalrows, $limit, 1, get_admin_url(NULL, "/admin.php?page=pmpro-memberslist&s=" . urlencode($s)), "&l=$l&limit=$limit&pn=");
 	?>
 	
 </div>
-<?php
-?>
