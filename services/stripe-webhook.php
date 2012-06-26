@@ -7,7 +7,7 @@
 	
 	//wp includes	
 	define('WP_USE_THEMES', false);
-	require('../../../../wp-load.php');
+	require_once(dirname(__FILE__) . '/../../../../wp-load.php');
 	
 	require_once(dirname(__FILE__) . "/../includes/lib/Stripe/Stripe.php");
 			
@@ -36,6 +36,8 @@
 	{
 		die("Could not find an event with ID #" . $event_id . ". " . $e->getMessage());
 	}
+	
+	global $wpdb;
 	
 	//real event?
 	if(!empty($event->id))
@@ -83,6 +85,7 @@
 				$morder->billing->city = $old_order->billing->city;
 				$morder->billing->state = $old_order->billing->state;
 				$morder->billing->zip = $old_order->billing->zip;
+				$morder->billing->country = $old_order->billing->country;
 				$morder->billing->phone = $old_order->billing->phone;
 				
 				//get CC info that is on file
@@ -123,6 +126,7 @@
 				$morder->billing->city = $old_order->billing->city;
 				$morder->billing->state = $old_order->billing->state;
 				$morder->billing->zip = $old_order->billing->zip;
+				$morder->billing->country = $old_order->billing->country;
 				$morder->billing->phone = $old_order->billing->phone;
 				
 				//get CC info that is on file

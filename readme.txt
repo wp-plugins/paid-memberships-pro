@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal, stripe
 Requires at least: 3.0
 Tested up to: 3.4
-Stable tag: 1.4.7
+Stable tag: 1.4.8
 
 A customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -51,6 +51,18 @@ If you would like more help using PMPro on a network install, sign up for suppor
 3. Use Discount Codes to offer access at lower prices for special customers.
 
 == Changelog ==
+= 1.4.8 =
+* Fixed !!siteemail!! values for email templates.
+* Adjusted display of "processing" message next to checkout button when clicked.
+* Added billing_country to orders table in DB and the memberorder class. Handling countries better through the code.
+* Removing closing ?> at the bottom of various files while working through. This can avoid errors on some setups.
+* Using wp_enqueue_style to load plugin stylesheets now.
+* Added the pmpro_getCheckoutButton($level_id, $button_text, $classes) function and [pmpro_button level="1"] shortcode to add buttons with links to more easily level checkout pages into your pages and themes. Copied over btn and btn-primary styles from Member Lite theme.
+* Updated include/require statements to work if the wp-content folder has been renamed or moved.
+* Added code to load scripts in the services folder via admin-ajax.php. (Helps when the plugins folder is not where PMPro expects it to be.)
+* The discount code AJAX call is using the new service URL (/wp-admin/admin-ajax.php?action=applydiscountcode).
+* Added IPN/Silent Post/Webhook instructions to payment settings page.
+
 = 1.4.7 =
 * Fixed some notices in the PayPal gateway code.
 * No longer calling Stripe JS at checkout if the level is free.

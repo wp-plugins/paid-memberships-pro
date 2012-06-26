@@ -43,7 +43,7 @@
 			if(file_exists(TEMPLATEPATH . "/membership-email-" . $this->template . ".html"))
 				$this->body = file_get_contents(TEMPLATEPATH . "/membership-email-" . $this->template . ".html");
 			else
-				$this->body = file_get_contents(ABSPATH . "/wp-content/plugins/paid-memberships-pro/email/" . $this->template . ".html");			
+				$this->body = file_get_contents(PMPRO_DIR . "/email/" . $this->template . ".html");			
 						
 			//header and footer
 			/* This is handled for all emails via the pmpro_send_html function in paid-memberships-pro now
@@ -290,6 +290,7 @@
 								"subject" => $this->subject, 
 								"name" => $user->display_name, 
 								"sitename" => get_option("blogname"),
+								"siteemail" => pmpro_getOption("from_email"),
 								"membership_level_name" => $user->membership_level->name,
 								"display_name" => $user->display_name,
 								"user_email" => $user->user_email,																	
@@ -331,6 +332,7 @@
 								"subject" => $this->subject, 
 								"name" => $user->display_name, 
 								"sitename" => get_option("blogname"),
+								"siteemail" => pmpro_getOption("from_email"),
 								"membership_level_name" => $user->membership_level->name,
 								"display_name" => $user->display_name,
 								"user_email" => $user->user_email,																	
@@ -367,6 +369,7 @@
 								"subject" => $this->subject, 
 								"name" => $user->display_name, 
 								"sitename" => get_option("blogname"),
+								"siteemail" => pmpro_getOption("from_email"),
 								"membership_level_name" => $user->membership_level->name,
 								"display_name" => $user->display_name,
 								"user_email" => $user->user_email,									
@@ -401,6 +404,7 @@
 								"subject" => $this->subject, 
 								"name" => "Admin", 
 								"sitename" => get_option("blogname"),
+								"siteemail" => pmpro_getOption("from_email"),
 								"membership_level_name" => $user->membership_level->name,
 								"display_name" => $user->display_name,
 								"user_email" => $user->user_email,									
@@ -437,6 +441,7 @@
 								"subject" => $this->subject, 
 								"name" => $user->display_name, 
 								"sitename" => get_option("blogname"),
+								"siteemail" => pmpro_getOption("from_email"),
 								"membership_level_name" => $user->membership_level->name,
 								"display_name" => $user->display_name,
 								"user_email" => $user->user_email,	
@@ -493,7 +498,7 @@
 			$this->data = array(
 				"subject" => $this->subject, 
 				"name" => $user->display_name, 
-				"sitename" => get_option("blogname"), 
+				"sitename" => get_option("blogname"), 				
 				"membership_level_name" => $user->membership_level->name, 
 				"siteemail" => get_bloginfo("admin_email"), 
 				"login_link" => wp_login_url(), 

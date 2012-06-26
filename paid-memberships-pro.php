@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships
-Version: 1.4.7
+Version: 1.4.8
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -24,13 +24,14 @@ else
 }
 
 //require_once(ABSPATH . '/wp-admin/upgrade-functions.php');
-require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/includes/lib/name-parser.php");
-require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/includes/functions.php");
-require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/includes/upgradecheck.php");
-require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/scheduled/crons.php");
-//require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/classes/class.pmprogateway.php");
-require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/classes/class.memberorder.php");
-require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/classes/class.pmproemail.php");
+define("PMPRO_DIR", dirname(__FILE__));
+require_once(PMPRO_DIR . "/includes/lib/name-parser.php");
+require_once(PMPRO_DIR . "/includes/functions.php");
+require_once(PMPRO_DIR . "/includes/upgradecheck.php");
+require_once(PMPRO_DIR . "/scheduled/crons.php");
+//require_once(PMPRO_DIR . "/classes/class.pmprogateway.php");
+require_once(PMPRO_DIR . "/classes/class.memberorder.php");
+require_once(PMPRO_DIR . "/classes/class.pmproemail.php");
 require_once(ABSPATH . "wp-includes/class-phpmailer.php");
 
 //setup the DB
@@ -42,7 +43,7 @@ $urlparts = explode("//", home_url());
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.4.7");
+define("PMPRO_VERSION", "1.4.8");
 $domainparts = parse_url(site_url());
 $domainparts = explode(".", $domainparts['host']);
 define("PMPRO_DOMAIN", $domainparts[count($domainparts)-2] . "." . $domainparts[count($domainparts)-1]);
@@ -93,6 +94,40 @@ function pmpro_advancedsettings()
 	require_once(dirname(__FILE__) . "/adminpages/advancedsettings.php");
 }
 
+/*
+	Loading a service?
+*/
+function pmpro_wp_ajax_applydiscountcode()
+{
+	require_once(dirname(__FILE__) . "/services/applydiscountcode.php");	
+	exit;
+}
+add_action('wp_ajax_applydiscountcode', 'pmpro_wp_ajax_applydiscountcode');
+function pmpro_wp_ajax_authnet_silent_post()
+{
+	require_once(dirname(__FILE__) . "/services/authnet-silent-post.php");	
+	exit;
+}
+add_action('wp_ajax_authnet_silent_post', 'pmpro_wp_ajax_authnet_silent_post');
+function pmpro_wp_ajax_getfile()
+{
+	require_once(dirname(__FILE__) . "/services/getfile.php");	
+	exit;
+}
+add_action('wp_ajax_getfile', 'pmpro_wp_ajax_getfile');
+function pmpro_wp_ajax_ipnhandler()
+{
+	require_once(dirname(__FILE__) . "/services/ipnhandler.php");	
+	exit;
+}
+add_action('wp_ajax_ipnhandler', 'pmpro_wp_ajax_ipnhandler');
+function pmpro_wp_stripe_webhook()
+{
+	require_once(dirname(__FILE__) . "/services/stripe-webhook.php");	
+	exit;
+}
+add_action('wp_ajax_stripe_webhook', 'pmpro_wp_ajax_stripe_webhook');
+	
 function pmpro_set_current_user()
 {
 	//this code runs at the beginning of the plugin
@@ -281,12 +316,22 @@ function pmpro_is_ready()
 //init code
 function pmpro_init()
 {
-	require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/countries.php");
-	require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/states.php");
-	require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/currencies.php");
+	require_once(PMPRO_DIR . "/includes/countries.php");
+	require_once(PMPRO_DIR . "/includes/states.php");
+	require_once(PMPRO_DIR . "/includes/currencies.php");
 
-	wp_enqueue_script('ssmemberships_js', '/wp-content/plugins/paid-memberships-pro/js/paid-memberships-pro.js', array('jquery'));
+	wp_enqueue_script('ssmemberships_js', plugins_url('js/paid-memberships-pro.js',__FILE__ ), array('jquery'));
 
+	if(is_admin())
+	{
+		wp_enqueue_style('pmpro_admin', plugins_url('css/admin.css',__FILE__ ), array(), PMPRO_VERSION, "screen");
+	}
+	else
+	{
+		wp_enqueue_style('pmpro_frontend', plugins_url('css/frontend.css',__FILE__ ), array(), PMPRO_VERSION, "screen");
+		wp_enqueue_style('pmpro_print', plugins_url('css/print.css',__FILE__ ), array(), PMPRO_VERSION, "print");
+	}
+	
 	global $pmpro_pages, $pmpro_ready, $pmpro_currency, $pmpro_currency_symbol;
 	$pmpro_pages = array();
 	$pmpro_pages["account"] = pmpro_getOption("account_page_id");
@@ -338,7 +383,7 @@ function pmpro_wp()
 				
 			if(!empty($post->ID) && $pmpro_page_id == $post->ID)
 			{
-				require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/preheaders/" . $pmpro_page_name . ".php");
+				require_once(PMPRO_DIR . "/preheaders/" . $pmpro_page_name . ".php");
 
 				function pmpro_pages_shortcode($atts, $content=null, $code="")
 				{
@@ -357,7 +402,7 @@ function pmpro_wp()
 		//make sure you load the preheader for the checkout page. the shortcode for checkout is loaded below		
 		if(!empty($post->post_content) && strpos($post->post_content, "[pmpro_checkout]") !== false)
 		{
-			require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/preheaders/checkout.php");	
+			require_once(PMPRO_DIR . "/preheaders/checkout.php");	
 		}
 	}
 }
@@ -983,7 +1028,7 @@ if (is_admin())
 	add_action('admin_menu', 'pmpro_page_meta_wrapper');
 	add_action('save_post', 'pmpro_page_save');
 
-	require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/adminpages/dashboard.php");
+	require_once(PMPRO_DIR . "/adminpages/dashboard.php");
 }
 
 function pmpro_add_pages()
@@ -1054,30 +1099,6 @@ function pmpro_admin_bar_menu() {
 
 }
 add_action('admin_bar_menu', 'pmpro_admin_bar_menu', 1000);
-
-//css
-function pmpro_addFrontendHeaderCode()
-{
-	global $besecure;
-	$besecure = apply_filters('pmpro_besecure', $besecure);
-	$url = get_bloginfo('wpurl');
-	if($besecure)
-		$url = str_replace("http:", "https:", $url);
-	else
-		$url = str_replace("https:", "http:", $url);
-
-	echo '<link type="text/css" rel="stylesheet" href="' . $url . '/wp-content/plugins/paid-memberships-pro/css/frontend.css" media="screen" />' . "\n";
-	echo '<link type="text/css" rel="stylesheet" href="' . $url . '/wp-content/plugins/paid-memberships-pro/css/print.css" media="print" />' . "\n";
-}
-add_action('wp_head', 'pmpro_addFrontendHeaderCode');
-
-//css
-function pmpro_addAdminHeaderCode()
-{
-	$url = get_bloginfo('wpurl');
-	echo '<link type="text/css" rel="stylesheet" href="' . $url . '/wp-content/plugins/paid-memberships-pro/css/admin.css" media="screen" />' . "\n";
-}
-add_action('admin_head', 'pmpro_addAdminHeaderCode');
 
 //redirect control
 function pmpro_login_redirect($redirect_to, $request, $user)
@@ -1316,6 +1337,23 @@ function pmpro_shortcode($atts, $content=null, $code="")
 	return "";	//just hide it
 }
 add_shortcode("membership", "pmpro_shortcode");
+
+function pmpro_checkout_button_shortcode($atts, $content=null, $code="")
+{
+	// $atts    ::= array of attributes
+	// $content ::= text within enclosing form of shortcode element
+	// $code    ::= the shortcode found, when == callback name
+	// examples: [checkout_button level="3"]
+
+	extract(shortcode_atts(array(
+		'level' => NULL,
+		'text' => NULL,
+		'class' => NULL
+	), $atts));
+	
+	return pmpro_getCheckoutButton($level, $text, $class);
+}
+add_shortcode("pmpro_button", "pmpro_checkout_button_shortcode");
 
 function pmpro_wp_signup_location($location)
 {
@@ -1570,5 +1608,3 @@ function pmpro_replaceURLsInBuffer($buffer)
 	
 	return $buffer;
 }
-
-?>

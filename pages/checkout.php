@@ -119,7 +119,7 @@
 				jQuery('#other_discount_code_button').attr('disabled', 'disabled');
 				
 				jQuery.ajax({
-					url: '<?php echo plugins_url("paid-memberships-pro/services/applydiscountcode.php")?>',type:'POST',timeout:2000,
+					url: '<?php echo admin_url("admin-ajax.php") . "?action=applydiscountcode"?>',type:'POST',timeout:2000,
 					dataType: 'html',
 					data: "code=" + code + "&level=" + level_id + "&msgfield=pmpro_message",
 					error: function(xml){
@@ -591,7 +591,7 @@
 				jQuery('#discount_code_button').attr('disabled', 'disabled');
 				
 				jQuery.ajax({
-					url: '<?php echo plugins_url("paid-memberships-pro/services/applydiscountcode.php")?>',type:'POST',timeout:2000,
+					url: '<?php echo admin_url("admin-ajax.php") . "?action=applydiscountcode"?>',type:'POST',timeout:2000,
 					dataType: 'html',
 					data: "code=" + code + "&level=" + level_id + "&msgfield=discount_code_message",
 					error: function(xml){
@@ -620,14 +620,16 @@
 	
 	<?php do_action("pmpro_checkout_before_submit_button"); ?>			
 	
-	<div align="center">		
+	<div class="pmpro_submit">
 		<?php if($pmpro_review) { ?>
 			
-			<input type="hidden" name="confirm" value="1" />
-			<input type="hidden" name="token" value="<?php echo esc_attr($pmpro_paypal_token)?>" />
-			<input type="hidden" name="gateway" value="<?echo $gateway; ?>" />
-			<input type="submit" class="pmpro_btn pmpro_btn-submit-checkout" value="Complete Payment &raquo;" />
-			
+			<span id="pmpro_submit_span">
+				<input type="hidden" name="confirm" value="1" />
+				<input type="hidden" name="token" value="<?php echo esc_attr($pmpro_paypal_token)?>" />
+				<input type="hidden" name="gateway" value="<?echo $gateway; ?>" />
+				<input type="submit" class="pmpro_btn pmpro_btn-submit-checkout" value="Complete Payment &raquo;" />
+			</span>
+				
 		<?php } else { ?>
 					
 			<?php if($gateway == "paypal" || $gateway == "paypalexpress") { ?>
