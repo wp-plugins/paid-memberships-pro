@@ -2,10 +2,16 @@
 	global $isapage;
 	$isapage = true;
 		
-	//wp includes	
-	define('WP_USE_THEMES', false);
-	require('../../../../wp-load.php');	
-	require_once('../classes/class.mimetype.php');
+	//in case the file is loaded directly
+	if(!function_exists("get_userdata"))
+	{
+		define('WP_USE_THEMES', false);
+		require_once(dirname(__FILE__) . '/../../../../wp-load.php');
+	}
+	
+	require_once(ABSPATH . '/classes/class.mimetype.php');
+	
+	global $wpdb;
 	
 	$uri = $_SERVER['REQUEST_URI'];
 	if($uri[0] == "/")

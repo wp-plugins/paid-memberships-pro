@@ -1,10 +1,12 @@
-<?php
-	//this file is launched via AJAX to get various data from the DB for the stranger_products plugin
-
-	//wp includes
-	define('WP_USE_THEMES', false);
-	require('../../../../wp-load.php');
-
+<?php	
+	//only admins can get this
+	if(!function_exists("current_user_can") || !current_user_can("manage_options"))
+	{
+		die("You do not have permissions to perform this action.");
+	}	
+	
+	global $wpdb;	
+	
 	//get users	
 	if(isset($_REQUEST['s']))
 		$s = $_REQUEST['s'];
@@ -54,7 +56,7 @@
 	}
 		
 	$theusers = $wpdb->get_results($sqlQuery);	
-	$csvoutput = "id,username,firstname,lastname,email,billing firstname,billing lastname,address1,address2,city,state,zipcode,phone,membership,fee,term,joined,expires\n";	
+	$csvoutput = "id,username,firstname,lastname,email,billing firstname,billing lastname,address1,address2,city,state,zipcode,country,phone,membership,fee,term,joined,expires\n";	
 	
 	if($theusers)
 	{
@@ -63,7 +65,13 @@
 			//get meta
 			$sqlQuery = "SELECT meta_key as `key`, meta_value as `value` FROM $wpdb->usermeta WHERE $wpdb->usermeta.user_id = '" . $theuser->ID . "'";					
 			$metavalues = pmpro_getMetavalues($sqlQuery);	
-
+			
+			/*
+				Fixing notice with bcountry. Should probably check other values just in case.				
+			*/
+			if(empty($metavalues->pmpro_bcountry))
+				$metavalues->pmpro_bcountry = "";
+			
 			$csvoutput .= enclose($theuser->ID) . "," .
 						  enclose($theuser->user_login) . "," .						  
 						  enclose($metavalues->first_name) . "," .
@@ -76,6 +84,7 @@
 						  enclose($metavalues->pmpro_bcity) . "," .
 						  enclose($metavalues->pmpro_bstate) . "," .
 						  enclose($metavalues->pmpro_bzipcode) . "," .
+						  enclose($metavalues->pmpro_bcountry) . "," .
 						  enclose($metavalues->pmpro_bphone) . "," .
 						  enclose($theuser->membership) . "," .
 						  enclose($theuser->billing_amount) . "," .

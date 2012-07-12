@@ -10,6 +10,22 @@
 		}
 	}
 	
+	//setup wpdb for the tables we need
+	function pmpro_setDBTables()
+	{
+		global $table_prefix, $wpdb;
+		$wpdb->hide_errors();
+		$wpdb->pmpro_membership_levels = $table_prefix . 'pmpro_membership_levels';
+		$wpdb->pmpro_memberships_users = $table_prefix . 'pmpro_memberships_users';
+		$wpdb->pmpro_memberships_categories = $table_prefix . 'pmpro_memberships_categories';
+		$wpdb->pmpro_memberships_pages = $table_prefix . 'pmpro_memberships_pages';
+		$wpdb->pmpro_membership_orders = $table_prefix . 'pmpro_membership_orders';
+		$wpdb->pmpro_discount_codes = $wpdb->prefix . 'pmpro_discount_codes';
+		$wpdb->pmpro_discount_codes_levels = $wpdb->prefix . 'pmpro_discount_codes_levels';
+		$wpdb->pmpro_discount_codes_uses = $wpdb->prefix . 'pmpro_discount_codes_uses';
+	}	
+	pmpro_setDBTables();
+	
 	//from: http://stackoverflow.com/questions/5266945/wordpress-how-detect-if-current-page-is-the-login-page/5892694#5892694
 	function pmpro_is_login_page() {
 		return in_array($GLOBALS['pagenow'], array('wp-login.php', 'wp-register.php'));
@@ -63,7 +79,7 @@
 	function pmpro_setOption($s, $v = NULL)
 	{
 		//no value is given, set v to the request var
-		if($v === NULL)
+		if($v === NULL && isset($_REQUEST[$s]))
 			$v = $_REQUEST[$s];
 				
 		if(is_array($v))
@@ -90,12 +106,12 @@
 			$scheme = "https";
 		elseif(!$scheme)
 			$scheme = "http";
-					
+				
 		if(!$page)
 			$page = "levels";
 			
 		global $pmpro_pages;
-		
+				
 		//? vs &
 		if(strpos(get_permalink($pmpro_pages[$page]), "?"))
 			return home_url(str_replace(home_url(), "", get_permalink($pmpro_pages[$page])) . str_replace("?", "&", $querystring), $scheme);
@@ -431,29 +447,46 @@
 		if(!$non_member_check)
 		{
 			//no levels?
-			if($membership_level == "-1" || !$membership_level)
+			if($membership_level == "-1" || empty($membership_level))
 				$r = false;		
 						
 			//if no level var was passed, we're just checking if they have any level
 			if(!$levels)
 			{
-				if($membership_level->ID)
+				if(!empty($membership_level->ID))
 					$r = true;
 				else
 					$r = false;
 			}		
 								
+			if(!is_array($levels))
+				$levels = array($levels);
+			
 			//okay, so something to check let's set the levels
-			if(!empty($membership_level))
+			if(empty($membership_level))
 			{
-				if(!is_array($levels))
-					$levels = array($levels);
-					
-				//and check each one
+				//non member check
 				foreach($levels as $level)
 				{
-					if($level == $membership_level->ID || $level == $membership_level->name)
+					if(is_numeric($level) && (int)$level < 0)
+						$r = true;	//they don't have a membership level so they don't have this one
+				}
+			}
+			else
+			{						
+				//check levels against the user's level
+				foreach($levels as $level)
+				{
+					if(is_numeric($level) && (int)$level < 0)
+					{
+						//passing -1 will return true if the user does not have membership level #1
+						$abs_level = abs($level);						
+						if($abs_level != $membership_level->ID)
+							$r = true;
+					}
+					elseif($level == $membership_level->ID || $level == $membership_level->name)
 					{				
+						//the user has this level
 						$r = true;
 					}
 				}
@@ -501,12 +534,16 @@
 				
 		//are they even changing?
 		$old_level = $wpdb->get_row("SELECT * FROM  $wpdb->pmpro_memberships_users WHERE user_id = '" . $user_id . "'");
-		if($old_level->membership_id == $level)
+		if(empty($old_level->membership_id) && empty($level))
+			return false;	//not changing
+		elseif(!empty($old_level->membership_id) && $old_level->membership_id == $level)
 			return false;	//not changing
 		
 		//are they paying? may need to cancel their old membership				
 		if(!pmpro_isLevelFree($old_level))
 			$paying = true;
+		else
+			$paying = false;
 			
 		if($paying)
 		{					
@@ -548,7 +585,7 @@
 		else 
 		{
 			pmpro_set_current_user();
-			do_action("pmpro_after_change_membership_level", $level, $user_id);
+			do_action("pmpro_after_change_membership_level", $level, $user_id);	//$level is the $level_id here
 			return true;
 		}
 	}
@@ -562,75 +599,77 @@
 	 *		Success returns boolean true.
 	 *		Failure returns a string containing the error message.
 	 */
-  function pmpro_toggleMembershipCategory( $level, $category, $value )
-  {
-    global $wpdb;
-    $category = intval($category);
+	function pmpro_toggleMembershipCategory( $level, $category, $value )
+	{
+		global $wpdb;
+		$category = intval($category);
 
-		if ( ($level = intval($level)) <= 0 )
-		{
-			$safe = addslashes($level);
-			if ( ($level = intval($wpdb->get_var("SELECT id FROM {$wpdb->pmpro_membership_levels} WHERE name = '$safe' LIMIT 1"))) <= 0 )
+			if ( ($level = intval($level)) <= 0 )
 			{
-				return "Membership level not found.";
+				$safe = addslashes($level);
+				if ( ($level = intval($wpdb->get_var("SELECT id FROM {$wpdb->pmpro_membership_levels} WHERE name = '$safe' LIMIT 1"))) <= 0 )
+				{
+					return "Membership level not found.";
+				}
 			}
+
+		if ( $value )
+		{
+		  $sql = "REPLACE INTO {$wpdb->pmpro_memberships_categories} (`membership_id`,`category_id`) VALUES ('$level','$category')";
+		  $wpdb->query($sql);		
+		  if(mysql_errno()) return mysql_error();
+		}
+		else
+		{
+		  $sql = "DELETE FROM {$wpdb->pmpro_memberships_categories} WHERE `membership_id` = '$level' AND `category_id` = '$category' LIMIT 1";
+		  $wpdb->query($sql);		
+		  if(mysql_errno()) return mysql_error();
 		}
 
-    if ( $value )
-    {
-      $sql = "REPLACE INTO {$wpdb->pmpro_memberships_categories} (`membership_id`,`category_id`) VALUES ('$level','$category')";
-      $wpdb->query($sql);		
-      if(mysql_errno()) return mysql_error();
-    }
-    else
-    {
-      $sql = "DELETE FROM {$wpdb->pmpro_memberships_categories} WHERE `membership_id` = '$level' AND `category_id` = '$category' LIMIT 1";
-      $wpdb->query($sql);		
-      if(mysql_errno()) return mysql_error();
-    }
-
-    return true;
-  }
+		return true;
+	}
 
 	/* pmpro_updateMembershipCategories() ensures that all those and only those categories given
-   * are associated with the given membership level.
-	 *
-   * $level is a valid membership level ID or name
-   * $categories is an array of post category IDs
-   *
-	 * Return values:
-	 *		Success returns boolean true.
-	 *		Failure returns a string containing the error message.
-	 */
-  function pmpro_updateMembershipCategories( $level, $categories ) {
-    global $wpdb;
-    $category = intval($category);
-
-		if ( ($level = intval($level)) <= 0 )
+	* are associated with the given membership level.
+	*
+	* $level is a valid membership level ID or name
+	* $categories is an array of post category IDs
+	*
+	* Return values:
+	*		Success returns boolean true.
+	*		Failure returns a string containing the error message.
+	*/
+	function pmpro_updateMembershipCategories($level, $categories) 
+	{
+		global $wpdb;
+		
+		if(!is_numeric($level))
 		{
-			$safe = addslashes($level);
-			if ( ($level = intval($wpdb->get_var("SELECT id FROM {$wpdb->pmpro_membership_levels} WHERE name = '$safe' LIMIT 1"))) <= 0 )
+			$level = $wpdb->get_var("SELECT id FROM $wpdb->pmpro_membership_levels WHERE name = '" . $wpdb->escape($level) . "' LIMIT 1");
+			if(empty($level))
 			{
 				return "Membership level not found.";
 			}
+		}		
+
+		// remove all existing links...
+		$sqlQuery = "DELETE FROM $wpdb->pmpro_memberships_categories WHERE `membership_id` = '" . $wpdb->escape($level) . "'";
+		$wpdb->query($sqlQuery);		
+		if(mysql_errno()) return mysql_error();
+
+		// add the given links [back?] in...
+		foreach($categories as $cat)
+		{
+			if(is_string($r = pmpro_toggleMembershipCategory( $level, $cat, true)))
+			{
+				//uh oh, error
+				return $r;			
+			}
 		}
 
-    // remove all existing links...
-    $sql = "DELETE FROM {$wpdb->pmpro_memberships_categories} WHERE `membership_id` = '$level'";
-    $wpdb->query($sql);		
-    if(mysql_errno()) return mysql_error();
-
-    // add the given links [back?] in...
-    foreach ( $categories as $cat )
-    {
-      if ( is_string( $r = pmpro_toggleMembershipCategory( $level, $cat, true ) ) )
-      {
-        return $r;
-      }
-    }
-
-    return true;
-  }
+		//all good
+		return true;
+	}
   
 	function pmpro_isAdmin($user_id = NULL)
 	{
@@ -673,7 +712,7 @@
 				}
 				else
 				{
-					update_user_meta($user_id, $meta_keys[$i], $meta_values[$i]);				
+					update_user_meta($user_id, $meta_keys[$i], $meta_values[$i]);	
 				}
 			}
 		}
@@ -717,7 +756,7 @@
 		if($lastpage > 1)
 		{	
 			$pagination .= "<div class=\"pmpro_pagination\"";
-			if($margin || $padding)
+			if(!empty($margin) || !empty($padding))
 			{
 				$pagination .= " style=\"";
 				if($margin)
@@ -931,7 +970,7 @@
 	{
 		global $wpdb;
 		
-		while(!$code)
+		while(empty($code))
 		{
 			$scramble = md5(AUTH_KEY . time() . SECURE_AUTH_KEY);			
 			$code = substr($scramble, 0, 10);
@@ -949,7 +988,7 @@
 		global $wpdb;
 		
 		//no code, no code
-		if(!$code)
+		if(empty($code))
 		{
 			if($return_errors)
 				return array(false, "No code was given to check.");
@@ -959,13 +998,9 @@
 			
 		//get code from db
 		$dbcode = $wpdb->get_row("SELECT *, UNIX_TIMESTAMP(starts) as starts, UNIX_TIMESTAMP(expires) as expires FROM $wpdb->pmpro_discount_codes WHERE code ='" . $code . "' LIMIT 1");
-		
-		//fix the date timestamps
-		$dbcode->starts = strtotime(date("m/d/Y", $dbcode->starts));
-		$dbcode->expires = strtotime(date("m/d/Y", $dbcode->expires));
-		
+				
 		//did we find it?
-		if(!$dbcode->id)
+		if(empty($dbcode->id))
 		{
 			if($return_errors)
 				return array(false, "The code could not be found.");
@@ -973,11 +1008,15 @@
 				return false;
 		}
 	
+		//fix the date timestamps
+		$dbcode->starts = strtotime(date("m/d/Y", $dbcode->starts));
+		$dbcode->expires = strtotime(date("m/d/Y", $dbcode->expires));		
+	
 		//today
 		$today = strtotime(date("m/d/Y 00:00:00"));		
 	
 		//has this code started yet?
-		if($dbcode->starts && $dbcode->starts > $today)
+		if(!empty($dbcode->starts) && $dbcode->starts > $today)
 		{
 			if($return_errors)
 				return array(false, "This discount code goes into effect on " . date("m/d/Y", $dbcode->starts) . ".");
@@ -986,7 +1025,7 @@
 		}
 		
 		//has this code expired?
-		if($dbcode->expires && $dbcode->expires < $today)
+		if(!empty($dbcode->expires) && $dbcode->expires < $today)
 		{
 			if($return_errors)
 				return array(false, "This discount code expired on " . date("m/d/Y", $dbcode->expires) . ".");
@@ -1007,14 +1046,15 @@
 			}
 		}
 		
-		//if a level was passed check if this code applies
-		if($level_id)
+		//if a level was passed check if this code applies		
+		$pmpro_check_discount_code_levels = apply_filters("pmpro_check_discount_code_levels", true, $dbcode->id);		
+		if(!empty($level_id) && $pmpro_check_discount_code_levels)
 		{
 			$code_level = $wpdb->get_row("SELECT l.id, cl.*, l.name, l.description, l.allow_signups FROM $wpdb->pmpro_discount_codes_levels cl LEFT JOIN $wpdb->pmpro_membership_levels l ON cl.level_id = l.id WHERE cl.code_id = '" . $dbcode->id . "' AND cl.level_id = '" . $level_id . "' LIMIT 1");
 			
-			if(!$code_level)
+			if(empty($code_level))
 			{
-				if($return_errors)
+				if(!empty($return_errors))
 					return array(false, "This code does not apply to this membership level.");
 				else
 					return false;
@@ -1022,7 +1062,7 @@
 		}
 		
 		//guess we're all good		
-		if($return_errors)
+		if(!empty($return_errors))
 			return array(true, "This discount code is okay.");
 		else
 			return true;
@@ -1078,5 +1118,126 @@
 															JOIN {$wpdb->pmpro_memberships_users} AS mu ON (l.id = mu.membership_id)
 															WHERE mu.user_id = $user_id
 															LIMIT 1");
+	}
+	
+	function pmpro_getLevel($level_id)
+	{
+		global $pmpro_levels;
+		if(isset($pmpro_levels[$level_id]))
+			return $pmpro_levels[$level_id];
+		else
+		{
+			global $wpdb;
+			$pmpro_levels[$level_id] = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . $level_id . "' LIMIT 1");
+			return $pmpro_levels[$level_id];
+		}
+	}
+	
+	/*
+		Function to populate pmpro_levels with all levels. We query the DB every time just to be sure we have the latest. 
+		This should be called if you want to be sure you get all levels as $pmpro_levels may only have a subset of levels.
+	*/
+	function pmpro_getAllLevels($include_hidden = false)
+	{
+		global $pmpro_levels, $wpdb;
+		
+		//build query
+		$sqlQuery = "SELECT * FROM $wpdb->pmpro_membership_levels ";
+		if(!$include_hidden)
+			$sqlQuery .= " WHERE allow_signups = 1";
+			
+		//get levels from the DB
+		$raw_levels = $wpdb->get_results($sqlQuery);
+		
+		//lets put them into an array where the key is the id of the level
+		$pmpro_levels = array();
+		foreach($raw_levels as $raw_level)
+		{
+			$pmpro_levels[$raw_level->id] = $raw_level;
+		}
+				
+		return $pmpro_levels;
+	}
+	
+	function pmpro_getCheckoutButton($level_id, $button_text = NULL, $classes = NULL)
+	{
+		if(empty($button_text))
+			$button_text = "Sign Up for !!name!! Now";
+			
+		if(empty($classes))
+			$classes = "btn btn-primary";
+			
+		if(empty($level_id))
+			$r = "Please specify a level id.";
+		else
+		{
+			//get level
+			$level = pmpro_getLevel($level_id);
+			
+			//replace vars
+			$replacements = array(
+				"!!id!!" => $level->id,
+				"!!name!!" => $level->name,
+				"!!description!!" => $level->description,
+				"!!confirmation!!" => $level->confirmation,
+				"!!initial_payment!!" => $level->initial_payment,
+				"!!billing_amount!!" => $level->billing_amount,
+				"!!cycle_number!!" => $level->cycle_number,
+				"!!cycle_period!!" => $level->cycle_period,
+				"!!billing_limit!!" => $level->billing_limit,
+				"!!trial_amount!!" => $level->trial_amount,
+				"!!trial_limit!!" => $level->trial_limit,
+				"!!expiration_number!!" => $level->expiration_number,
+				"!!expiration_period!!" => $level->expiration_period
+			);
+			$button_text = str_replace(array_keys($replacements), $replacements, $button_text);			
+			
+			//button text
+			$r = "<a href=\"" . pmpro_url("checkout", "?level=" . $level_id) . "\" class=\"" . $classes . "\">" . $button_text . "</a>";
+		}
+		return $r;
+	}
+	
+	/**
+	 * Get the "domain" from a URL. By domain, we mean the host name, minus any subdomains. So just the domain and TLD.	 
+	 *
+	 * @param string $url The URL to parse. (generally pass site_url() in WP)
+	 * @return string The domain.
+	 */
+	function pmpro_getDomainFromURL($url = NULL)
+	{
+		$domainparts = parse_url($url);
+		$domainparts = explode(".", $domainparts['host']);
+		if(count($domainparts) > 1)
+		{
+			//check for ips
+			$isip = true;
+			foreach($domainparts as $part)
+			{
+				if(!is_numeric($part))
+				{
+					$isip = false;
+					break;
+				}
+			}
+			
+			if($isip)
+			{
+				//ip, e.g. 127.1.1.1
+				$domain = implode(".", $domainparts);
+			}
+			else
+			{			
+				//www.something.com, etc.
+				$domain = $domainparts[count($domainparts)-2] . "." . $domainparts[count($domainparts)-1];
+			}
+		}
+		else
+		{
+			//localhost or another single word domain
+			$domain = $domainparts[0];	
+		}
+		
+		return $domain;
 	}
 ?>

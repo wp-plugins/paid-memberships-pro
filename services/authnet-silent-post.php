@@ -5,10 +5,15 @@
 	global $logstr;
 	$logstr = "";
 		
-	//wp includes	
-	define('WP_USE_THEMES', false);
-	require('../../../../wp-load.php');
-		
+	//in case the file is loaded directly
+	if(!function_exists("get_userdata"))
+	{
+		define('WP_USE_THEMES', false);
+		require_once(dirname(__FILE__) . '/../../../../wp-load.php');
+	}
+	
+	global $wpdb;
+	
 	//some code taken from http://www.merchant-account-services.org/blog/handling-authorizenet-arb-subscription-failures/	
 	// Flag if this is an ARB transaction. Set to false by default.
 	$arb = false;
@@ -66,6 +71,7 @@
 				$morder->billing->city = $fields['x_city'];
 				$morder->billing->state = $fields['x_state'];
 				$morder->billing->zip = $fields['x_zip'];
+				$morder->billing->country = $fields['x_country'];
 				$morder->billing->phone = $fields['x_phone'];
 				
 				//get CC info that is on file
@@ -98,6 +104,7 @@
 			$morder->billing->city = $fields['x_city'];
 			$morder->billing->state = $fields['x_state'];
 			$morder->billing->zip = $fields['x_zip'];
+			$morder->billing->country = $fields['x_country'];
 			$morder->billing->phone = $fields['x_phone'];
 			
 			//get CC info that is on file

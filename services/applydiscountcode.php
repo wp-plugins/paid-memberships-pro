@@ -1,15 +1,36 @@
 <?php
 	global $isapage;
-	$isapage = true;
-		
-	//wp includes	
-	define('WP_USE_THEMES', false);
-	require('../../../../wp-load.php');	
+	$isapage = true;		
+	
+	//in case the file is loaded directly
+	if(!function_exists("get_userdata"))
+	{
+		define('WP_USE_THEMES', false);
+		require_once(dirname(__FILE__) . '/../../../../wp-load.php');
+	}
 	
 	//vars
-	$discount_code = preg_replace("/[^A-Za-z0-9]/", "", $_REQUEST['code']);
-	$level_id = (int)$_REQUEST['level'];
-	$msgfield = preg_replace("/[^A-Za-z0-9\_\-]/", "", $_REQUEST['msgfield']);
+	global $wpdb;
+	if(!empty($_REQUEST['code']))
+	{
+		$discount_code = preg_replace("/[^A-Za-z0-9]/", "", $_REQUEST['code']);
+		$discount_code_id = $wpdb->get_var("SELECT id FROM $wpdb->pmpro_discount_codes WHERE code = '" . $discount_code . "' LIMIT 1");
+	}
+	else
+	{
+		$discount_code = "";
+		$discount_code_id = "";
+	}
+	
+	if(!empty($_REQUEST['level']))
+		$level_id = (int)$_REQUEST['level'];
+	else
+		$level_id = NULL;
+		
+	if(!empty($_REQUEST['msgfield']))
+		$msgfield = preg_replace("/[^A-Za-z0-9\_\-]/", "", $_REQUEST['msgfield']);
+	else
+		$msgfield = NULL;	
 	
 	//check that the code is valid
 	$codecheck = pmpro_checkDiscountCode($discount_code, $level_id, true);
@@ -31,10 +52,19 @@
 	
 	//okay, send back new price info
 	$sqlQuery = "SELECT l.id, cl.*, l.name, l.description, l.allow_signups FROM $wpdb->pmpro_discount_codes_levels cl LEFT JOIN $wpdb->pmpro_membership_levels l ON cl.level_id = l.id LEFT JOIN $wpdb->pmpro_discount_codes dc ON dc.id = cl.code_id WHERE dc.code = '" . $discount_code . "' AND cl.level_id = '" . $level_id . "' LIMIT 1";			
-	$code_level = $wpdb->get_row($sqlQuery);	
+	$code_level = $wpdb->get_row($sqlQuery);
+	
+	//if the discount code doesn't adjust the level, let's just get the straight level
+	if(empty($code_level))
+		$code_level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . $level_id . "' LIMIT 1");
+
+	//filter adjustments to the level
+	$code_level = apply_filters("pmpro_discount_code_level", $code_level, $discount_code_id);
 	?>
 	The discount code has been applied to your order.
 	<script>		
+		var code_level = <?php echo json_encode($code_level); ?>;				
+		
 		jQuery('#<?php echo $msgfield?>').show();
 		jQuery('#<?php echo $msgfield?>').removeClass('pmpro_error');
 		jQuery('#<?php echo $msgfield?>').addClass('pmpro_success');

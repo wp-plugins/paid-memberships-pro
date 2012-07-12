@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships
-Version: 1.3.15
+Version: 1.5
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -24,26 +24,18 @@ else
 }
 
 //require_once(ABSPATH . '/wp-admin/upgrade-functions.php');
-require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/lib/name-parser.php");
-require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/functions.php");
-require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/upgradecheck.php");
-require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/scheduled/crons.php");
-require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/classes/class.memberorder.php");
-require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/classes/class.pmproemail.php");
-require_once(ABSPATH . "/wp-includes/class-phpmailer.php");
-
-global $wpdb;
-$wpdb->hide_errors();
-$wpdb->pmpro_membership_levels = $table_prefix . 'pmpro_membership_levels';
-$wpdb->pmpro_memberships_users = $table_prefix . 'pmpro_memberships_users';
-$wpdb->pmpro_memberships_categories = $table_prefix . 'pmpro_memberships_categories';
-$wpdb->pmpro_memberships_pages = $table_prefix . 'pmpro_memberships_pages';
-$wpdb->pmpro_membership_orders = $table_prefix . 'pmpro_membership_orders';
-$wpdb->pmpro_discount_codes = $wpdb->prefix . 'pmpro_discount_codes';
-$wpdb->pmpro_discount_codes_levels = $wpdb->prefix . 'pmpro_discount_codes_levels';
-$wpdb->pmpro_discount_codes_uses = $wpdb->prefix . 'pmpro_discount_codes_uses';
+define("PMPRO_DIR", dirname(__FILE__));
+require_once(PMPRO_DIR . "/includes/lib/name-parser.php");
+require_once(PMPRO_DIR . "/includes/functions.php");
+require_once(PMPRO_DIR . "/includes/upgradecheck.php");
+require_once(PMPRO_DIR . "/scheduled/crons.php");
+//require_once(PMPRO_DIR . "/classes/class.pmprogateway.php");
+require_once(PMPRO_DIR . "/classes/class.memberorder.php");
+require_once(PMPRO_DIR . "/classes/class.pmproemail.php");
+require_once(ABSPATH . "wp-includes/class-phpmailer.php");
 
 //setup the DB
+global $wpdb;
 pmpro_checkForUpgrades();
 
 define("SITENAME", str_replace("&#039;", "'", get_bloginfo("name")));
@@ -51,12 +43,18 @@ $urlparts = explode("//", home_url());
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.3.15");
+define("PMPRO_VERSION", "1.5");
+define("PMPRO_DOMAIN", pmpro_getDomainFromURL(site_url()));
 
 global $gateway_environment;
 $gateway_environment = pmpro_getOption("gateway_environment");
 
-global $all_membership_levels; //when checking levels, we save the info here for caching
+//when checking levels for users, we save the info here for caching. each key is a user id for level object for that user.
+global $all_membership_levels; 
+
+//we sometimes refer to this array of levels
+global $membership_levels;
+$membership_levels = $wpdb->get_results( "SELECT * FROM {$wpdb->pmpro_membership_levels}", OBJECT );
 
 function pmpro_memberslist()
 {
@@ -94,6 +92,52 @@ function pmpro_advancedsettings()
 	require_once(dirname(__FILE__) . "/adminpages/advancedsettings.php");
 }
 
+/*
+	Loading a service?
+*/
+/*
+	Note: The applydiscountcode goes through the site_url() instead of admin-ajax to avoid HTTP/HTTPS issues.
+*/
+if(isset($_REQUEST['action']) && $_REQUEST['action'] == "applydiscountcode")
+{		
+	require_once(dirname(__FILE__) . "/services/applydiscountcode.php");	
+	exit;
+}
+function pmpro_wp_ajax_authnet_silent_post()
+{		
+	require_once(dirname(__FILE__) . "/services/authnet-silent-post.php");	
+	exit;
+}
+add_action('wp_ajax_nopriv_authnet_silent_post', 'pmpro_wp_ajax_authnet_silent_post');
+add_action('wp_ajax_authnet_silent_post', 'pmpro_wp_ajax_authnet_silent_post');
+function pmpro_wp_ajax_getfile()
+{
+	require_once(dirname(__FILE__) . "/services/getfile.php");	
+	exit;
+}
+add_action('wp_ajax_nopriv_getfile', 'pmpro_wp_ajax_getfile');
+add_action('wp_ajax_getfile', 'pmpro_wp_ajax_getfile');
+function pmpro_wp_ajax_ipnhandler()
+{
+	require_once(dirname(__FILE__) . "/services/ipnhandler.php");	
+	exit;
+}
+add_action('wp_ajax_nopriv_ipnhandler', 'pmpro_wp_ajax_ipnhandler');
+add_action('wp_ajax_ipnhandler', 'pmpro_wp_ajax_ipnhandler');
+function pmpro_wp_ajax_stripe_webhook()
+{
+	require_once(dirname(__FILE__) . "/services/stripe-webhook.php");	
+	exit;
+}
+add_action('wp_ajax_nopriv_stripe_webhook', 'pmpro_wp_ajax_stripe_webhook');
+add_action('wp_ajax_stripe_webhook', 'pmpro_wp_ajax_stripe_webhook');
+function pmpro_wp_ajax_memberlist_csv()
+{
+	require_once(dirname(__FILE__) . "/adminpages/memberslist-csv.php");	
+	exit;
+}
+add_action('wp_ajax_memberslist_csv', 'pmpro_wp_ajax_memberlist_csv');
+	
 function pmpro_set_current_user()
 {
 	//this code runs at the beginning of the plugin
@@ -133,30 +177,87 @@ function pmpro_set_current_user()
 
 	//hiding ads?
 	$hideads = pmpro_getOption("hideads");
-	$hideadslevels = explode(",", pmpro_getOption("hideadslevels"));
-	if($hideads && $hideadslevels)
+	$hideadslevels = pmpro_getOption("hideadslevels");
+	if(!is_array($hideadslevels))
+		$hideadslevels = explode(",", $hideadslevels);
+	if($hideads == 1 && pmpro_hasMembershipLevel() || $hideads == 2 && pmpro_hasMembershipLevel($hideadslevels))
 	{
-		if(in_array($current_user->membership_level->ID, $hideadslevels))
+		//disable ads in ezAdsense
+		if(class_exists("ezAdSense"))
 		{
-			//disable ads in ezAdsense
-			if(class_exists("ezAdSense"))
-			{
-				global $ezCount, $urCount;
-				$ezCount = 100;
-				$urCount = 100;
-			}
-
-			//set a global variable to hide ads
-			global $pmpro_display_ads;
-			$pmpro_display_ads = false;
+			global $ezCount, $urCount;
+			$ezCount = 100;
+			$urCount = 100;
 		}
+
+		//set a global variable to hide ads
+		global $pmpro_display_ads;
+		$pmpro_display_ads = false;
+	}
+	else
+	{
+		global $pmpro_display_ads;
+		$pmpro_display_ads = true;
 	}
 
 	do_action("pmpro_after_set_current_user");
 }
 add_action('set_current_user', 'pmpro_set_current_user');
 
-//init code
+/*
+	Checks if PMPro settings are complete or if there are any errors.
+*/
+function pmpro_checkLevelForStripeCompatibilty($level = NULL)
+{
+	$gateway = pmpro_getOption("gateway");
+	if($gateway == "stripe")
+	{
+		global $wpdb;
+		
+		//check ALL the levels
+		if(empty($level))
+		{
+			$sqlQuery = "SELECT * FROM $wpdb->pmpro_membership_levels ORDER BY id ASC";		
+			$levels = $wpdb->get_results($sqlQuery, OBJECT);
+			if(!empty($levels))
+			{
+				foreach($levels as $level)
+				{
+					/*
+						Stripe currently does not support:
+						* Trial Amounts > 0.
+						* Daily or Weekly billing periods.
+						* Cycle numbers > 1
+						* Billing Limits.										
+					*/
+					if($level->trial_amount > 0 ||
+					   $level->cycle_period == "Day" || $level->cycle_period == "Week" ||
+					   $level->cycle_number > 1 || $level->billing_limit > 0)
+					{
+						return false;
+					}
+				}
+			}
+		}
+		else
+		{
+			//need to look it up?
+			if(is_numeric($level))
+				$level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . $wpdb->escape($level) . "' LIMIT 1");
+			
+			//check this level
+			if($level->trial_amount > 0 ||
+			   $level->cycle_period == "Day" || $level->cycle_period == "Week" ||
+			   $level->cycle_number > 1 || $level->billing_limit > 0)
+			{
+				return false;
+			}
+		}
+	}
+	
+	return true;
+}
+
 function pmpro_is_ready()
 {
 	global $wpdb, $pmpro_pages, $pmpro_level_ready, $pmpro_gateway_ready, $pmpro_pages_ready;
@@ -168,7 +269,7 @@ function pmpro_is_ready()
 	$paid_membership_level = $wpdb->get_var("SELECT id FROM $wpdb->pmpro_membership_levels WHERE allow_signups = 1 AND (initial_payment > 0 OR billing_amount > 0 OR trial_amount > 0) LIMIT 1");
 	$paid_user_subscription = $wpdb->get_var("SELECT user_id FROM $wpdb->pmpro_memberships_users WHERE initial_payment > 0 OR billing_amount > 0 OR trial_amount > 0 LIMIT 1");
 
-	if(!$paid_membership_level && !$paid_user_susbcription)
+	if(empty($paid_membership_level) && empty($paid_user_subscription))
 	{
 		//no paid membership level now or attached to a user. we don't need the gateway setup
 		$pmpro_gateway_ready = true;
@@ -186,6 +287,13 @@ function pmpro_is_ready()
 		elseif($gateway == "paypal" || $gateway == "paypalexpress")
 		{
 			if(pmpro_getOption("gateway_environment") && pmpro_getOption("gateway_email") && pmpro_getOption("apiusername") && pmpro_getOption("apipassword") && pmpro_getOption("apisignature"))
+				$pmpro_gateway_ready = true;
+			else
+				$pmpro_gateway_ready = false;
+		}
+		elseif($gateway == "stripe")
+		{
+			if(pmpro_getOption("gateway_environment") && pmpro_getOption("stripe_secretkey") && pmpro_getOption("stripe_publishablekey"))
 				$pmpro_gateway_ready = true;
 			else
 				$pmpro_gateway_ready = false;
@@ -214,13 +322,26 @@ function pmpro_is_ready()
 	else
 		return false;
 }
+
+//init code
 function pmpro_init()
 {
-	require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/countries.php");
-	require_once(ABSPATH . "/wp-content/plugins/paid-memberships-pro/includes/currencies.php");
+	require_once(PMPRO_DIR . "/includes/countries.php");
+	require_once(PMPRO_DIR . "/includes/states.php");
+	require_once(PMPRO_DIR . "/includes/currencies.php");
 
-	wp_enqueue_script('ssmemberships_js', '/wp-content/plugins/paid-memberships-pro/js/paid-memberships-pro.js', array('jquery'));
+	wp_enqueue_script('ssmemberships_js', plugins_url('js/paid-memberships-pro.js',__FILE__ ), array('jquery'));
 
+	if(is_admin())
+	{
+		wp_enqueue_style('pmpro_admin', plugins_url('css/admin.css',__FILE__ ), array(), PMPRO_VERSION, "screen");
+	}
+	else
+	{
+		wp_enqueue_style('pmpro_frontend', plugins_url('css/frontend.css',__FILE__ ), array(), PMPRO_VERSION, "screen");
+		wp_enqueue_style('pmpro_print', plugins_url('css/print.css',__FILE__ ), array(), PMPRO_VERSION, "print");
+	}
+	
 	global $pmpro_pages, $pmpro_ready, $pmpro_currency, $pmpro_currency_symbol;
 	$pmpro_pages = array();
 	$pmpro_pages["account"] = pmpro_getOption("account_page_id");
@@ -251,7 +372,7 @@ function pmpro_init()
 	elseif($pmpro_currency == "JPY")
 		$pmpro_currency_symbol = "&yen;";
 	else
-		$pmpro_currency_symbol = $pmpro_currency . " ";	//just use the code
+		$pmpro_currency_symbol = $pmpro_currency . " ";	//just use the code			
 }
 add_action("init", "pmpro_init");
 
@@ -260,14 +381,19 @@ function pmpro_wp()
 {
 	if(!is_admin())
 	{
-		global $post, $pmpro_pages, $pmpro_page_name, $pmpro_page_id;
-
+		global $post, $pmpro_pages, $pmpro_page_name, $pmpro_page_id;		
+		
 		//run the appropriate preheader function
 		foreach($pmpro_pages as $pmpro_page_name => $pmpro_page_id)
 		{
-			if($pmpro_page_id == $post->ID)
+			if($pmpro_page_name == "checkout")
+			{								
+				continue;		//we do the checkout shortcode every time now
+			}
+				
+			if(!empty($post->ID) && $pmpro_page_id == $post->ID)
 			{
-				include(ABSPATH . "/wp-content/plugins/paid-memberships-pro/preheaders/" . $pmpro_page_name . ".php");
+				require_once(PMPRO_DIR . "/preheaders/" . $pmpro_page_name . ".php");
 
 				function pmpro_pages_shortcode($atts, $content=null, $code="")
 				{
@@ -276,15 +402,32 @@ function pmpro_wp()
 					include(plugin_dir_path(__FILE__) . "/pages/" . $pmpro_page_name . ".php");
 					$temp_content = ob_get_contents();
 					ob_end_clean();
-					return $temp_content;
+					return apply_filters("pmpro_pages_shortcode_" . $pmpro_page_name, $temp_content);
 				}
 				add_shortcode("pmpro_" . $pmpro_page_name, "pmpro_pages_shortcode");
 				break;	//only the first page found gets a shortcode replacement
 			}
 		}
+		
+		//make sure you load the preheader for the checkout page. the shortcode for checkout is loaded below		
+		if(!empty($post->post_content) && strpos($post->post_content, "[pmpro_checkout]") !== false)
+		{
+			require_once(PMPRO_DIR . "/preheaders/checkout.php");	
+		}
 	}
 }
-add_action("wp", "pmpro_wp");
+add_action("wp", "pmpro_wp", 1);
+
+//checkout shortcode separated out so we can have multiple checkout pages
+function pmpro_checkout_shortcode($atts, $content=null, $code="")
+{	
+	ob_start();
+	include(plugin_dir_path(__FILE__) . "/pages/checkout.php");
+	$temp_content = ob_get_contents();
+	ob_end_clean();
+	return apply_filters("pmpro_pages_shortcode_checkout", $temp_content);			
+}
+add_shortcode("pmpro_checkout", "pmpro_checkout_shortcode");
 
 function pmpro_membership_level_profile_fields($user)
 {
@@ -316,7 +459,7 @@ function pmpro_membership_level_profile_fields($user)
 			<th><label for="membership_level"><?php _e("Current Level"); ?></label></th>
 			<td>
 				<select name="membership_level" onchange="pmpro_mchange_warning();">
-					<option value="" <?php if(!$user->membership_level->ID) { ?>selected="selected"<?php } ?>>-- None --</option>
+					<option value="" <?php if(empty($user->membership_level->ID)) { ?>selected="selected"<?php } ?>>-- None --</option>
 				<?php
 					foreach($levels as $level)
 					{
@@ -340,7 +483,7 @@ function pmpro_membership_level_profile_fields($user)
 				</script>
 				<?php
 					$membership_values = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_memberships_users WHERE user_id = '" . $user->ID . "' LIMIT 1");
-					if($membership_values->billing_amount > 0 || $membership_values->trial_amount > 0)
+					if(!empty($membership_values->billing_amount) || !empty($membership_values->trial_amount))
 					{
 					?>
 						<?php if($membership_values->billing_amount > 0) { ?>
@@ -468,7 +611,7 @@ function pmpro_membership_level_profile_fields_update()
 		if($wpdb->query($sqlQuery))
 			$expiration_changed = true;
 	}
-	else
+	elseif(isset($_REQUEST['expires']))
 	{
 		//null out the expiration
 		$sqlQuery = "UPDATE $wpdb->pmpro_memberships_users SET enddate = NULL WHERE user_id = '" . $user_ID . "' LIMIT 1";
@@ -479,10 +622,17 @@ function pmpro_membership_level_profile_fields_update()
 	//send email
 	if(!empty($level_changed) || !empty($expiration_changed))
 	{
+		//email to member
 		$pmproemail = new PMProEmail();
 		if(!empty($expiration_changed))
 			$pmproemail->expiration_changed = true;
 		$pmproemail->sendAdminChangeEmail(get_userdata($user_ID));
+		
+		//email to admin
+		$pmproemail = new PMProEmail();
+		if(!empty($expiration_changed))
+			$pmproemail->expiration_changed = true;
+		$pmproemail->sendAdminChangeAdminEmail(get_userdata($user_ID));
 	}
 }
 add_action( 'show_user_profile', 'pmpro_membership_level_profile_fields' );
@@ -565,9 +715,9 @@ function pmpro_has_membership_access($post_id = NULL, $user_id = NULL, $return_m
 			//always block restricted feeds
 			$hasaccess = false;
 		}
-		elseif($myuser->id)
+		elseif(!empty($myuser->ID))
 		{
-			if(in_array($myuser->membership_level->ID, $post_membership_levels_ids))
+			if(!empty($myuser->membership_level->ID) && in_array($myuser->membership_level->ID, $post_membership_levels_ids))
 			{
 				//the users membership id is one that will grant access
 				$hasaccess = true;
@@ -805,9 +955,6 @@ function pmpro_comments_filter($comments, $post_id = NULL)
 add_filter("comments_array", "pmpro_comments_filter");
 add_filter("comments_open", "pmpro_comments_filter");
 
-global $membership_levels;
-$membership_levels = $wpdb->get_results( "SELECT * FROM {$wpdb->pmpro_membership_levels}", OBJECT );
-
 function pmpro_page_meta()
 {
 	global $membership_levels, $post, $wpdb;
@@ -838,7 +985,10 @@ function pmpro_page_save($post_id)
 {
 	global $wpdb;
 
-	if ( !wp_verify_nonce( $_POST['pmpro_noncename'], plugin_basename(__FILE__) )) {
+	if(empty($post_id))
+		return false;
+	
+	if (!empty($_POST['pmpro_noncename']) && !wp_verify_nonce( $_POST['pmpro_noncename'], plugin_basename(__FILE__) )) {
 		return $post_id;
 	}
 
@@ -848,7 +998,7 @@ function pmpro_page_save($post_id)
 		return $post_id;
 
 	// Check permissions
-	if ( 'page' == $_POST['post_type'] )
+	if(!empty($_POST['post_type']) && 'page' == $_POST['post_type'] )
 	{
 		if ( !current_user_can( 'edit_page', $post_id ) )
 			return $post_id;
@@ -859,8 +1009,11 @@ function pmpro_page_save($post_id)
 			return $post_id;
 	}
 
-	// OK, we're authenticated: we need to find and save the data
-	$mydata = $_POST['page_levels'];
+	// OK, we're authenticated: we need to find and save the data	
+	if(!empty($_POST['page_levels']))
+		$mydata = $_POST['page_levels'];
+	else
+		$mydata = array();	
 
 	//remove all memberships for this page
 	$wpdb->query("DELETE FROM {$wpdb->pmpro_memberships_pages} WHERE page_id = '$post_id'");
@@ -885,7 +1038,7 @@ if (is_admin())
 	add_action('admin_menu', 'pmpro_page_meta_wrapper');
 	add_action('save_post', 'pmpro_page_save');
 
-	require_once(ABSPATH . "wp-content/plugins/paid-memberships-pro/adminpages/dashboard.php");
+	require_once(PMPRO_DIR . "/adminpages/dashboard.php");
 }
 
 function pmpro_add_pages()
@@ -902,7 +1055,7 @@ function pmpro_add_pages()
 
 	//rename the automatically added Memberships submenu item
 	global $submenu;
-	if($submenu['pmpro-membershiplevels'])
+	if(!empty($submenu['pmpro-membershiplevels']))
 	{
 		$submenu['pmpro-membershiplevels'][0][0] = "Membership Levels";
 		$submenu['pmpro-membershiplevels'][0][3] = "Membership Levels";
@@ -917,62 +1070,45 @@ function pmpro_admin_bar_menu() {
 	$wp_admin_bar->add_menu( array(
 	'id' => 'paid-memberships-pro',
 	'title' => __( 'Memberships'),
-	'href' => home_url('/wp-admin/admin.php?page=pmpro-membershiplevels') ) );
+	'href' => get_admin_url(NULL, '/admin.php?page=pmpro-membershiplevels') ) );
 	$wp_admin_bar->add_menu( array(
+	'id' => 'pmpro-membership-levels',
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Membership Levels'),
-	'href' => home_url('/wp-admin/admin.php?page=pmpro-membershiplevels') ) );
+	'href' => get_admin_url(NULL, '/admin.php?page=pmpro-membershiplevels') ) );
 	$wp_admin_bar->add_menu( array(
+	'id' => 'pmpro-page-settings',
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Page Settings'),
-	'href' => home_url('/wp-admin/admin.php?page=pmpro-pagesettings') ) );
+	'href' => get_admin_url(NULL, '/admin.php?page=pmpro-pagesettings') ) );
 	$wp_admin_bar->add_menu( array(
+	'id' => 'pmpro-payment-settings',
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Payment Settings'),
-	'href' => home_url('/wp-admin/admin.php?page=pmpro-paymentsettings') ) );
+	'href' => get_admin_url(NULL, '/admin.php?page=pmpro-paymentsettings') ) );
 	$wp_admin_bar->add_menu( array(
+	'id' => 'pmpro-email-settings',
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Email Settings'),
-	'href' => home_url('/wp-admin/admin.php?page=pmpro-emailsettings') ) );
+	'href' => get_admin_url(NULL, '/admin.php?page=pmpro-emailsettings') ) );
 	$wp_admin_bar->add_menu( array(
+	'id' => 'pmpro-advanced-settings',
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Advanced Settings'),
-	'href' => home_url('/wp-admin/admin.php?page=pmpro-advancedsettings') ) );
+	'href' => get_admin_url(NULL, '/admin.php?page=pmpro-advancedsettings') ) );
 	$wp_admin_bar->add_menu( array(
+	'id' => 'pmpro-members-list',
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Members List'),
-	'href' => home_url('/wp-admin/admin.php?page=pmpro-memberslist') ) );
+	'href' => get_admin_url(NULL, '/admin.php?page=pmpro-memberslist') ) );
 	$wp_admin_bar->add_menu( array(
+	'id' => 'pmpro-discount-codes',
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Discount Codes'),
-	'href' => home_url('/wp-admin/admin.php?page=pmpro-discountcodes') ) );
+	'href' => get_admin_url(NULL, '/admin.php?page=pmpro-discountcodes') ) );
 
 }
 add_action('admin_bar_menu', 'pmpro_admin_bar_menu', 1000);
-
-//css
-function pmpro_addFrontendHeaderCode()
-{
-	global $besecure;
-	$besecure = apply_filters('pmpro_besecure', $besecure);
-	$url = get_bloginfo('wpurl');
-	if($besecure)
-		$url = str_replace("http:", "https:", $url);
-	else
-		$url = str_replace("https:", "http:", $url);
-
-	echo '<link type="text/css" rel="stylesheet" href="' . $url . '/wp-content/plugins/paid-memberships-pro/css/frontend.css" media="screen" />' . "\n";
-	echo '<link type="text/css" rel="stylesheet" href="' . $url . '/wp-content/plugins/paid-memberships-pro/css/print.css" media="print" />' . "\n";
-}
-add_action('wp_head', 'pmpro_addFrontendHeaderCode');
-
-//css
-function pmpro_addAdminHeaderCode()
-{
-	$url = get_bloginfo('wpurl');
-	echo '<link type="text/css" rel="stylesheet" href="' . $url . '/wp-content/plugins/paid-memberships-pro/css/admin.css" media="screen" />' . "\n";
-}
-add_action('admin_head', 'pmpro_addAdminHeaderCode');
 
 //redirect control
 function pmpro_login_redirect($redirect_to, $request, $user)
@@ -983,29 +1119,31 @@ function pmpro_login_redirect($redirect_to, $request, $user)
 	if(!empty($user->ID))
 	{
 		//logging in, let's figure out where to send them
-
-		//admins go to dashboard
 		if(pmpro_isAdmin($user->ID))
-			return apply_filters("pmpro_login_redirect", get_bloginfo("url") . "/wp-admin/");
-
-		//if the redirect url includes the word checkout, go there
-		if(strpos($redirect_to, "checkout") !== false)
-			return $redirect_to;
-
-		//if logged in and a member, send to wherever they were going
-		if($wpdb->get_var("SELECT membership_id FROM $wpdb->pmpro_memberships_users WHERE user_id = '" . $user->ID . "' LIMIT 1"))
 		{
-			return apply_filters("pmpro_login_redirect", $redirect_to, $request, $user);
+			//admins go to dashboard
+			$redirect_to = get_bloginfo("url") . "/wp-admin/";			
 		}
-
-		//not a member, send to subscription page
-		return pmpro_url("levels");
+		elseif(strpos($redirect_to, "checkout") !== false)
+		{
+			//if the redirect url includes the word checkout, leave it alone
+		}
+		elseif($wpdb->get_var("SELECT membership_id FROM $wpdb->pmpro_memberships_users WHERE user_id = '" . $user->ID . "' LIMIT 1"))
+		{
+			//if logged in and a member, send to wherever they were going			
+		}
+		else
+		{
+			//not a member, send to subscription page
+			$redirect_to = pmpro_url("levels");
+		}
 	}
 	else
 	{
-		//not logging in (login form) so return what was given
-		return $redirect_to;
+		//not logging in (login form) so return what was given		
 	}
+	
+	return apply_filters("pmpro_login_redirect_url", $redirect_to, $request, $user);
 }
 add_filter('login_redirect','pmpro_login_redirect', 10, 3);
 
@@ -1022,6 +1160,7 @@ function pmpro_https_filter($s)
 {
 	global $besecure;
 	$besecure = apply_filters('pmpro_besecure', $besecure);
+		
 	if($besecure)
 		return str_replace("http:", "https:", $s);
 	else
@@ -1036,6 +1175,20 @@ add_filter('logout_url', 'pmpro_https_filter');
 add_filter('login_url', 'pmpro_https_filter');
 add_filter('home_url', 'pmpro_https_filter');
 
+//this function sets the besecure global which may be used in early code
+/*
+function pmpro_besecure_set()
+{	
+	global $besecure;		
+	if(force_ssl_admin() || force_ssl_login() || is_ssl())
+		$besecure = true;
+	
+	$besecure = apply_filters("pmpro_besecure", $besecure);
+}
+add_action('init', 'pmpro_besecure_set', 2);
+*/
+
+//this function updates the besecure global with post data and redirects if needed
 function pmpro_besecure()
 {
 	global $besecure, $post;
@@ -1043,34 +1196,34 @@ function pmpro_besecure()
 	//check the post option
 	if(!empty($post->ID) && !$besecure)
 		$besecure = get_post_meta($post->ID, "besecure", true);
-
+	
 	if(!$besecure && (force_ssl_admin() || force_ssl_login()))
 		$besecure = true;
 
 	$besecure = apply_filters("pmpro_besecure", $besecure);
-
-	if($besecure && empty($_SERVER['HTTPS']))
+			
+	if($besecure && (empty($_SERVER['HTTPS']) || $_SERVER['HTTPS'] == "off" || $_SERVER['HTTPS'] == "false"))
 	{
 		//need to be secure
 		wp_redirect("https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 		exit;
 	}
-	elseif(!$besecure && !empty($_SERVER['HTTPS']))
+	elseif(!$besecure && !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != "off" && $_SERVER['HTTPS'] != "false")
 	{
 		//don't need to be secure
 		wp_redirect("http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 		exit;
-	}
+	}	
 }
-add_action('wp', 'pmpro_besecure');
-add_action('login_head', 'pmpro_besecure');
+add_action('wp', 'pmpro_besecure', 2);
+add_action('login_head', 'pmpro_besecure', 2);
 
 //capturing case where a user links to https admin without admin over https
 function pmpro_admin_https_handler()
 {
 	if(!empty($_SERVER['HTTPS']))
 	{
-		if($_SERVER['HTTPS'] && is_admin())
+		if($_SERVER['HTTPS'] && $_SERVER['HTTPS'] != "off" && $_SERVER['HTTPS'] != "false" && is_admin())
 		{
 			if(substr(get_option("siteurl"), 0, 5) == "http:" && !force_ssl_admin())
 			{
@@ -1088,7 +1241,7 @@ function pmpro_hide_pages_redirect()
 {
 	global $post;
 
-	if(!is_admin())
+	if(!is_admin() && !empty($post->ID))
 	{
 		if($post->post_type == "attachment")
 		{
@@ -1118,12 +1271,16 @@ function pmpro_delete_user($user_id = NULL)
 	{
 		//couldn't delete the subscription
 		//we should probably notify the admin
-		$pmproemail = new PMProEmail();
-		$pmproemail->data = array("body"=>"<p>There was an error canceling the subscription for user with ID=" . $user_id . ". You will want to check your payment gateway to see if their subscription is still active.</p>");
-		$last_order = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_orders WHERE user_id = '" . $user_id . "' ORDER BY timestamp DESC LIMIT 1");
-		if($last_order)
-			$pmproemail->data["body"] .= "<p>Last Invoice:<br />" . nl2br(var_export($last_order, true)) . "</p>";
-		$pmproemail->sendEmail(get_bloginfo("admin_email"));
+		global $pmpro_error;
+		if(!empty($pmpro_error))
+		{
+			$pmproemail = new PMProEmail();
+			$pmproemail->data = array("body"=>"<p>There was an error canceling the subscription for user with ID=" . $user_id . ". You will want to check your payment gateway to see if their subscription is still active.</p><p>Error: " . $pmpro_error . "</p>");
+			$last_order = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_orders WHERE user_id = '" . $user_id . "' ORDER BY timestamp DESC LIMIT 1");
+			if(!empty($last_order))
+				$pmproemail->data["body"] .= "<p>Last Invoice:<br />" . nl2br(var_export($last_order, true)) . "</p>";
+			$pmproemail->sendEmail(get_bloginfo("admin_email"));
+		}
 	}
 }
 add_action('delete_user', 'pmpro_delete_user');
@@ -1141,7 +1298,7 @@ add_action('delete_category', 'pmpro_delete_category');
 //deleting a post? remove any level associations
 function pmpro_delete_post($post_id = NULL)
 {
-	global $wpdb;
+	global $wpdb;		
 	$sqlQuery = "DELETE FROM $wpdb->pmpro_memberships_pages WHERE page_id = '" . $post_id . "'";
 	$wpdb->query($sqlQuery);
 }
@@ -1182,7 +1339,7 @@ function pmpro_shortcode($atts, $content=null, $code="")
 	else
 	{
 		//didn't specify a membership level, so check for any
-		if($current_user->membership_level->ID)
+		if(!empty($current_user->membership_level->ID))
 			return apply_filters("the_content", $content);
 	}
 
@@ -1190,6 +1347,23 @@ function pmpro_shortcode($atts, $content=null, $code="")
 	return "";	//just hide it
 }
 add_shortcode("membership", "pmpro_shortcode");
+
+function pmpro_checkout_button_shortcode($atts, $content=null, $code="")
+{
+	// $atts    ::= array of attributes
+	// $content ::= text within enclosing form of shortcode element
+	// $code    ::= the shortcode found, when == callback name
+	// examples: [checkout_button level="3"]
+
+	extract(shortcode_atts(array(
+		'level' => NULL,
+		'text' => NULL,
+		'class' => NULL
+	), $atts));
+	
+	return pmpro_getCheckoutButton($level, $text, $class);
+}
+add_shortcode("pmpro_button", "pmpro_checkout_button_shortcode");
 
 function pmpro_wp_signup_location($location)
 {
@@ -1297,7 +1471,7 @@ function pmpro_send_html( $phpmailer ) {
 	// Clean < and > around text links in WP 3.1
 	$phpmailer->Body = preg_replace('#<(http://[^*]+)>#', '$1', $phpmailer->Body);
 	// Convert line breaks & make links clickable
-	$phpmailer->Body = nl2br ( make_clickable ($phpmailer->Body) );
+	$phpmailer->Body = wpautop ( make_clickable ($phpmailer->Body) );
 	
 	// Add template to message
 	if(file_exists(TEMPLATEPATH . "/email_header.html"))
@@ -1377,4 +1551,70 @@ function pmpro_deactivation()
 register_activation_hook(__FILE__, 'pmpro_activation');
 register_deactivation_hook(__FILE__, 'pmpro_deactivation');
 
-?>
+/*
+This code calls the server at www.paidmembershipspro.com to see if there are any notifications to display to the user.
+*/
+function pmpro_notifications()
+{
+	if(current_user_can("manage_options"))
+	{			
+		delete_transient("pmpro_notification_" . PMPRO_VERSION);
+		
+		$pmpro_notification = get_transient("pmpro_notification_" . PMPRO_VERSION);
+		if(empty($pmpro_notification))
+		{
+			if(is_ssl())
+				$pmpro_notification = wp_remote_retrieve_body(wp_remote_get("https://www.paidmembershipspro.com/notifications/?v=" . PMPRO_VERSION));
+			else
+				$pmpro_notification = wp_remote_retrieve_body(wp_remote_get("http://www.paidmembershipspro.com/notifications/?v=" . PMPRO_VERSION));
+				
+			set_transient("pmpro_notification_" . PMPRO_VERSION, $pmpro_notification, 86400);
+		}
+		
+		if($pmpro_notification && $pmpro_notification != "NULL")
+		{
+		?>
+		<div id="pmpro_notifications">
+			<?php echo $pmpro_notification; ?>
+		</div>
+		<?php
+		}
+	}
+	
+	//exit so we just show this content
+	exit;
+}
+add_action('wp_ajax_pmpro_notifications', 'pmpro_notifications');	
+
+/*
+	This code is for the "nuke" option to make URLs secure on secure pages.
+*/
+function pmpro_NuclearHTTPS()
+{
+	//did they choose the option?
+	$nuking = pmpro_getOption("nuclear_HTTPS");
+	if(!empty($nuking))
+	{
+		ob_start("pmpro_replaceURLsInBuffer");
+	}
+}
+add_action("init", "pmpro_NuclearHTTPS");
+
+function pmpro_replaceURLsInBuffer($buffer)
+{
+	global $besecure;
+	
+	//only swap URLs if this page is secure
+	if($besecure)
+	{
+		/*
+			okay swap out all links like these:
+			* http://domain.com
+			* http://anysubdomain.domain.com
+			* http://any.number.of.sub.domains.domain.com
+		*/
+		$buffer = preg_replace("/http\:\/\/([a-zA-Z0-9\.\-]*" . str_replace(".", "\.", PMPRO_DOMAIN) . ")/i", "https://$1", $buffer);		
+	}
+	
+	return $buffer;
+}
