@@ -5,6 +5,12 @@
 	define('WP_USE_THEMES', false);
 	require('../../../../wp-load.php');
 
+	//only admins can get this (PATCH!)
+	if(!function_exists("current_user_can") || !current_user_can("manage_options"))
+	{
+		die("You do not have permissions to perform this action.");
+	}	
+	
 	//get users	
 	$s = $_REQUEST['s'];
 	$l = $_REQUEST['l'];
