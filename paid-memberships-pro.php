@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships
-Version: 1.4.9
+Version: 1.5
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -43,7 +43,7 @@ $urlparts = explode("//", home_url());
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.4.9");
+define("PMPRO_VERSION", "1.5");
 define("PMPRO_DOMAIN", pmpro_getDomainFromURL(site_url()));
 
 global $gateway_environment;
@@ -95,36 +95,48 @@ function pmpro_advancedsettings()
 /*
 	Loading a service?
 */
-function pmpro_wp_ajax_applydiscountcode()
-{
+/*
+	Note: The applydiscountcode goes through the site_url() instead of admin-ajax to avoid HTTP/HTTPS issues.
+*/
+if(isset($_REQUEST['action']) && $_REQUEST['action'] == "applydiscountcode")
+{		
 	require_once(dirname(__FILE__) . "/services/applydiscountcode.php");	
 	exit;
 }
-add_action('wp_ajax_nopriv_applydiscountcode', 'pmpro_wp_ajax_applydiscountcode');
 function pmpro_wp_ajax_authnet_silent_post()
 {		
 	require_once(dirname(__FILE__) . "/services/authnet-silent-post.php");	
 	exit;
 }
 add_action('wp_ajax_nopriv_authnet_silent_post', 'pmpro_wp_ajax_authnet_silent_post');
+add_action('wp_ajax_authnet_silent_post', 'pmpro_wp_ajax_authnet_silent_post');
 function pmpro_wp_ajax_getfile()
 {
 	require_once(dirname(__FILE__) . "/services/getfile.php");	
 	exit;
 }
 add_action('wp_ajax_nopriv_getfile', 'pmpro_wp_ajax_getfile');
+add_action('wp_ajax_getfile', 'pmpro_wp_ajax_getfile');
 function pmpro_wp_ajax_ipnhandler()
 {
 	require_once(dirname(__FILE__) . "/services/ipnhandler.php");	
 	exit;
 }
 add_action('wp_ajax_nopriv_ipnhandler', 'pmpro_wp_ajax_ipnhandler');
+add_action('wp_ajax_ipnhandler', 'pmpro_wp_ajax_ipnhandler');
 function pmpro_wp_ajax_stripe_webhook()
 {
 	require_once(dirname(__FILE__) . "/services/stripe-webhook.php");	
 	exit;
 }
 add_action('wp_ajax_nopriv_stripe_webhook', 'pmpro_wp_ajax_stripe_webhook');
+add_action('wp_ajax_stripe_webhook', 'pmpro_wp_ajax_stripe_webhook');
+function pmpro_wp_ajax_memberlist_csv()
+{
+	require_once(dirname(__FILE__) . "/adminpages/memberslist-csv.php");	
+	exit;
+}
+add_action('wp_ajax_memberslist_csv', 'pmpro_wp_ajax_memberlist_csv');
 	
 function pmpro_set_current_user()
 {
@@ -1189,7 +1201,7 @@ function pmpro_besecure()
 		$besecure = true;
 
 	$besecure = apply_filters("pmpro_besecure", $besecure);
-	
+			
 	if($besecure && (empty($_SERVER['HTTPS']) || $_SERVER['HTTPS'] == "off" || $_SERVER['HTTPS'] == "false"))
 	{
 		//need to be secure
