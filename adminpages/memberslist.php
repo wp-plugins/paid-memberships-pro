@@ -1,6 +1,12 @@
 <?php
+	//only admins can get this
+	if(!function_exists("current_user_can") || !current_user_can("manage_options"))
+	{
+		die("You do not have permissions to perform this action.");
+	}	
+	
 	//vars
-	global $wpdb;
+	global $wpdb, $pmpro_currency_symbol;
 	if(isset($_REQUEST['s']))
 		$s = $_REQUEST['s'];
 	else
@@ -18,23 +24,12 @@
 		
 		<div class="pmpro_meta"><a href="<?php echo pmpro_https_filter("http://www.paidmembershipspro.com")?>">Plugin Support</a> | <a href="http://www.paidmembershipspro.com/forums/">User Forum</a> | <strong>Version <?php echo PMPRO_VERSION?></strong></div>
 	</div>
-	<br style="clear:both;" />
-	
-	<?php
-		//include(pmpro_https_filter("http://www.paidmembershipspro.com/notifications/?v=" . PMPRO_VERSION));
-	?>
-	<div id="pmpro_notifications">
-	</div>
-	<script>
-		jQuery.get('<?php echo pmpro_https_filter("http://www.paidmembershipspro.com/notifications/?v=" . PMPRO_VERSION)?>', function(data) {
-		  jQuery('#pmpro_notifications').html(data);		 
-		});
-	</script>
+	<br style="clear:both;" />		
 
 	<form id="posts-filter" method="get" action="">	
 	<h2>
 		Members Report
-		<small>(<a target="_blank" href="<?php echo PMPRO_URL?>/adminpages/memberslist-csv.php?s=<?php echo $s?>&l=<?php echo $l?>">Export to CSV</a>)</small>
+		<small>(<a target="_blank" href="<?php echo admin_url('admin-ajax.php');?>?action=memberslist_csv&s=<?php echo $s?>&l=<?php echo $l?>">Export to CSV</a>)</small>
 	</h2>		
 	<ul class="subsubsub">
 		<li>			
@@ -141,15 +136,20 @@
 								<?php echo $metavalues->pmpro_baddress1; ?><br />
 								<?php if(!empty($metavalues->pmpro_baddress2)) echo $metavalues->pmpro_baddress2 . "<br />"; ?>										
 								<?php if($metavalues->pmpro_bcity && $metavalues->pmpro_bstate) { ?>
-									<?php echo $metavalues->pmpro_bcity?>, <?php echo $metavalues->pmpro_bstate?> <?php echo $metavalues->pmpro_bzipcode?><br />												
+									<?php echo $metavalues->pmpro_bcity?>, <?php echo $metavalues->pmpro_bstate?> <?php echo $metavalues->pmpro_bzipcode?>  <?php if(!empty($metavalues->pmpro_bcountry)) echo $metavalues->pmpro_bcountry?><br />												
 								<?php } ?>
 								<?php echo formatPhone($metavalues->pmpro_bphone)?>
 							</td>
 							<td><?php echo $theuser->membership?></td>	
-							<td>
-								<?php if($theuser->billing_amount > 0) { ?>
-									$<?php echo $theuser->billing_amount?>/<?php echo $theuser->cycle_period?>
-								<?php } else { ?>
+							<td>										
+								<?php if((float)$theuser->initial_payment > 0) { ?>
+									<?php echo $pmpro_currency_symbol; ?><?php echo $theuser->initial_payment?>
+								<?php } ?>
+								<?php if((float)$theuser->initial_payment > 0 && (float)$theuser->billing_amount > 0) { ?>+<br /><?php } ?>
+								<?php if((float)$theuser->billing_amount > 0) { ?>
+									<?php echo $pmpro_currency_symbol; ?><?php echo $theuser->billing_amount?>/<?php echo $theuser->cycle_period?>
+								<?php } ?>
+								<?php if((float)$theuser->initial_payment <= 0 && (float)$theuser->billing_amount <= 0) { ?>
 									-
 								<?php } ?>
 							</td>						
@@ -180,9 +180,7 @@
 	</form>
 	
 	<?php
-	echo pmpro_getPaginationString($pn, $totalrows, $limit, 1, home_url("/wp-admin/admin.php?page=pmpro-memberslist&s=" . urlencode($s)), "&l=$l&limit=$limit&pn=");
+	echo pmpro_getPaginationString($pn, $totalrows, $limit, 1, get_admin_url(NULL, "/admin.php?page=pmpro-memberslist&s=" . urlencode($s)), "&l=$l&limit=$limit&pn=");
 	?>
 	
 </div>
-<?php
-?>

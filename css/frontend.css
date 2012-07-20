@@ -19,6 +19,9 @@ form.pmpro_form .leftmar {margin: 8px 0 0 130px; }
 
 form.pmpro_form .pmpro_captcha {margin: 0 0 0 130px !important; }
 form.pmpro_form .pmpro_captcha div {clear: none; margin: 0; }
+form.pmpro_form .pmpro_submit {margin-left: 140px; }
+form.pmpro_form .pmpro_submit span {float: left; }
+form.pmpro_form #pmpro_processing_message {margin: 5px 0 0 10px; font-style: italic; color: #999; }
 
 /*--------------------------------------------------
 	Messages - Success, Error, Alert
@@ -63,6 +66,16 @@ form.pmpro_form .pmpro_captcha div {clear: none; margin: 0; }
 .pmpro_sslseal {float: right; clear: none !important; margin: 0 !important; }
 
 a.pmpro_radio {text-decoration: none; color: #000;}
+
+/* button styles from member lite */
+.btn, .btn:link {display: inline-block; margin: 0; background-position: top left; background-repeat: repeat-x; cursor: pointer; border-radius: 4px; -moz-border-radius: 4px; padding: 5px 10px; text-decoration: none; text-shadow: 1px 1px 3px #000; border: none; font-family: Arial, Helvetica, sans-serif; }
+.btn:hover {background-position: bottom left; }
+.btn-grey, .btn-grey:link {background: #EEE url(images/bg_grad-grey.gif) 0px -5px repeat-x; border: 1px solid #CCC; text-shadow: none; }
+.btn-inactive {color: #AAA; text-shadow: none; border: 1px solid #CCC; cursor: not-allowed; }
+.pmpro_btn {font-size: 14px; }
+.btn-primary, .btn-primary:link {background-color: #666; background-image: url(../images/bg_grad-chrome.gif); color: #FFF; }
+.btn-primary:hover {background: #444; color: #FFF; }
+.btn-inactive, .btn-inactive:hover {background: #EEE url(../images/bg_grad-grey.gif) 0px -5px repeat-x; }
 
 /*---------------------------------------
 	Membership Invoice
