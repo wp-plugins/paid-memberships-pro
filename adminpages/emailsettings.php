@@ -1,4 +1,10 @@
 <?php
+	//only admins can get this
+	if(!function_exists("current_user_can") || !current_user_can("manage_options"))
+	{
+		die("You do not have permissions to perform this action.");
+	}	
+	
 	global $wpdb, $msg, $msgt;
 	
 	//get/set settings
@@ -9,6 +15,11 @@
 		pmpro_setOption("from_email");
 		pmpro_setOption("from_name");
 
+		pmpro_setOption("email_admin_checkout");
+		pmpro_setOption("email_admin_changes");
+		pmpro_setOption("email_admin_cancels");
+		pmpro_setOption("email_admin_billing");
+		
 		//assume success
 		$msg = true;
 		$msgt = "Your email settings have been updated.";		
@@ -16,6 +27,11 @@
 	
 	$from_email = pmpro_getOption("from_email");
 	$from_name = pmpro_getOption("from_name");
+	
+	$email_admin_checkout = pmpro_getOption("email_admin_checkout");
+	$email_admin_changes = pmpro_getOption("email_admin_changes");
+	$email_admin_cancels = pmpro_getOption("email_admin_cancels");
+	$email_admin_billing = pmpro_getOption("email_admin_billing");	
 	
 	if(empty($from_email))
 	{
@@ -62,6 +78,50 @@
 			</tr>
 		</tbody>
 		</table>
+		
+		<h3>Send the site admin emails:</h3>
+		
+		<table class="form-table">
+		<tbody>                
+			<tr>
+				<th scope="row" valign="top">
+					<label for="email_admin_checkout">Checkout:</label>
+				</th>
+				<td>
+					<input type="checkbox" id="email_admin_checkout" name="email_admin_checkout" value="1" <?php if(!empty($email_admin_checkout)) { ?>checked="checked"<?php } ?> />
+					when a member checks out.
+				</td>
+			</tr>
+			<tr>
+				<th scope="row" valign="top">
+					<label for="email_admin_changes">Admin Changes:</label>
+				</th>
+				<td>
+					<input type="checkbox" id="email_admin_changes" name="email_admin_changes" value="1" <?php if(!empty($email_admin_changes)) { ?>checked="checked"<?php } ?> />
+					when an admin changes a user's membership level through the dashboard.
+				</td>
+			</tr>
+			<tr>
+				<th scope="row" valign="top">
+					<label for="email_admin_cancels">Cancellation:</label>
+				</th>
+				<td>
+					<input type="checkbox" id="email_admin_cancels" name="email_admin_cancels" value="1" <?php if(!empty($email_admin_cancels)) { ?>checked="checked"<?php } ?> />
+					when a user cancel's his or her account.
+				</td>
+			</tr>
+			<tr>
+				<th scope="row" valign="top">
+					<label for="email_admin_billing">Bill Updates:</label>
+				</th>
+				<td>
+					<input type="checkbox" id="email_admin_billing" name="email_admin_billing" value="1" <?php if(!empty($email_admin_billing)) { ?>checked="checked"<?php } ?> />
+					when a user updates his or her billing information.
+				</td>
+			</tr>
+		</tbody>
+		</table>
+		
 		<p class="submit">            
 			<input name="savesettings" type="submit" class="button-primary" value="Save Settings" /> 		                			
 		</p> 
