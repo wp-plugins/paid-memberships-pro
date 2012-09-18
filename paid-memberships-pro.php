@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships
-Version: 1.5.1
+Version: 1.5.2
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -43,7 +43,7 @@ $urlparts = explode("//", home_url());
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.5.1");
+define("PMPRO_VERSION", "1.5.2");
 define("PMPRO_DOMAIN", pmpro_getDomainFromURL(site_url()));
 
 global $gateway_environment;
@@ -147,32 +147,11 @@ function pmpro_set_current_user()
 	if($id)
 	{
 		$current_user->membership_level = pmpro_getMembershipLevelForUser($current_user->ID);
-		if(!empty($current_user->membership_level->ID))
+		if(!empty($current_user->membership_level))
 		{
-			$user_pricing = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_memberships_users WHERE user_id = '" . $current_user->ID . "' LIMIT 1");
-			if($user_pricing->billing_amount !== NULL)
-			{
-				$current_user->membership_level->billing_amount = $user_pricing->billing_amount;
-				$current_user->membership_level->cycle_number = $user_pricing->cycle_number;
-				$current_user->membership_level->cycle_period = $user_pricing->cycle_period;
-				$current_user->membership_level->billing_limit = $user_pricing->billing_limit;
-				$current_user->membership_level->trial_amount = $user_pricing->trial_amount;
-				$current_user->membership_level->trial_limit = $user_pricing->trial_limit;
-			}
-
-			$categories = $wpdb->get_results("SELECT c.category_id
-												FROM {$wpdb->pmpro_memberships_categories} AS c
-												WHERE c.membership_id = '" . $current_user->membership_level->ID . "'", ARRAY_N);
-
-			$current_user->membership_level->categories = array();
-			if(is_array($categories))
-			{
-				foreach ( $categories as $cat )
-				{
-				  $current_user->membership_level->categories[] = $cat;
-				}
-			}
+			$current_user->membership_level->categories = pmpro_getMembershipCategories($current_user->membership_level->ID);
 		}
+		$current_user->membership_levels = pmpro_getMembershipLevelsForUser($current_user->ID);
 	}
 
 	//hiding ads?
@@ -436,11 +415,12 @@ function pmpro_membership_level_profile_fields($user)
 		return false;
 
 	global $wpdb;
-	$user->membership_level = $wpdb->get_row("SELECT l.id AS ID, l.name AS name
+	/*$user->membership_level = $wpdb->get_row("SELECT l.id AS ID, l.name AS name
 														FROM {$wpdb->pmpro_membership_levels} AS l
 														JOIN {$wpdb->pmpro_memberships_users} AS mu ON (l.id = mu.membership_id)
 														WHERE mu.user_id = " . $user->ID . "
-														LIMIT 1");
+														LIMIT 1");*/
+	$user->membership_level = pmpro_getMembershipLevelForUser($user->ID);
 
 	$levels = $wpdb->get_results( "SELECT * FROM {$wpdb->pmpro_membership_levels}", OBJECT );
 
@@ -482,7 +462,7 @@ function pmpro_membership_level_profile_fields($user)
 					}
 				</script>
 				<?php
-					$membership_values = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_memberships_users WHERE user_id = '" . $user->ID . "' LIMIT 1");
+					$membership_values = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_memberships_users WHERE status = 'active' AND user_id = '" . $user->ID . "' LIMIT 1");
 					if(!empty($membership_values->billing_amount) || !empty($membership_values->trial_amount))
 					{
 					?>
@@ -607,14 +587,14 @@ function pmpro_membership_level_profile_fields_update()
 	{
 		//update the expiration date
 		$expiration_date = intval($_REQUEST['expires_year']) . "-" . intval($_REQUEST['expires_month']) . "-" . intval($_REQUEST['expires_day']);
-		$sqlQuery = "UPDATE $wpdb->pmpro_memberships_users SET enddate = '" . $expiration_date . "' WHERE user_id = '" . $user_ID . "' LIMIT 1";
+		$sqlQuery = "UPDATE $wpdb->pmpro_memberships_users SET enddate = '" . $expiration_date . "' WHERE status = 'active' AND user_id = '" . $user_ID . "' LIMIT 1";
 		if($wpdb->query($sqlQuery))
 			$expiration_changed = true;
 	}
 	elseif(isset($_REQUEST['expires']))
 	{
 		//null out the expiration
-		$sqlQuery = "UPDATE $wpdb->pmpro_memberships_users SET enddate = NULL WHERE user_id = '" . $user_ID . "' LIMIT 1";
+		$sqlQuery = "UPDATE $wpdb->pmpro_memberships_users SET enddate = NULL WHERE status = 'active' AND user_id = '" . $user_ID . "' LIMIT 1";
 		if($wpdb->query($sqlQuery))
 			$expiration_changed = true;
 	}
@@ -767,7 +747,7 @@ function pmpro_search_filter($query)
 	{
 		//get pages that are in levels, but not in mine
 		$sqlQuery = "SELECT page_id FROM $wpdb->pmpro_memberships_pages ";
-		if($current_user->membership_level->ID)
+		if(!empty($current_user->membership_level->ID))
 			$sqlQuery .= "WHERE membership_id <> '" . $current_user->membership_level->ID . "' ";
 		$hidden_page_ids = $wpdb->get_col($sqlQuery);
 		if($hidden_page_ids)
@@ -775,7 +755,7 @@ function pmpro_search_filter($query)
 
 		//get categories that are filtered by level, but not my level
 		$sqlQuery = "SELECT category_id FROM $wpdb->pmpro_memberships_categories ";
-		if($current_user->membership_level->ID)
+		if(!empty($current_user->membership_level->ID))
 			$sqlQuery .= "WHERE membership_id <> '" . $current_user->membership_level->ID . "' ";
 		$hidden_post_cats = $wpdb->get_col($sqlQuery);
 
@@ -786,10 +766,12 @@ function pmpro_search_filter($query)
 
 	return $query;
 }
-add_filter( 'pre_get_posts', 'pmpro_search_filter' );
+$showexcerpts = pmpro_getOption("showexcerpts");
+if(empty($showexcerpts))
+	add_filter( 'pre_get_posts', 'pmpro_search_filter' );
 
 function pmpro_membership_content_filter($content, $skipcheck = false)
-{
+{	
 	global $post, $current_user;
 
 	if(!$skipcheck)
@@ -813,19 +795,24 @@ function pmpro_membership_content_filter($content, $skipcheck = false)
 	{
 		//if show excerpts is set, return just the excerpt
 		if(pmpro_getOption("showexcerpts"))
-		{
+		{			
 			//show excerpt
 			global $post;
 			if($post->post_excerpt)
-			{
+			{								
 				//defined exerpt
 				$content = wpautop($post->post_excerpt);
 			}
 			elseif(strpos($content, "<span id=\"more-" . $post->ID . "\"></span>") !== false)
-			{
+			{				
 				//more tag
 				$pos = strpos($content, "<span id=\"more-" . $post->ID . "\"></span>");
 				$content = wpautop(substr($content, 0, $pos));
+			}
+			elseif(strpos($content, 'class="more-link">') !== false)
+			{
+				//more link
+				$content = preg_replace("/\<a.*class\=\"more\-link\".*\>.*\<\/a\>/", "", $content);
 			}
 			else
 			{
@@ -888,8 +875,32 @@ function pmpro_membership_content_filter($content, $skipcheck = false)
 }
 add_filter('the_content', 'pmpro_membership_content_filter', 5);
 add_filter('the_content_rss', 'pmpro_membership_content_filter', 5);
-add_filter('the_excerpt', 'pmpro_membership_content_filter', 5);
 add_filter('comment_text_rss', 'pmpro_membership_content_filter', 5);
+
+/*
+	If the_excerpt is called, we want to disable the_content filters so the PMPro messages aren't added to the content before AND after the ecerpt.
+*/
+function pmpro_membership_excerpt_filter($content, $skipcheck = false)
+{		
+	remove_filter('the_content', 'pmpro_membership_content_filter', 5);	
+	$content = pmpro_membership_content_filter($content, $skipcheck);
+	add_filter('the_content', 'pmpro_membership_content_filter', 5);
+	
+	return $content;
+}
+function pmpro_membership_get_excerpt_filter_start($content, $skipcheck = false)
+{	
+	remove_filter('the_content', 'pmpro_membership_content_filter', 5);		
+	return $content;
+}
+function pmpro_membership_get_excerpt_filter_end($content, $skipcheck = false)
+{	
+	add_filter('the_content', 'pmpro_membership_content_filter', 5);		
+	return $content;
+}
+add_filter('the_excerpt', 'pmpro_membership_excerpt_filter', 15);
+add_filter('get_the_excerpt', 'pmpro_membership_get_excerpt_filter_start', 1);
+add_filter('get_the_excerpt', 'pmpro_membership_get_excerpt_filter_end', 100);
 
 function pmpro_comments_filter($comments, $post_id = NULL)
 {
@@ -1128,7 +1139,7 @@ function pmpro_login_redirect($redirect_to, $request, $user)
 		{
 			//if the redirect url includes the word checkout, leave it alone
 		}
-		elseif($wpdb->get_var("SELECT membership_id FROM $wpdb->pmpro_memberships_users WHERE user_id = '" . $user->ID . "' LIMIT 1"))
+		elseif($wpdb->get_var("SELECT membership_id FROM $wpdb->pmpro_memberships_users WHERE status = 'active' AND user_id = '" . $user->ID . "' LIMIT 1"))
 		{
 			//if logged in and a member, send to wherever they were going			
 		}
@@ -1217,6 +1228,21 @@ function pmpro_besecure()
 }
 add_action('wp', 'pmpro_besecure', 2);
 add_action('login_head', 'pmpro_besecure', 2);
+
+//If the site URL starts with https:, then force SSL/besecure to true. (Added 1.5.2)
+function pmpro_check_site_url_for_https($besecure)
+{
+	//need to get this from the database because we filter get_option
+	global $wpdb;
+	$siteurl = $wpdb->get_var("SELECT option_value FROM $wpdb->options WHERE option_name = 'siteurl' LIMIT 1");		
+	
+	//entire site is over https?
+	if(strpos($siteurl, "https:") !== false)
+		$besecure = true;
+	
+	return $besecure;
+}
+add_filter("pmpro_besecure", "pmpro_check_site_url_for_https");
 
 //capturing case where a user links to https admin without admin over https
 function pmpro_admin_https_handler()

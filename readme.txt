@@ -2,8 +2,8 @@
 Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal, stripe
 Requires at least: 3.0
-Tested up to: 3.4.1
-Stable tag: 1.5.1
+Tested up to: 3.4.2
+Stable tag: 1.5.2
 
 A customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -51,6 +51,24 @@ If you would like more help using PMPro on a network install, sign up for suppor
 3. Use Discount Codes to offer access at lower prices for special customers.
 
 == Changelog ==
+= 1.5.2 =
+* Added "Pay by Check" as a gateway option. Users gain immediate access. You can show instructions for who to write the check out to, where to mail it, etc.
+* Added uninstall.php script. (Thanks, badfun)
+* Fixed bug where the "Use SSL" option reverted to "No" for Testing, Stripe, and PayPal Express gateways whenever the payments settings page was loaded.
+* Fixed bug where the IPN Handler URL was not showing up when PayPal Express was selected.
+* Fixed bug where PMPro was not sending the proper trial amount to PayPal when using Website Payments Pro or PayPal Express.
+* Added id and status fields to the pmpro_memberships_users table and updated all code to use these fields. This is important for allowing multiple membership levels and tracking cancelled orders. (Thanks, Zookatron!)
+* Appending ?level=# to the confirmation page URL after checkout to aid in analytics tracking.
+* No longer filtering pages/posts from search results if "show excerpts" is set to YES.
+* Showing tax on invoices if applicable.
+* Sending tax amount to PayPal Express again.
+* Added code to force HTTPS if the siteurl option starts with https:
+* Hiding billing information box on Membership Account page if the last invoice was by check or paypal express.
+* Added pmpro_email_days_til_expiration and pmpro_email_days_til_trial_end to change how many days before expiration/etc to send an email. The default is 7.
+* Fixed typo/bug in preheader/checkout.php RE the pmpro_stripe_verify_address hook. (Thanks, Oniiru!)
+* Updated the_excerpt filters to prevent PMPro messages from being added to an excerpt twice in some setups.
+* the_content filter removes any class="more-link" class from the content if showing an excerpt.
+
 = 1.5.1 =
 * Fixed bug in getfile.php introduced in 1.5.
 * Fixed bug in the saveOrder method of the Member Order class. When "updating" vs. "inserting" the $id property of the class was being wiped out. This sometimes caused problems if the id was needed later, e.g. with PayPal Express updating orders.

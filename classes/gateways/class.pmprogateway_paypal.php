@@ -23,7 +23,7 @@
 				}
 				else
 				{
-					if(!$order->error)
+					if(empty($order->error))
 						$order->error = "Unknown error: Authorization failed.";
 					return false;
 				}
@@ -32,26 +32,26 @@
 			{
 				//charge first payment
 				if($this->charge($order))
-				{																		
+				{																							
 					//setup recurring billing
 					if(pmpro_isLevelRecurring($order->membership_level))
 					{
 						$order->ProfileStartDate = date("Y-m-d", strtotime("+ " . $order->BillingFrequency . " " . $order->BillingPeriod)) . "T0:0:0";
 						$order->ProfileStartDate = apply_filters("pmpro_profile_start_date", $order->ProfileStartDate, $order);
 						if($this->subscribe($order))
-						{
+						{							
 							return true;
 						}
 						else
-						{
+						{							
 							if($this->refund($order, $order->payment_transaction_id))
 							{
-								if(!$order->error)
+								if(empty($order->error))
 									$order->error = "Unknown error: Payment failed.";							
 							}
 							else
 							{
-								if(!$order->error)
+								if(empty($order->error))
 									$order->error = "Unknown error: Payment failed.";
 								
 								$order->error .= " A partial payment was made that we could not refund. Please contact the site owner immediately to correct this.";
@@ -73,7 +73,7 @@
 		
 		function authorize(&$order)
 		{
-			if(!$order->code)
+			if(empty($order->code))
 				$order->code = $order->getRandomCode();
 									
 			//paypal profile stuff
@@ -158,7 +158,7 @@
 			$nvpStr="&TRANSACTIONID=" . $transaction_id . "&NOTE=Refunding a charge.";
 		
 			$this->httpParsedResponseAr = $this->PPHttpPost('RefundTransaction', $nvpStr);
-											
+						
 			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {				
 				return true;				
 			} else  {				
@@ -218,7 +218,7 @@
 			}
 
 			$this->httpParsedResponseAr = $this->PPHttpPost('DoDirectPayment', $nvpStr);
-								
+						
 			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {
 				$order->payment_transaction_id = $this->httpParsedResponseAr['TRANSACTIONID'];
 				$order->updateStatus("firstpayment");				
@@ -235,7 +235,7 @@
 		function subscribe(&$order)
 		{
 			global $pmpro_currency;
-			
+						
 			if(empty($order->code))
 				$order->code = $order->getRandomCode();			
 			
@@ -262,11 +262,11 @@
 			//if a trial period is defined
 			if(!empty($order->TrialBillingPeriod))
 			{
-				$trial_amount = $order->TrialAmount;
+				$trial_amount = $order->TrialAmount;				
 				$trial_tax = $order->getTaxForPrice($trial_amount);
 				$trial_amount = round((float)$trial_amount + (float)$trial_tax, 2);
 				
-				$nvpStr .= "&TRIALBILLINGPERIOD=" . $order->TrialBillingPeriod . "&TRIALBILLINGFREQUENCY=" . $order->TrialBillingFrequency . "&TRIALAMNT=" . $trial_amount;
+				$nvpStr .= "&TRIALBILLINGPERIOD=" . $order->TrialBillingPeriod . "&TRIALBILLINGFREQUENCY=" . $order->TrialBillingFrequency . "&TRIALAMT=" . $trial_amount;
 			}
 			if(!empty($order->TrialBillingCycles))
 				$nvpStr .= "&TRIALTOTALBILLINGCYCLES=" . $order->TrialBillingCycles;
@@ -297,7 +297,7 @@
 
 			//for debugging let's add this to the class object
 			$this->nvpStr = $nvpStr;
-			
+						
 			$this->httpParsedResponseAr = $this->PPHttpPost('CreateRecurringPaymentsProfile', $nvpStr);
 						
 			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {
@@ -428,7 +428,7 @@
 			// getting response from server
 			$httpResponse = curl_exec($ch);
 		
-			if(!$httpResponse) {
+			if(empty($httpResponse)) {
 				exit("$methodName_ failed: ".curl_error($ch).'('.curl_errno($ch).')');
 			}
 		

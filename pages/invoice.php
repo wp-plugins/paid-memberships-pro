@@ -27,6 +27,12 @@
 			<li><strong>Discount Code:</strong> <?php echo $pmpro_invoice->discount_code->code?></li>
 		<?php } ?>
 	</ul>
+	
+	<?php
+		//check instructions		
+		if($pmpro_invoice->gateway == "check")
+			echo wpautop(pmpro_getOption("instructions"));
+	?>
 		
 	<table id="pmpro_invoice_table" class="pmpro_invoice" width="100%" cellpadding="0" cellspacing="0" border="0">
 		<thead>
@@ -58,7 +64,16 @@
 				<td><?php echo $pmpro_invoice->membership_level->name?></td>					
 				<td align="center">
 					<?php if($pmpro_invoice->total != '0.00') { ?>
-						<?php echo $pmpro_currency_symbol?><?php echo number_format($pmpro_invoice->total, 2)?>
+						<?php if(!empty($pmpro_invoice->tax)) { ?>
+							Subtotal: <?php echo $pmpro_currency_symbol?><?php echo number_format($pmpro_invoice->subtotal, 2);?><br />
+							Tax: <?php echo $pmpro_currency_symbol?><?php echo number_format($pmpro_invoice->tax, 2);?><br />
+							<?php if(!empty($pmpro_invoice->couponamount)) { ?>
+								Coupon: (<?php echo $pmpro_currency_symbol?><?php echo number_format($pmpro_invoice->couponamount, 2);?>)<br />
+							<?php } ?>
+							<strong>Total: <?php echo $pmpro_currency_symbol?><?php echo number_format($pmpro_invoice->total, 2)?></strong>
+						<?php } else { ?>
+							<?php echo $pmpro_currency_symbol?><?php echo number_format($pmpro_invoice->total, 2)?>
+						<?php } ?>						
 					<?php } else { ?>
 						<small class="pmpro_grey"><?php echo $pmpro_currency_symbol?>0</small>
 					<?php } ?>		

@@ -154,6 +154,11 @@
 			{									
 				if($invoice->gateway == "paypalexpress")
 					$this->template = "checkout_express";
+				elseif($invoice->gateway == "check")
+				{
+					$this->template = "checkout_check";
+					$this->data["instructions"] = wpautop(pmpro_getOption("instructions"));
+				}
 				elseif(pmpro_isLevelTrial($user->membership_level))
 					$this->template = "checkout_trial";
 				else
@@ -189,7 +194,7 @@
 				$this->data["discount_code"] = "";
 			}
 			
-			$enddate = $wpdb->get_var("SELECT UNIX_TIMESTAMP(enddate) FROM $wpdb->pmpro_memberships_users WHERE user_id = '" . $user->ID . "' LIMIT 1");
+			$enddate = $wpdb->get_var("SELECT UNIX_TIMESTAMP(enddate) FROM $wpdb->pmpro_memberships_users WHERE user_id = '" . $user->ID . "' AND status = 'active' LIMIT 1");
 			if($enddate)
 				$this->data["membership_expiration"] = "<p>This membership will expire on " . date("n/j/Y", $enddate) . ".</p>\n";
 			else
@@ -230,7 +235,9 @@
 			if($invoice)
 			{									
 				if($invoice->gateway == "paypalexpress")
-					$this->template = "checkout_express";
+					$this->template = "checkout_express_admin";
+				elseif($invoice->gateway == "check")
+					$this->template = "checkout_check_admin";					
 				elseif(pmpro_isLevelTrial($user->membership_level))
 					$this->template = "checkout_trial_admin";
 				else
@@ -266,7 +273,7 @@
 				$this->data["discount_code"] = "";
 			}
 			
-			$enddate = $wpdb->get_var("SELECT UNIX_TIMESTAMP(enddate) FROM $wpdb->pmpro_memberships_users WHERE user_id = '" . $user->ID . "' LIMIT 1");
+			$enddate = $wpdb->get_var("SELECT UNIX_TIMESTAMP(enddate) FROM $wpdb->pmpro_memberships_users WHERE user_id = '" . $user->ID . "' AND status = 'active' LIMIT 1");
 			if($enddate)
 				$this->data["membership_expiration"] = "<p>This membership will expire on " . date("n/j/Y", $enddate) . ".</p>\n";
 			else
@@ -432,7 +439,7 @@
 		
 		function sendInvoiceEmail($user = NULL, $invoice = NULL)
 		{
-			global $current_user, $pmpro_currency_symbol;
+			global $wpdb, $current_user, $pmpro_currency_symbol;
 			if(!$user)
 				$user = $current_user;
 			
@@ -474,12 +481,12 @@
 			else
 				$this->data["discount_code"] = "";
 		
-			$enddate = $wpdb->get_var("SELECT UNIX_TIMESTAMP(enddate) FROM $wpdb->pmpro_memberships_users WHERE user_id = '" . $user->ID . "' LIMIT 1");
+			$enddate = $wpdb->get_var("SELECT UNIX_TIMESTAMP(enddate) FROM $wpdb->pmpro_memberships_users WHERE user_id = '" . $user->ID . "' AND status = 'active' LIMIT 1");
 			if($enddate)
 				$this->data["membership_expiration"] = "<p>This membership will expire on " . date("n/j/Y", $enddate) . ".</p>\n";
 			else
 				$this->data["membership_expiration"] = "";
-		
+				
 			return $this->sendEmail();
 		}
 		
@@ -493,11 +500,12 @@
 				return false;
 			
 			//make sure we have the current membership level data
-			$user->membership_level = $wpdb->get_row("SELECT l.id AS ID, l.name AS name, UNIX_TIMESTAMP(mu.startdate) as startdate, mu.billing_amount, mu.cycle_number, mu.cycle_period, mu.trial_amount, mu.trial_limit
+			/*$user->membership_level = $wpdb->get_row("SELECT l.id AS ID, l.name AS name, UNIX_TIMESTAMP(mu.startdate) as startdate, mu.billing_amount, mu.cycle_number, mu.cycle_period, mu.trial_amount, mu.trial_limit
 														FROM {$wpdb->pmpro_membership_levels} AS l
 														JOIN {$wpdb->pmpro_memberships_users} AS mu ON (l.id = mu.membership_id)
 														WHERE mu.user_id = " . $user->ID . "
-														LIMIT 1");		
+														LIMIT 1");*/
+			$user->membership_level = pmpro_getMembershipLevelForUser($user->ID);
 						
 			$this->email = $user->user_email;
 			$this->subject = "Your trial membership at " . get_option("blogname") . " is ending soon";
@@ -549,11 +557,12 @@
 				return false;
 			
 			//make sure we have the current membership level data
-			$user->membership_level = $wpdb->get_row("SELECT l.id AS ID, l.name AS name, UNIX_TIMESTAMP(mu.enddate) as enddate
+			/*$user->membership_level = $wpdb->get_row("SELECT l.id AS ID, l.name AS name, UNIX_TIMESTAMP(mu.enddate) as enddate
 														FROM {$wpdb->pmpro_membership_levels} AS l
 														JOIN {$wpdb->pmpro_memberships_users} AS mu ON (l.id = mu.membership_id)
 														WHERE mu.user_id = " . $user->ID . "
-														LIMIT 1");		
+														LIMIT 1");*/
+			$user->membership_level = pmpro_getMembershipLevelForUser($user->ID);
 						
 			$this->email = $user->user_email;
 			$this->subject = "Your membership at " . get_option("blogname") . " will end soon";
