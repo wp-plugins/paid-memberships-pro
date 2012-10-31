@@ -119,7 +119,7 @@
 			return $this->Gateway;
 		}
 		
-		function getLastMemberOrder($user_id = NULL)
+		function getLastMemberOrder($user_id = NULL, $status = 'success')
 		{
 			global $current_user, $wpdb;
 			if(!$user_id)
@@ -128,7 +128,14 @@
 			if(!$user_id)
 				return false;
 				
-			$id = $wpdb->get_var("SELECT id FROM $wpdb->pmpro_membership_orders WHERE user_id = '" . $user_id . "' ORDER BY timestamp DESC LIMIT 1");
+			//build query
+			$this->sqlQuery = "SELECT id FROM $wpdb->pmpro_membership_orders WHERE user_id = '" . $user_id . "' ";
+			if(!empty($status))
+				$this->sqlQuery .= "AND status = '" . $wpdb->escape($status) . "' ";
+			$this->sqlQuery .= "ORDER BY timestamp DESC LIMIT 1";
+				
+			//get id
+			$id = $wpdb->get_var($this->sqlQuery);
 			
 			return $this->getMemberOrderByID($id);
 		}
@@ -296,6 +303,11 @@
 			if(empty($this->affiliate_subid))
 				$this->affiliate_subid = "";
 			
+			if(empty($this->gateway))
+				$this->gateway = pmpro_getOption("gateway");				
+			if(empty($this->gateway_environment))
+				$this->gateway_environment = pmpro_getOption("gateway_environment");
+			
 			//build query			
 			if(!empty($this->id))
 			{
@@ -369,8 +381,8 @@
 									   '" . substr($this->ExpirationDate, 0, 2) . "',
 									   '" . substr($this->ExpirationDate, 2, 4) . "',
 									   '" . $this->status . "',
-									   '" . pmpro_getOption("gateway") . "', 
-									   '" . pmpro_getOption("gateway_environment") . "', 
+									   '" . $this->gateway . "', 
+									   '" . $this->gateway_environment . "', 
 									   '" . $this->payment_transaction_id . "',
 									   '" . $this->subscription_transaction_id . "',
 									   now(),

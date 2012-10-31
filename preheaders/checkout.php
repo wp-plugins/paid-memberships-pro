@@ -136,6 +136,9 @@
 				if (response.error) {
 					// re-enable the submit button
                     jQuery('.pmpro_btn-submit-checkout').removeAttr("disabled");
+
+					//hide processing message
+					jQuery('#pmpro_processing_message').css('visibility', 'hidden');
 					
 					// show the errors on the form
 					alert(response.error.message);
@@ -285,7 +288,7 @@
 			$password2 = $password;
 		}	
 		
-		if($pmpro_requirebilling && $gateway != "paypalexpress")
+		if($pmpro_requirebilling && $gateway != "paypalexpress" && $gateway != "paypalstandard")
 		{			
 			//avoid warnings for these fields
 			if(!isset($bfirstname))
@@ -334,6 +337,26 @@
 				"ExpirationYear" => $ExpirationYear,
 				"CVV" => $CVV
 			);
+			
+			//if using stripe lite, remove some fields from the required array
+			$pmpro_stripe_lite = apply_filters("pmpro_stripe_lite", false);
+			if($pmpro_stripe_lite && $gateway == "stripe")
+			{
+				//some fields to remove
+				$remove = array('bfirstname', 'blastname', 'baddress1', 'bcity', 'bstate', 'bzipcode', 'bphone', 'bcountry', 'CardType');
+				
+				//if a user is logged in, don't require bemail either				
+				if(!empty($current_user->user_email))
+				{
+					$remove[] = 'bemail';
+					$bemail = $current_user->user_email;
+					$bconfirmemail = $bemail;
+				}
+				
+				//remove the fields
+				foreach($remove as $field)
+					unset($pmpro_required_billing_fields[$field]);
+			}
 			
 			//filter
 			$pmpro_required_billing_fields = apply_filters("pmpro_required_billing_fields", $pmpro_required_billing_fields);			
@@ -444,7 +467,7 @@
 					if($pmpro_msgt != "pmpro_error")
 					{				
 						//save user fields for PayPal Express
-						if($gateway == "paypalexpress")
+						if($gateway == "paypalexpress" || $gateway == "paypalstandard")
 						{
 							if(!$current_user->ID)
 							{
@@ -454,7 +477,7 @@
 							}
 							
 							//can use this hook to save some other variables to the session
-							do_action("pmpro_paypalexpress_session_vars");
+							do_action("pmpro_paypalexpress_session_vars");							
 						}
 						
 						//special check here now for the "check" gateway
@@ -502,6 +525,21 @@
 							$morder->LastName = $blastname;						
 							$morder->Address1 = $baddress1;
 							$morder->Address2 = $baddress2;						
+							
+							//stripe lite code to get name from other sources if available
+							if(!empty($pmpro_stripe_lite) && empty($morder->FirstName) && empty($morder->LastName))
+							{
+								if(!empty($current_user->ID))
+								{									
+									$morder->FirstName = get_user_meta($current_user->ID, "first_name", true);
+									$morder->LastName = get_user_meta($current_user->ID, "last_name", true);
+								}
+								elseif(!empty($_REQUEST['first_name']) && !empty($_REQUEST['last_name']))
+								{
+									$morder->FirstName = $_REQUEST['first_name'];
+									$morder->LastName = $_REQUEST['last_name'];
+								}
+							}
 							
 							//other values
 							$morder->billing = new stdClass();
@@ -707,8 +745,16 @@
 		
 		if($user_id)
 		{				
+			//save user id and send PayPal standard customers to PayPal now
+			if($gateway == "paypalstandard" && !empty($morder))
+			{
+				$morder->user_id = $user_id;				
+				$morder->saveOrder();
+				$morder->Gateway->sendToPayPal($morder);
+			}
+			
 			//calculate the end date
-			if($pmpro_level->expiration_number)
+			if(!empty($pmpro_level->expiration_number))
 			{
 				$enddate = "'" . date("Y-m-d", strtotime("+ " . $pmpro_level->expiration_number . " " . $pmpro_level->expiration_period)) . "'";
 			}
@@ -747,8 +793,7 @@
 				if(!empty($morder))
 				{
 					$morder->user_id = $user_id;
-					$morder->membership_id = $pmpro_level->id;
-
+					$morder->membership_id = $pmpro_level->id;					
 					$morder->saveOrder();
 				}
 			
@@ -794,7 +839,7 @@
 						update_user_meta($user_id, "pmpro_stripe_customerid", $morder->Gateway->customer->id);
 					}
 				}
-									
+								
 				//hook
 				do_action("pmpro_after_checkout", $user_id);						
 				
@@ -803,7 +848,7 @@
 					$invoice = new MemberOrder($morder->id);						
 				else
 					$invoice = NULL;
-				$user->membership_level = $pmpro_level;		//make sure they have the right level info
+				$current_user->membership_level = $pmpro_level;		//make sure they have the right level info
 				
 				//send email to member
 				$pmproemail = new PMProEmail();				

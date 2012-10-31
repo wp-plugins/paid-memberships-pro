@@ -1,6 +1,9 @@
 <?php		
 	global $gateway, $pmpro_review, $skip_account_fields, $pmpro_paypal_token, $wpdb, $current_user, $pmpro_msg, $pmpro_msgt, $pmpro_requirebilling, $pmpro_level, $pmpro_levels, $tospage, $pmpro_currency_symbol, $pmpro_show_discount_code;
-	global $discount_code, $username, $password, $password2, $bfirstname, $blastname, $baddress1, $baddress2, $bcity, $bstate, $bzipcode, $bcountry, $bphone, $bemail, $bconfirmemail, $CardType, $AccountNumber, $ExpirationMonth,$ExpirationYear;		
+	global $discount_code, $username, $password, $password2, $bfirstname, $blastname, $baddress1, $baddress2, $bcity, $bstate, $bzipcode, $bcountry, $bphone, $bemail, $bconfirmemail, $CardType, $AccountNumber, $ExpirationMonth,$ExpirationYear;	
+
+	//set to true via filter to have Stripe use the minimal billing fields
+	$pmpro_stripe_lite = apply_filters("pmpro_stripe_lite", false);
 ?>
 
 <form class="pmpro_form" action="<?php if(!empty($_REQUEST['review'])) echo pmpro_url("checkout", "?level=" . $pmpro_level->id); ?>" method="post">
@@ -116,8 +119,8 @@
 				jQuery('.pmpro_discount_code_msg').hide();
 				
 				//disable the apply button
-				jQuery('#other_discount_code_button').attr('disabled', 'disabled');
-								
+				jQuery('#other_discount_code_button').attr('disabled', 'disabled');				
+				
 				jQuery.ajax({
 					url: '<?php echo site_url()?>',type:'GET',timeout:2000,
 					dataType: 'html',
@@ -300,7 +303,8 @@
 		</table>
 	<?php } ?>
 	
-	<table id="pmpro_billing_address_fields" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0" <?php if(!$pmpro_requirebilling || $gateway == "paypalexpress") { ?>style="display: none;"<?php } ?>>
+	<?php if(empty($pmpro_stripe_lite) || $gateway != "stripe") { ?>
+	<table id="pmpro_billing_address_fields" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0" <?php if(!$pmpro_requirebilling || $gateway == "paypalexpress" || $gateway == "paypalstandard") { ?>style="display: none;"<?php } ?>>
 	<thead>
 		<tr>
 			<th>Billing Address</th>
@@ -469,6 +473,7 @@
 		</tr>											
 	</tbody>
 	</table>                   
+	<?php } ?>
 	
 	<?php do_action("pmpro_checkout_after_billing_fields"); ?>		
 	
@@ -491,7 +496,7 @@
 		}
 	?>
 	
-	<table id="pmpro_payment_information_fields" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0" <?php if(!$pmpro_requirebilling || $gateway == "paypalexpress") { ?>style="display: none;"<?php } ?>>
+	<table id="pmpro_payment_information_fields" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0" <?php if(!$pmpro_requirebilling || $gateway == "paypalexpress" || $gateway == "paypalstandard") { ?>style="display: none;"<?php } ?>>
 	<thead>
 		<tr>
 			<th colspan="2"><span class="pmpro_thead-msg">We Accept <?php echo $pmpro_accepted_credit_cards_string?></span>Payment Information</th>
@@ -509,6 +514,7 @@
 					<?php
 					}
 				?>
+				<?php if(empty($pmpro_stripe_lite) || $gateway != "stripe") { ?>
 				<div>
 					<label for="CardType">Card Type</label>
 					<select id="CardType" <?php if($gateway != "stripe") { ?>name="CardType"<?php } ?>>
@@ -517,6 +523,7 @@
 						<?php } ?>												
 					</select> 
 				</div>
+				<?php } ?>
 			
 				<div>
 					<label for="AccountNumber">Card Number</label>
@@ -640,14 +647,14 @@
 				
 		<?php } else { ?>
 					
-			<?php if($gateway == "paypal" || $gateway == "paypalexpress") { ?>
-			<span id="pmpro_paypalexpress_checkout" <?php if($gateway != "paypalexpress" || !$pmpro_requirebilling) { ?>style="display: none;"<?php } ?>>
+			<?php if($gateway == "paypal" || $gateway == "paypalexpress" || $gateway == "paypalstandard") { ?>
+			<span id="pmpro_paypalexpress_checkout" <?php if(($gateway != "paypalexpress" && $gateway != "paypalstandard") || !$pmpro_requirebilling) { ?>style="display: none;"<?php } ?>>
 				<input type="hidden" name="submit-checkout" value="1" />		
 				<input type="image" value="Checkout with PayPal &raquo;" src="https://www.paypal.com/en_US/i/btn/btn_xpressCheckout.gif" />
 			</span>
 			<?php } ?>
 			
-			<span id="pmpro_submit_span" <?php if($gateway == "paypalexpress" && $pmpro_requirebilling) { ?>style="display: none;"<?php } ?>>
+			<span id="pmpro_submit_span" <?php if(($gateway == "paypalexpress" || $gateway == "paypalstandard") && $pmpro_requirebilling) { ?>style="display: none;"<?php } ?>>
 				<input type="hidden" name="submit-checkout" value="1" />		
 				<input type="submit" class="pmpro_btn pmpro_btn-submit-checkout" value="Submit and <?php if($pmpro_requirebilling) { ?>Checkout<?php } else { ?>Confirm<?php } ?> &raquo;" />				
 			</span>

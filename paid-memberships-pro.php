@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships
-Version: 1.5.2.1
+Version: 1.5.3
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -43,7 +43,7 @@ $urlparts = explode("//", home_url());
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.5.2.1");
+define("PMPRO_VERSION", "1.5.3");
 define("PMPRO_DOMAIN", pmpro_getDomainFromURL(site_url()));
 
 global $gateway_environment;
@@ -266,6 +266,13 @@ function pmpro_is_ready()
 		elseif($gateway == "paypal" || $gateway == "paypalexpress")
 		{
 			if(pmpro_getOption("gateway_environment") && pmpro_getOption("gateway_email") && pmpro_getOption("apiusername") && pmpro_getOption("apipassword") && pmpro_getOption("apisignature"))
+				$pmpro_gateway_ready = true;
+			else
+				$pmpro_gateway_ready = false;
+		}
+		elseif($gateway == "paypalstandard")
+		{
+			if(pmpro_getOption("gateway_environment") && pmpro_getOption("gateway_email"))
 				$pmpro_gateway_ready = true;
 			else
 				$pmpro_gateway_ready = false;
@@ -1446,7 +1453,7 @@ function pmpro_login_head()
 
 			//make sure users are only getting to the profile when logged in
 			global $current_user;
-			if($_REQUEST['action'] == "profile" && !$current_user->ID)
+			if(!empty($_REQUEST['action']) && $_REQUEST['action'] == "profile" && !$current_user->ID)
 			{
 				$link = get_permalink($GLOBALS['theme_my_login']->options->options['page_id']);
 				wp_redirect($link);
@@ -1644,3 +1651,10 @@ function pmpro_replaceURLsInBuffer($buffer)
 	
 	return $buffer;
 }
+
+/*
+	If the $email_member_notification option is empty, disable the wp_new_user_notification email at checkout.
+*/
+$email_member_notification = pmpro_getOption("email_member_notification");
+if(empty($email_member_notification))
+	add_filter("pmpro_wp_new_user_notification", "__return_false", 0);

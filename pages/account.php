@@ -65,7 +65,7 @@
 				//$ssorder = $wpdb->get_row("SELECT *, UNIX_TIMESTAMP(timestamp) as timestamp FROM $wpdb->pmpro_membership_orders WHERE user_id = '$current_user->ID' AND membership_id = '" . $current_user->membership_level->ID . "' AND status = 'success' ORDER BY timestamp DESC LIMIT 1");				
 				$ssorder = new MemberOrder();
 				$ssorder->getLastMemberOrder();
-				$invoices = $wpdb->get_results("SELECT *, UNIX_TIMESTAMP(timestamp) as timestamp FROM $wpdb->pmpro_membership_orders WHERE user_id = '$current_user->ID' ORDER BY timestamp DESC");
+				$invoices = $wpdb->get_results("SELECT *, UNIX_TIMESTAMP(timestamp) as timestamp FROM $wpdb->pmpro_membership_orders WHERE user_id = '$current_user->ID' ORDER BY timestamp DESC");				
 				if(!empty($ssorder->id) && $ssorder->gateway != "check" && $ssorder->gateway != "paypalexpress")
 				{
 					//default values from DB (should be last order or last update)
@@ -87,6 +87,7 @@
 				?>		
 				<div class="pmpro_box">				
 					<h3><?php if((isset($ssorder->status) && $ssorder->status == "success") && (isset($ssorder->gateway) && in_array($ssorder->gateway, array("authorizenet", "paypal", "stripe")))) { ?><a class="pmpro_a-right" href="<?php echo pmpro_url("billing", "")?>">Edit</a><?php } ?>Billing Information</h3>
+					<?php if(!empty($baddress1)) { ?>
 					<p>
 						<strong>Billing Address</strong><br />
 						<?php echo $bfirstname . " " . $blastname?>
@@ -99,6 +100,7 @@
 						<br />
 						<?php echo formatPhone($bphone)?>
 					</p>
+					<?php } ?>
 					<p>
 						<strong>Payment Method</strong><br />
 						<?php echo $CardType?>: <?php echo last4($AccountNumber)?> (<?php echo $ExpirationMonth?>/<?php echo $ExpirationYear?>)

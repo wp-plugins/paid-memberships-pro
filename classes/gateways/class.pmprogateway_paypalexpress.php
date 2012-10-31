@@ -81,7 +81,7 @@
 			if(!empty($additional_parameters))
 			{
 				foreach($additional_parameters as $key => $value)				
-					$nvpStr .= urlencode("&" . $key . "=" . $value);
+					$nvpStr .= "&" . $key . "=" . urlencode($value);
 			}						
 			
 			$nvpStr .= "&CANCELURL=" . urlencode(pmpro_url("levels"));									
@@ -219,7 +219,7 @@
 			$nvpStr = "";
 			if(!empty($order->Token))
 				$nvpStr .= "&TOKEN=" . $order->Token;		
-			$nvpStr .="&INITAMT=" . $initial_payment . "&AMT=" . $order->PaymentAmount . "&CURRENCYCODE=" . $pmpro_currency . "&PROFILESTARTDATE=" . $order->ProfileStartDate;
+			$nvpStr .="&INITAMT=" . $initial_payment . "&AMT=" . $amount . "&CURRENCYCODE=" . $pmpro_currency . "&PROFILESTARTDATE=" . $order->ProfileStartDate;
 			if(!empty($amount_tax))
 				$nvpStr .= "&TAXAMT=" . $amount_tax;
 			$nvpStr .= "&BILLINGPERIOD=" . $order->BillingPeriod . "&BILLINGFREQUENCY=" . $order->BillingFrequency . "&AUTOBILLAMT=AddToNextBilling";			

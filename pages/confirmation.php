@@ -25,7 +25,7 @@
 		$confirmation_message .= "<p>Below are details about your membership account and a receipt for your initial membership invoice. A welcome email with a copy of your initial membership invoice has been sent to <strong>" . $pmpro_invoice->user->user_email . "</strong>.</p>";
 		
 		//check instructions		
-		if($pmpro_invoice->gateway == "check")
+		if($pmpro_invoice->gateway == "check" && !pmpro_isLevelFree($pmpro_invoice->membership_level))
 			$confirmation_message .= wpautop(pmpro_getOption("instructions"));
 		
 		$confirmation_message = apply_filters("pmpro_confirmation_message", $confirmation_message, $pmpro_invoice);				
@@ -50,7 +50,9 @@
 	<table id="pmpro_confirmation_table" class="pmpro_invoice" width="100%" cellpadding="0" cellspacing="0" border="0">
 		<thead>
 			<tr>
+				<?php if(!empty($pmpro_invoice->billing->name)) { ?>
 				<th>Billing Address</th>
+				<?php } ?>
 				<th>Payment Method</th>
 				<th>Membership Level</th>
 				<th>Total Billed</th>
@@ -58,6 +60,7 @@
 		</thead>
 		<tbody>
 			<tr>
+				<?php if(!empty($pmpro_invoice->billing->name)) { ?>
 				<td>
 					<?php echo $pmpro_invoice->billing->name?><br />
 					<?php echo $pmpro_invoice->billing->street?><br />						
@@ -66,6 +69,7 @@
 					<?php } ?>
 					<?php echo formatPhone($pmpro_invoice->billing->phone)?>
 				</td>
+				<?php } ?>
 				<td>
 					<?php if($pmpro_invoice->accountnumber) { ?>
 						<?php echo $pmpro_invoice->cardtype?> ending in <?php echo last4($pmpro_invoice->accountnumber)?><br />

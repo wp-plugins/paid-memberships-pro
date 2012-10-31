@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal, stripe
 Requires at least: 3.0
 Tested up to: 3.4.2
-Stable tag: 1.5.2.1
+Stable tag: 1.5.3
 
 A customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -51,6 +51,24 @@ If you would like more help using PMPro on a network install, sign up for suppor
 3. Use Discount Codes to offer access at lower prices for special customers.
 
 == Changelog ==
+= 1.5.3 =
+* Added PayPal Standard Gateway
+* Added code to support using Stripe with the minimal billing fields. Use add_filter("pmpro_stripe_lite", "__return_true"); to enable this
+* Added an Email setting to send the default WordPress new user email(wp_new_user_notification) or not. By default this was being sent along with the PMPro checkout confirmation email. Now only the checkout confirmation email will be sent unless you check the new setting. You can still override this with the pmpro_wp_new_user_notification filter.
+* Fixed bug: Now re-hiding the "Processing..." message if there is a Stripe javascript error at checkout.
+* Updated MemberOrder method saveOrder to check for gateway and gateway_environment properties when inserting. If none are found, it will use what is set in your payment settings. This allows you to set the gateway on a MemberOrder object and save the order with that gateway instead of the default.
+* Now only showing the check instructions if the gateway is "check" AND the level is not free.
+* Added a check to the notification code in the settings header so it wouldn't display NULL in the notification space if WP passes that back.
+* Some warning fixes.
+* Fixed a bug in the PayPal Express gateway class where the pre-tax amount was being passed to PayPal instead of the tax-computed amount.
+* Added Canadian Dollars as a currency option for Stripe.
+* Fixed typo/bug with saving trial amounts in the memberships_users table after checkout. (Thanks, Badfun)
+* Fixed bug in initial and recurring revenue calculation on members list page.
+* Fixed bug when setting membership_level of current user after checkout that could cause various issues. (Thanks, drrobotnik)
+* Fixed bug in Stripe webhook that resulting in cancelation emails being sent to the 1st user in the DB vs. the user who cancelled. (Thanks, Kunjan of QuarkStudios.com)
+* The getLastMemberOrder() method of the MemberOrder class now returns the last order with status = 'success' by deafult. You can override this via the second parameter of the function. So getLastMemberOrder($user_id, "cancelled") to get the last cancelled order or getLastMemberOrder($user_id, false) to get the last order no matter the status.
+* Added pmpro_authnet_silent_post_fields filter and pmpro_before_authnet_silent_post and pmpro_after_authnet_silent_post hooks to the Authorize.net silent post handler. All hooks are passed the $fields variable built at the top of the script that mirrors the $_REQUEST array.
+
 = 1.5.2.1 =
 * Fixed bugs with pmpro_hasMembershipLevel.
 * Added ability to use the 0 level (non-member) in arrays passed to pmpro_hasMembershipLevel. e.g. pmpro_hasMembershipLevel(0,1,2) = has no membership, level 1, or level 2.
