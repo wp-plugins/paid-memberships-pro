@@ -1,7 +1,16 @@
 <?php
+	//only admins can get this
+	if(!function_exists("current_user_can") || !current_user_can("manage_options"))
+	{
+		die("You do not have permissions to perform this action.");
+	}	
+	
 	global $wpdb, $msg, $msgt, $pmpro_currency_symbol;
 
 	//some vars
+	$gateway = pmpro_getOption("gateway");
+	global $pmpro_stripe_error, $wp_version;
+	
 	if(isset($_REQUEST['edit']))
 		$edit = $_REQUEST['edit'];	
 	else
@@ -29,25 +38,36 @@
 	if($action == "save_membershiplevel")
 	{
 		$ml_name = addslashes($_REQUEST['name']);
-		$ml_description = addslashes($_REQUEST['description']);
+		$ml_description = $_REQUEST['description'];
+		$ml_confirmation = $_REQUEST['confirmation'];
 		$ml_initial_payment = addslashes($_REQUEST['initial_payment']);
-		$ml_recurring = $_REQUEST['recurring'];
+		if(!empty($_REQUEST['recurring']))
+			$ml_recurring = 1;
+		else
+			$ml_recurring = 0;
 		$ml_billing_amount = addslashes($_REQUEST['billing_amount']);
 		$ml_cycle_number = addslashes($_REQUEST['cycle_number']);
 		$ml_cycle_period = addslashes($_REQUEST['cycle_period']);		
 		$ml_billing_limit = addslashes($_REQUEST['billing_limit']);
-		$ml_custom_trial = $_REQUEST['custom_trial'];
+		if(!empty($_REQUEST['custom_trial']))
+			$ml_custom_trial = 1;
+		else
+			$ml_custom_trial = 0;
 		$ml_trial_amount = addslashes($_REQUEST['trial_amount']);
 		$ml_trial_limit = addslashes($_REQUEST['trial_limit']);  
-		$ml_expiration = $_REQUEST['expiration'];
+		if(!empty($_REQUEST['expiration']))
+			$ml_expiration = 1;
+		else
+			$ml_expiration = 0;
 		$ml_expiration_number = addslashes($_REQUEST['expiration_number']);
 		$ml_expiration_period = addslashes($_REQUEST['expiration_period']);
 		$ml_categories = array();
-		$ml_disable_signups = $_REQUEST['disable_signups'];
-		if($ml_disable_signups)
-			$ml_allow_signups = 0;
-		else
+		
+		//reversing disable to allow here
+		if(empty($_REQUEST['disable_signups']))
 			$ml_allow_signups = 1;
+		else
+			$ml_allow_signups = 0;
 
 		foreach ( $_REQUEST as $key => $value )
 		{
@@ -57,16 +77,16 @@
 			}
 		}
 
-		if ( $ml_recurring != "yes" )
+		//clearing out values if checkboxes aren't checked
+		if(empty($ml_recurring))
 		{
 			$ml_billing_amount = $ml_cycle_number = $ml_cycle_period = $ml_billing_limit = $ml_trial_amount = $ml_trial_limit = 0;
 		}
-		elseif ( $ml_custom_trial != "yes" )
+		elseif(empty($ml_custom_trial))
 		{
 			$ml_trial_amount = $ml_trial_limit = 0;
 		}
-
-		if($ml_expiration != "yes")
+		if(empty($ml_expiration))
 		{
 			$ml_expiration_number = $ml_expiration_period = 0;
 		}
@@ -74,18 +94,19 @@
 		if($saveid > 0)
 		{
 			$sqlQuery = " UPDATE {$wpdb->pmpro_membership_levels}
-						SET name = '$ml_name',
-						  description = '$ml_description',
-						  initial_payment = '$ml_initial_payment',
-						  billing_amount = '$ml_billing_amount',
-						  cycle_number = '$ml_cycle_number',
-						  cycle_period = '$ml_cycle_period',
-						  billing_limit = '$ml_billing_limit',
-						  trial_amount = '$ml_trial_amount',
-						  trial_limit = '$ml_trial_limit',                    
-						  expiration_number = '$ml_expiration_number',
-						  expiration_period = '$ml_expiration_period',
-						  allow_signups = '$ml_allow_signups'
+						SET name = '" . $wpdb->escape($ml_name) . "',
+						  description = '" . $wpdb->escape($ml_description) . "',
+						  confirmation = '" . $wpdb->escape($ml_confirmation) . "',
+						  initial_payment = '" . $wpdb->escape($ml_initial_payment) . "',
+						  billing_amount = '" . $wpdb->escape($ml_billing_amount) . "',
+						  cycle_number = '" . $wpdb->escape($ml_cycle_number) . "',
+						  cycle_period = '" . $wpdb->escape($ml_cycle_period) . "',
+						  billing_limit = '" . $wpdb->escape($ml_billing_limit) . "',
+						  trial_amount = '" . $wpdb->escape($ml_trial_amount) . "',
+						  trial_limit = '" . $wpdb->escape($ml_trial_limit) . "',                    
+						  expiration_number = '" . $wpdb->escape($ml_expiration_number) . "',
+						  expiration_period = '" . $wpdb->escape($ml_expiration_period) . "',
+						  allow_signups = '" . $wpdb->escape($ml_allow_signups) . "'
 						WHERE id = '$saveid' LIMIT 1;";	 
 			$wpdb->query($sqlQuery);
 			
@@ -106,17 +127,18 @@
 		else
 		{
 			$sqlQuery = " INSERT INTO {$wpdb->pmpro_membership_levels}
-						( name, description, initial_payment, billing_amount, cycle_number, cycle_period, billing_limit, trial_amount, trial_limit, expiration_number, expiration_period, allow_signups)
+						( name, description, confirmation, initial_payment, billing_amount, cycle_number, cycle_period, billing_limit, trial_amount, trial_limit, expiration_number, expiration_period, allow_signups)
 						VALUES
-						( '$ml_name', '$ml_description', '$ml_initial_payment', '$ml_billing_amount', '$ml_cycle_number', '$ml_cycle_period', '$ml_billing_limit', '$ml_trial_amount', '$ml_trial_limit', '$ml_expiration_number', '$ml_expiration_period', '$ml_allow_signups' )";
+						( '" . $wpdb->escape($ml_name) . "', '" . $wpdb->escape($ml_description) . "', '" . $wpdb->escape($ml_confirmation) . "', '" . $wpdb->escape($ml_initial_payment) . "', '" . $wpdb->escape($ml_billing_amount) . "', '" . $wpdb->escape($ml_cycle_number) . "', '" . $wpdb->escape($ml_cycle_period) . "', '" . $wpdb->escape($ml_billing_limit) . "', '" . $wpdb->escape($ml_trial_amount) . "', '" . $wpdb->escape($ml_trial_limit) . "', '" . $wpdb->escape($ml_expiration_number) . "', '" . $wpdb->escape($ml_expiration_period) . "', '" . $wpdb->escape($ml_allow_signups) . "' )";
 			$wpdb->query($sqlQuery);
 			if(!mysql_errno())
 			{
-				pmpro_updateMembershipCategories( $wpdb->insert_id, $ml_categories );
+				$saveid = $wpdb->insert_id;
+				pmpro_updateMembershipCategories( $saveid, $ml_categories );
 				
 				$edit = false;
 				$msg = 1;
-				$msgt = "Membership level added successfully.";								
+				$msgt = "Membership level added successfully.";															
 			}
 			else
 			{
@@ -124,6 +146,8 @@
 				$msgt = "Error adding membership level.";
 			}
 		}
+		
+		do_action("pmpro_save_membership_level", $saveid);
 	}	
 	elseif($action == "delete_membership_level")
 	{
@@ -187,7 +211,7 @@
 	require_once(dirname(__FILE__) . "/admin_header.php");		
 ?>
 
-<?php	
+<?php		
 	if($edit)
 	{			
 	?>
@@ -204,34 +228,50 @@
 	<div>
 		<?php
 			// get the level...
-			if($edit > 0)
+			if(!empty($edit) && $edit > 0)
 			{
 				$level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '$edit' LIMIT 1", OBJECT);
 				$temp_id = $level->id;
 			}
-			elseif($copy > 0)		
+			elseif(!empty($copy) && $copy > 0)		
 			{	
 				$level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '$copy' LIMIT 1", OBJECT);
 				$temp_id = $level->id;
 				$level->id = NULL;
 			}
+			else
 
 			// didn't find a membership level, let's add a new one...
-			if(!$level) $edit = -1;
-
-			//defaults for new levels
-			if($edit == -1)
+			if(empty($level))
 			{
 				$level = new stdClass();
+				$level->id = NULL;
+				$level->name = NULL;
+				$level->description = NULL;
+				$level->confirmation = NULL;
+				$level->billing_amount = NULL;
+				$level->trial_amount = NULL;
+				$level->initial_payment = NULL;
+				$level->billing_limit = NULL;
+				$level->trial_limit = NULL;
+				$level->expiration_number = NULL;
+				$level->expiration_period = NULL;
+				$edit = -1;
+			}	
+
+			//defaults for new levels
+			if(empty($copy) && $edit == -1)
+			{			
 				$level->cycle_number = 1;
 				$level->cycle_period = "Month";
 			}
 			
 			// grab the categories for the given level...
-			$level->categories = $wpdb->get_col("SELECT c.category_id
+			if(!empty($temp_id))
+				$level->categories = $wpdb->get_col("SELECT c.category_id
 												FROM $wpdb->pmpro_memberships_categories c
 												WHERE c.membership_id = '" . $temp_id . "'");       		
-			if(!$level->categories)
+			if(empty($level->categories))
 				$level->categories = array();	
 			
 		?>
@@ -253,8 +293,35 @@
 				<tr>
 					<th scope="row" valign="top"><label for="description">Description:</label></th>
 					<td>
-						<div id="poststuff" class="pmpro_description">
-						<textarea rows="10" cols="80" name="description" id="description"><?php echo str_replace("\"", "&quot;", stripslashes($level->description))?></textarea>							
+						<div id="poststuff" class="pmpro_description">						
+						<?php 							
+							if(version_compare($wp_version, "3.3") >= 0)
+								wp_editor(stripslashes($level->description), "description", array("textarea_rows"=>5)); 
+							else
+							{
+							?>
+							<textarea rows="10" cols="80" name="description" id="description"><?php echo stripslashes($level->description)?></textarea>
+							<?php
+							}
+						?>	
+						</div>    
+					</td>
+				</tr>
+				
+				<tr>
+					<th scope="row" valign="top"><label for="confirmation">Confirmation Message:</label></th>
+					<td>
+						<div class="pmpro_confirmation">					
+						<?php 
+							if(version_compare($wp_version, "3.3") >= 0)
+								wp_editor(stripslashes($level->confirmation), "confirmation", array("textarea_rows"=>5)); 
+							else
+							{
+							?>
+							<textarea rows="10" cols="80" name="confirmation" id="confirmation"><?php echo stripslashes($level->confirmation)?></textarea>	
+							<?php
+							}
+						?>	
 						</div>    
 					</td>
 				</tr>
@@ -289,7 +356,12 @@
 							}
 						  ?>
 						</select>
-						<br /><small>The amount to be billed one cycle after the initial payment.</small>							
+						<br /><small>
+							The amount to be billed one cycle after the initial payment.
+							<?php if($gateway == "stripe") { ?>
+								<br /><strong <?php if(!empty($pmpro_stripe_error)) { ?>class="pmpro_red"<?php } ?>>Stripe integration currently only supports billing periods of "1 Month" or "1 Year".
+							<?php } ?>
+						</small>							
 					</td>
 				</tr>                                        
 				
@@ -297,7 +369,12 @@
 					<th scope="row" valign="top"><label for="billing_limit">Billing Cycle Limit:</label></th>
 					<td>
 						<input name="billing_limit" type="text" size="20" value="<?php echo $level->billing_limit?>" />
-						<br /><small>The <strong>total</strong> number of recurring billing cycles for this level, including the trial period (if applicable) but not including the initial payment. Set to zero if membership is indefinite.</small>
+						<br /><small>
+							The <strong>total</strong> number of recurring billing cycles for this level, including the trial period (if applicable) but not including the initial payment. Set to zero if membership is indefinite.
+							<?php if($gateway == "stripe") { ?>
+								<br /><strong <?php if(!empty($pmpro_stripe_error)) { ?>class="pmpro_red"<?php } ?>>Stripe integration currently does not support billing limits. You can still set an expiration date below.</strong>
+							<?php } ?>
+						</small>
 					</td>
 				</tr>            								
 
@@ -312,7 +389,12 @@
 						<?php echo $pmpro_currency_symbol?><input name="trial_amount" type="text" size="20" value="<?php echo str_replace("\"", "&quot;", stripslashes($level->trial_amount))?>" />
 						<small>for the first</small>
 						<input name="trial_limit" type="text" size="10" value="<?php echo str_replace("\"", "&quot;", stripslashes($level->trial_limit))?>" />
-						<small>subscription payments.</small>																			
+						<small>subscription payments.</small>	
+						<?php if($gateway == "stripe") { ?>
+							<br /><small>
+							<strong <?php if(!empty($pmpro_stripe_error)) { ?>class="pmpro_red"<?php } ?>>Stripe integration currently does not support trial amounts greater than $0.</strong>
+							</small>
+						<?php } ?>						
 					</td>
 				</tr>
 									 
@@ -332,7 +414,7 @@
 				</tr>
 				
 				<tr class="expiration_info" <?php if(!pmpro_isLevelExpiring($level)) {?>style="display: none;"<?php } ?>>
-					<th scope="row" valign="top"><label for="billing_amount">Expire In:</label></th>
+					<th scope="row" valign="top"><label for="billing_amount">Expires In:</label></th>
 					<td>							
 						<input id="expiration_number" name="expiration_number" type="text" size="10" value="<?php echo str_replace("\"", "&quot;", stripslashes($level->expiration_number))?>" />
 						<select id="expiration_period" name="expiration_period">
@@ -345,11 +427,14 @@
 							}
 						  ?>
 						</select>
-						<br /><small>How long before the expiration expires. Not that any future payments will be canceled when the membership expires.</small>							
+						<br /><small>How long before the expiration expires. Note that any future payments will be canceled when the membership expires.</small>							
 					</td>
-				</tr> 
+				</tr> 								
 			</tbody>
 		</table>
+		
+		<?php do_action("pmpro_membership_level_after_other_settings"); ?>				
+		
 		<h3 class="topborder">Content Settings</h3>
 		<table class="form-table">
 			<tbody>
@@ -372,7 +457,7 @@
 		</table>			
 		<p class="submit topborder">
 			<input name="save" type="submit" class="button-primary" value="Save Level" /> 					
-			<input name="cancel" type="button" value="Cancel" onclick="location.href='<?php echo home_url('/wp-admin/admin.php?page=pmpro-membershiplevels')?>';" /> 					
+			<input name="cancel" type="button" value="Cancel" onclick="location.href='<?php echo get_admin_url(NULL, '/admin.php?page=pmpro-membershiplevels')?>';" /> 					
 		</p>
 	</form>
 	</div>
@@ -422,7 +507,7 @@
 			foreach($levels as $level)
 			{
 		?>
-		<tr <?php if(!$level->allow_signups) { ?>class="pmpro_gray"<?php } ?>>
+		<tr class="<?php if(!$level->allow_signups) { ?>pmpro_gray<?php } ?> <?php if(!pmpro_checkLevelForStripeCompatibilty($level)) { ?>pmpro_error<?php } ?>">
 			<td><?php echo $level->id?></td>
 			<td><?php echo $level->name?></td>
 			<td>
