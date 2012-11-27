@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal, stripe
 Requires at least: 3.0
 Tested up to: 3.4.2
-Stable tag: 1.5.4
+Stable tag: 1.5.5
 
 A customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -51,6 +51,15 @@ If you would like more help using PMPro on a network install, sign up for suppor
 3. Use Discount Codes to offer access at lower prices for special customers.
 
 == Changelog ==
+= 1.5.5 =
+* Updated pmpro_check_site_url_for_https function to cache the siteurl to limit DB queries.
+* Added includes/filters.php to store hacks/filters/actions that were originally developed outside of the PMPro core and brought in later... or just things that are cleaner/easier to impement via hooks and filters.
+* Added a "delay" property to the membership shortcode. E.g. [membership level="1" delay="7"]...[/membership] will show that content if a member has had level 1 for at least 7 days.
+* If a member checks out for the same level again (extending their membership), the startdate added to pmpro_memberships_users will be their old startdate.
+* If a member checks out for the same level again, the remaining days on their existing membership will be added to their new enddate. So e.g. if a user starts an annual membership in April 2013, then checks out again (extends) their membership in February 2014, their new enddate will be April 2015 instead of February 2015. (NOTE: if you were doing this through the custom code here - https://gist.github.com/3678054 - you should remove your custom code.)
+* Fixed bug where you couldn't remove all required membership levels from a page/post. (Thanks, lisaleague)
+* Updated the button CSS included in paid-memberships-pro/css/frontend.css. I added a pmpro_ prefix to these classes so they don't conflict with other .btn CSS rules. I also changed the rules a bit to show the buttons more consistently. If you relied on the old CSS rules, you may need to tweak your theme to get things looking right.
+
 = 1.5.4 =
 * Added a gateway check to preheaders/checkout.php. Mischivous users used to be able to bypass payment by passing &gateway=check or something similar to the checkout page. PMPro would then use the check gateway to checkout. Now only the active gateway option in the payments settings or gateways added via the new pmpro_valid_gateways filter (1 parameter is the array of gateways, add/edit the gateways and return the array). It is important that all PMPro users upgrade to keep mischivious users from accessing your site for free. Any site currently enabling multiple gateway options will need to add code to set the valid gateways. More info here: http://www.paidmembershipspro.com/2012/06/offering-multiple-gateway-options-at-checkout/
 * Fixed bug where level restrictions would be deleted if a page were updated via quick edit.

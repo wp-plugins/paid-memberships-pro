@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships
-Version: 1.5.4
+Version: 1.5.5
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -32,6 +32,7 @@ require_once(PMPRO_DIR . "/scheduled/crons.php");
 //require_once(PMPRO_DIR . "/classes/class.pmprogateway.php");
 require_once(PMPRO_DIR . "/classes/class.memberorder.php");
 require_once(PMPRO_DIR . "/classes/class.pmproemail.php");
+require_once(PMPRO_DIR . "/includes/filters.php");
 require_once(ABSPATH . "wp-includes/class-phpmailer.php");
 
 //setup the DB
@@ -43,7 +44,7 @@ $urlparts = explode("//", home_url());
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.5.4");
+define("PMPRO_VERSION", "1.5.5");
 define("PMPRO_DOMAIN", pmpro_getDomainFromURL(site_url()));
 
 global $gateway_environment;
@@ -1028,9 +1029,12 @@ function pmpro_page_save($post_id)
 	}
 
 	// OK, we're authenticated: we need to find and save the data	
-	if(isset($_POST['page_levels']))
+	if(isset($_POST['pmpro_noncename']))
 	{
-		$mydata = $_POST['page_levels'];
+		if(!empty($_POST['page_levels']))
+			$mydata = $_POST['page_levels'];
+		else
+			$mydata = NULL;
 	
 		//remove all memberships for this page
 		$wpdb->query("DELETE FROM {$wpdb->pmpro_memberships_pages} WHERE page_id = '$post_id'");
@@ -1240,13 +1244,15 @@ add_action('login_head', 'pmpro_besecure', 2);
 
 //If the site URL starts with https:, then force SSL/besecure to true. (Added 1.5.2)
 function pmpro_check_site_url_for_https($besecure)
-{
+{	
+	global $wpdb, $pmpro_siteurl;
+
 	//need to get this from the database because we filter get_option
-	global $wpdb;
-	$siteurl = $wpdb->get_var("SELECT option_value FROM $wpdb->options WHERE option_name = 'siteurl' LIMIT 1");		
+	if(empty($pmpro_siteurl))
+		$pmpro_siteurl = $wpdb->get_var("SELECT option_value FROM $wpdb->options WHERE option_name = 'siteurl' LIMIT 1");		
 	
 	//entire site is over https?
-	if(strpos($siteurl, "https:") !== false)
+	if(strpos($pmpro_siteurl, "https:") !== false)
 		$besecure = true;
 	
 	return $besecure;
@@ -1347,12 +1353,17 @@ function pmpro_shortcode($atts, $content=null, $code="")
 	// examples: [membership level="3"]...[/membership]
 
 	extract(shortcode_atts(array(
-		'level' => NULL
+		'level' => NULL,
+		'delay' => NULL
 	), $atts));
 
-	global $current_user;
+	global $wpdb, $current_user;
 
-	if($level || $level === "0")
+	//guilty until proven innocent :)
+	$hasaccess = false;
+	
+	//does the user have the level specified?
+	if(!empty($level) || $level === "0")
 	{
 	   //they specified a level(s)
 	   if(strpos($level, ","))
@@ -1367,19 +1378,50 @@ function pmpro_shortcode($atts, $content=null, $code="")
 	   }
 
 	   if(pmpro_hasMembershipLevel($levels))
-	   {
-		   return apply_filters("the_content", $content);
-	   }
+		   $hasaccess = true;
 	}
 	else
 	{
 		//didn't specify a membership level, so check for any
 		if(!empty($current_user->membership_level->ID))
-			return apply_filters("the_content", $content);
+			$hasaccess = true;
 	}
 
-	//must not be a member
-	return "";	//just hide it
+	//is there a delay?
+	if($hasaccess && !empty($delay))
+	{
+		//okay, this post requires membership. start by getting the user's startdate
+		if(!empty($levels))
+			$sqlQuery = "SELECT UNIX_TIMESTAMP(startdate) FROM $wpdb->pmpro_memberships_users WHERE status = 'active' AND membership_id IN(" . implode(",", $levels) . ") AND user_id = '" . $current_user->ID . "' ORDER BY id LIMIT 1";		
+		else
+			$sqlQuery = "SELECT UNIX_TIMESTAMP(startdate) FROM $wpdb->pmpro_memberships_users WHERE status = 'active' AND user_id = '" . $current_user->ID . "' ORDER BY id LIMIT 1";		
+		
+		$startdate = $wpdb->get_var($sqlQuery);
+		
+		//adjust start date to 12AM
+		$startdate = strtotime(date("Y-m-d", $startdate));
+		
+		if(empty($startdate))
+		{
+			//user doesn't have an active membership level
+			$hasaccess = false;
+		}
+		else
+		{
+			//how many days has this user been a member?
+			$now = time();
+			$days = ($now - $startdate)/3600/24;
+						
+			if($days < intval($delay))				
+				$hasaccess = false;	//they haven't been around long enough yet
+		}
+	}
+	
+	//to show or not to show
+	if($hasaccess)	
+		return do_shortcode($content);	//show content
+	else	
+		return "";	//just hide it
 }
 add_shortcode("membership", "pmpro_shortcode");
 
