@@ -2,6 +2,11 @@
 	global $wpdb, $current_user, $pmpro_msg, $pmpro_msgt, $pmpro_currency_symbol, $show_paypal_link;
 	global $bfirstname, $blastname, $baddress1, $baddress2, $bcity, $bstate, $bzipcode, $bcountry, $bphone, $bemail, $bconfirmemail, $CardType, $AccountNumber, $ExpirationMonth, $ExpirationYear;
 	
+	$gateway = pmpro_getOption("gateway");
+	
+	//set to true via filter to have Stripe use the minimal billing fields
+	$pmpro_stripe_lite = apply_filters("pmpro_stripe_lite", false);
+	
 	$level = $current_user->membership_level;
 	if($level) 
 	{ 
@@ -59,6 +64,7 @@
 				}
 			?>                        	                       	                       														          
 										
+			<?php if(empty($pmpro_stripe_lite) && $gateway == "stripe") { ?>
 			<table id="pmpro_billing_address_fields" class="pmpro_checkout" width="100%" cellpadding="0" cellspacing="0" border="0">
 			<thead>
 				<tr>
@@ -109,7 +115,47 @@
 							?>
 								<div>
 									<label for="bcity_state_zip">City, State Zip</label>
-									<input id="bcity" name="bcity" type="text" class="input" size="14" value="<?php echo esc_attr($bcity)?>" />, <input id="bstate" name="bstate" type="text" class="input" size="2" value="<?php echo esc_attr($bstate)?>" /> <input id="bzipcode" name="bzipcode" type="text" class="input" size="5" value="<?php echo esc_attr($bzipcode)?>" /> 
+									<input id="bcity" name="bcity" type="text" class="input" size="14" value="<?php echo esc_attr($bcity)?>" />, 
+									<?php
+										$state_dropdowns = apply_filters("pmpro_state_dropdowns", false);							
+										if($state_dropdowns === true || $state_dropdowns == "names")
+										{
+											global $pmpro_states;
+										?>
+										<select name="bstate">
+											<option value="">--</option>
+											<?php 									
+												foreach($pmpro_states as $ab => $st) 
+												{ 
+											?>
+												<option value="<?=$ab?>" <?php if($ab == $bstate) { ?>selected="selected"<?php } ?>><?=$st?></option>
+											<?php } ?>
+										</select>
+										<?php
+										}
+										elseif($state_dropdowns == "abbreviations")
+										{
+											global $pmpro_states_abbreviations;
+										?>
+											<select name="bstate">
+												<option value="">--</option>
+												<?php 									
+													foreach($pmpro_states_abbreviations as $ab) 
+													{ 
+												?>
+													<option value="<?=$ab?>" <?php if($ab == $bstate) { ?>selected="selected"<?php } ?>><?=$ab?></option>
+												<?php } ?>
+											</select>
+										<?php
+										}
+										else
+										{
+										?>	
+										<input id="bstate" name="bstate" type="text" class="input" size="2" value="<?php echo esc_attr($bstate)?>" /> 
+										<?php
+										}
+									?>									
+									<input id="bzipcode" name="bzipcode" type="text" class="input" size="5" value="<?php echo esc_attr($bzipcode)?>" /> 
 								</div>
 							<?php
 							}
@@ -141,7 +187,7 @@
 							else
 							{
 							?>
-								<input type="hidden" name="bcountry" value="US" />
+								<input type="hidden" id="bcountry" name="bcountry" value="US" />
 							<?php
 							}
 						?>
@@ -170,6 +216,7 @@
 				</tr>											
 			</tbody>
 			</table>                   
+			<?php } ?>
 			
 			<table id="pmpro_payment_information_fields" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0">
 			<thead>
@@ -189,24 +236,26 @@
 							<?php
 							}
 						?>
+						<?php if(empty($pmpro_stripe_lite) && $gateway == "stripe") { ?>
 						<div>				
 							<label for="CardType">Card Type</label>
-							<select name="CardType">
+							<select id="CardType" <?php if($gateway != "stripe") { ?>name="CardType"<?php } ?>>
 								<option value="Visa" <?php if($CardType == "Visa") { ?>selected="selected"<?php } ?>>Visa</option>
 								<option value="MasterCard" <?php if($CardType == "MasterCard") { ?>selected="selected"<?php } ?>>MasterCard</option>
 								<option value="Amex" <?php if($CardType == "Amex") { ?>selected="selected"<?php } ?>>American Express</option>
 								<option value="Discover" <?php if($CardType == "Discover") { ?>selected="selected"<?php } ?>>Discover</option>
 							</select> 
 						</div>
+						<?php } ?>
 					
 						<div>
 							<label for="AccountNumber">Card Number</label>
-							<input id="AccountNumber" name="AccountNumber"  class="input" type="text" size="25" value="<?php echo esc_attr($AccountNumber)?>" /> 
+							<input id="AccountNumber" <?php if($gateway != "stripe") { ?>name="AccountNumber"<?php } ?> class="input" type="text" size="25" value="<?php echo esc_attr($AccountNumber)?>" /> 
 						</div>
 					
 						<div>
 							<label for="ExpirationMonth">Expiration Date</label>
-							<select name="ExpirationMonth">
+							<select id="ExpirationMonth" <?php if($gateway != "stripe") { ?>name="ExpirationMonth"<?php } ?>>
 								<option value="01" <?php if($ExpirationMonth == "01") { ?>selected="selected"<?php } ?>>01</option>
 								<option value="02" <?php if($ExpirationMonth == "02") { ?>selected="selected"<?php } ?>>02</option>
 								<option value="03" <?php if($ExpirationMonth == "03") { ?>selected="selected"<?php } ?>>03</option>
@@ -219,7 +268,7 @@
 								<option value="10" <?php if($ExpirationMonth == "10") { ?>selected="selected"<?php } ?>>10</option>
 								<option value="11" <?php if($ExpirationMonth == "11") { ?>selected="selected"<?php } ?>>11</option>
 								<option value="12" <?php if($ExpirationMonth == "12") { ?>selected="selected"<?php } ?>>12</option>
-							</select>/<select name="ExpirationYear">
+							</select>/<select id="ExpirationYear" <?php if($gateway != "stripe") { ?>name="ExpirationYear"<?php } ?>>
 								<?php
 									for($i = date("Y"); $i < date("Y") + 10; $i++)
 									{
@@ -238,7 +287,7 @@
 						?>
 						<div>
 							<label for="CVV">CVV</label>
-							<input class="input" id="CVV" name="CVV" type="text" size="4" value="<?php if(!empty($_REQUEST['CVV'])) { echo esc_attr($_REQUEST['CVV']); }?>" />  <small>(<a href="#" onclick="javascript:window.open('<?php echo plugins_url( "/pages/popup-cvv.html", dirname(__FILE__))?>','cvv','toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=yes, resizable=yes, width=600, height=475');">what's this?</a>)</small>
+							<input class="input" id="CVV" <?php if($gateway != "stripe") { ?>name="CVV"<?php } ?> type="text" size="4" value="<?php if(!empty($_REQUEST['CVV'])) { echo esc_attr($_REQUEST['CVV']); }?>" />  <small>(<a href="#" onclick="javascript:window.open('<?php echo plugins_url( "/pages/popup-cvv.html", dirname(__FILE__))?>','cvv','toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=yes, resizable=yes, width=600, height=475');">what's this?</a>)</small>
 						</div>	
 						<?php
 							}

@@ -1,5 +1,5 @@
 <?php 
-	global $current_user, $pmpro_invoice, $pmpro_msg, $pmpro_msgt, $pmpro_currency_symbol;
+	global $wpdb, $current_user, $pmpro_invoice, $pmpro_msg, $pmpro_msgt, $pmpro_currency_symbol;
 	
 	if($pmpro_msg)
 	{
@@ -8,8 +8,12 @@
 	<?php
 	}
 	
-	$confirmation_message = "<p>Thank you for your membership to " . get_bloginfo('name') . ". Your " . $current_user->membership_level->name . " membership is now active.</p>";
-
+	$confirmation_message = "<p>Thank you for your membership to " . get_bloginfo('name') . ". Your " . $current_user->membership_level->name . " membership is now active.</p>";		
+	
+	//confirmation message for this level
+	$level_message = $wpdb->get_var("SELECT l.confirmation FROM $wpdb->pmpro_membership_levels l LEFT JOIN $wpdb->pmpro_memberships_users mu ON l.id = mu.membership_id WHERE mu.status = 'active' AND mu.user_id = '" . $current_user->ID . "' LIMIT 1");
+	if(!empty($level_message))
+		$confirmation_message .= "\n" . stripslashes($level_message) . "\n";
 ?>	
 
 <?php if($pmpro_invoice) { ?>		
@@ -19,9 +23,14 @@
 		$pmpro_invoice->getMembershipLevel();			
 		
 		$confirmation_message .= "<p>Below are details about your membership account and a receipt for your initial membership invoice. A welcome email with a copy of your initial membership invoice has been sent to <strong>" . $pmpro_invoice->user->user_email . "</strong>.</p>";
-		$confirmation_message = apply_filters("pmpro_confirmation_message", $confirmation_message, $pmpro_invoice);
 		
-		echo $confirmation_message;
+		//check instructions		
+		if($pmpro_invoice->gateway == "check" && !pmpro_isLevelFree($pmpro_invoice->membership_level))
+			$confirmation_message .= wpautop(pmpro_getOption("instructions"));
+		
+		$confirmation_message = apply_filters("pmpro_confirmation_message", $confirmation_message, $pmpro_invoice);				
+		
+		echo apply_filters("the_content", $confirmation_message);		
 	?>
 	
 	
@@ -41,7 +50,9 @@
 	<table id="pmpro_confirmation_table" class="pmpro_invoice" width="100%" cellpadding="0" cellspacing="0" border="0">
 		<thead>
 			<tr>
+				<?php if(!empty($pmpro_invoice->billing->name)) { ?>
 				<th>Billing Address</th>
+				<?php } ?>
 				<th>Payment Method</th>
 				<th>Membership Level</th>
 				<th>Total Billed</th>
@@ -49,14 +60,16 @@
 		</thead>
 		<tbody>
 			<tr>
+				<?php if(!empty($pmpro_invoice->billing->name)) { ?>
 				<td>
 					<?php echo $pmpro_invoice->billing->name?><br />
 					<?php echo $pmpro_invoice->billing->street?><br />						
 					<?php if($pmpro_invoice->billing->city && $pmpro_invoice->billing->state) { ?>
-						<?php echo $pmpro_invoice->billing->city?>, <?php echo $pmpro_invoice->billing->state?> <?php echo $pmpro_invoice->billing->zip?><br />												
+						<?php echo $pmpro_invoice->billing->city?>, <?php echo $pmpro_invoice->billing->state?> <?php echo $pmpro_invoice->billing->zip?> <?php echo $pmpro_invoice->billing->country?><br />												
 					<?php } ?>
 					<?php echo formatPhone($pmpro_invoice->billing->phone)?>
 				</td>
+				<?php } ?>
 				<td>
 					<?php if($pmpro_invoice->accountnumber) { ?>
 						<?php echo $pmpro_invoice->cardtype?> ending in <?php echo last4($pmpro_invoice->accountnumber)?><br />
