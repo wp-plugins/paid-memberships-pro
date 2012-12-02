@@ -234,6 +234,7 @@
 			{						
 				$plan = Stripe_Plan::create(array(
 				  "amount" => $amount * 100,
+				  "interval_count" => $order->BillingFrequency,
 				  "interval" => strtolower($order->BillingPeriod),
 				  "trial_period_days" => $trial_period_days,
 				  "name" => $order->membership_name . " for order " . $order->code,
@@ -301,7 +302,18 @@
 			if(!empty($this->customer))
 			{
 				//cancel
-				$this->customer->cancelSubscription();				
+				try 
+				{ 
+					$this->customer->cancelSubscription();								
+				}
+				catch(Exception $e)
+				{
+					$order->updateStatus("cancelled");	//assume it's been cancelled already
+					$order->error = "Could not find the subscription.";
+					$order->shorterror = $order->error;
+					return false;	//no subscription found	
+				}
+				
 				$order->updateStatus("cancelled");					
 				return true;
 			}

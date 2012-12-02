@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal, stripe
 Requires at least: 3.0
 Tested up to: 3.4.2
-Stable tag: 1.5.5
+Stable tag: 1.5.6
 
 A customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -50,7 +50,21 @@ If you would like more help using PMPro on a network install, sign up for suppor
 2. On-site checkout via Authorize.net or PayPal Website Payments Pro. (Off-site checkout coming soon.)
 3. Use Discount Codes to offer access at lower prices for special customers.
 
-== Changelog ==
+== Changelog == 
+= 1.5.6 =
+* Fixes in the new pmpro_getMemberStartdate and pmpro_getMemberDays functions.
+* Fixes to SQL queries for the expiration and trial ending crons.
+* Added a pmpro_required_user_fields filter similar to the pmpro_required_billing_fields filter.
+* Added a function pmpro_setMessage($message, $type) that sets $pmpro_msg and $pmpro_msgt globals if they aren't set already.
+* Added a function pmpro_getClassForField($field) that will return a string including "pmpro_error" or "pmpro_required" if applicable. You can filter the classes added to the fields via the pmpro_field_classes filter.
+* Showing * on required fields via javascript on the checkout page.
+* Updated checkout page to highlight in red fields that are related to the error message shown.
+* Added headers property to the PMProEmail object. You can add headers (e.g. to add a cc or bcc) to PMPro emails using the pmpro_email_headers filter.
+* Updated Stripe library to version 1.7.10. Updated PMPro to take advantage of new "interval_count" parameter in subscriptions, so you can now have subscriptions setup for "every 2 months", etc.
+* Fix to pmpro_checkout_start_date_keep_startdate filter added in 1.5.5
+* Added "Start Date" and "End Date" to emails sent to admins when a membership is cancelled.
+* Now checks for CSS files in a paid-memberships-pro subfolder of your active theme and uses those admin.css, frontend.css, and print.css files instead if they exist. (Going to move email and page template checks to that subfolder in the future as well.)
+
 = 1.5.5 =
 * Updated pmpro_check_site_url_for_https function to cache the siteurl to limit DB queries.
 * Added includes/filters.php to store hacks/filters/actions that were originally developed outside of the PMPro core and brought in later... or just things that are cleaner/easier to impement via hooks and filters.

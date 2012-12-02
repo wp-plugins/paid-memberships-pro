@@ -516,17 +516,20 @@
 		$pmpro_cancel_previous_subscriptions = apply_filters("pmpro_cancel_previous_subscriptions", true);
 		if($pmpro_cancel_previous_subscriptions)
 		{
-			//deactivate old memberships
-			foreach($old_levels as $old_level) {
-				$sql = "UPDATE $wpdb->pmpro_memberships_users SET `status`='inactive', `enddate`=NOW() WHERE `id`=".$old_level->subscription_id;
-				if(!$wpdb->query($sql))
-				{
-					$pmpro_error = "Error interacting with database: ".(mysql_errno()?mysql_error():'unavailable');
-					return false;
+			//deactivate old memberships (updates pmpro_memberships_users table)
+			if(!empty($old_levels))
+			{
+				foreach($old_levels as $old_level) {
+					$sql = "UPDATE $wpdb->pmpro_memberships_users SET `status`='inactive', `enddate`=NOW() WHERE `id`=".$old_level->subscription_id;
+					if(!$wpdb->query($sql))
+					{
+						$pmpro_error = "Error interacting with database: ".(mysql_errno()?mysql_error():'unavailable');
+						return false;
+					}
 				}
 			}
 
-			//cancel any other subscriptions they have
+			//cancel any other subscriptions they have (updates pmpro_membership_orders table)
 			$other_order_ids = $wpdb->get_col("SELECT id FROM $wpdb->pmpro_membership_orders WHERE user_id = '" . $user_id . "' AND status = 'success' ORDER BY id DESC");
 			foreach($other_order_ids as $order_id)
 			{
@@ -1381,10 +1384,10 @@
 			global $wpdb;
 			
 			if(!empty($level_id))
-				$sqlQuery = "SELECT UNIX_TIMESTAMP(startdate) FROM $wpdb->pmpro_memberships_users WHERE status = 'active' AND membership_id IN(" . $wpdb->escape($level_id) . ") AND user_id = '" . $current_user->ID . "' ORDER BY id LIMIT 1";		
+				$sqlQuery = "SELECT UNIX_TIMESTAMP(startdate) FROM $wpdb->pmpro_memberships_users WHERE status = 'active' AND membership_id IN(" . $wpdb->escape($level_id) . ") AND user_id = '" . $user_id . "' ORDER BY id LIMIT 1";		
 			else
 				$sqlQuery = "SELECT UNIX_TIMESTAMP(startdate) FROM $wpdb->pmpro_memberships_users WHERE status = 'active' AND user_id = '" . $user_id . "' ORDER BY id LIMIT 1";		
-					
+						
 			$startdate = $wpdb->get_var($sqlQuery);
 			
 			$pmpro_startdates[$user_id][$level_id] = $startdate;
@@ -1411,10 +1414,51 @@
 				
 			$now = time();
 			$days = ($now - $startdate)/3600/24;
-		
+					
 			$pmpro_member_days[$user_id][$level_id] = $days;
 		}
 		
 		return $pmpro_member_days[$user_id][$level_id];
+	}
+	
+	//the start of a message handling script
+	function pmpro_setMessage($message, $type, $force = false)
+	{
+		global $pmpro_msg, $pmpro_msgt;
+		
+		//for now, we only show the first message generated
+		if($force || empty($pmpro_msg))
+		{
+			$pmpro_msg = $message;
+			$pmpro_msgt = $type;
+		}
+	}
+	
+	//used in class definitions for input fields to see if there was an error
+	function pmpro_getClassForField($field)
+	{
+		global $pmpro_error_fields, $pmpro_required_billing_fields, $pmpro_required_user_fields;
+		$classes = array();
+
+		//error on this field?
+		if(in_array($field, $pmpro_error_fields))
+		{
+			$classes[] = "pmpro_error";
+		}		
+		
+		$required_fields = array_merge(array_keys($pmpro_required_billing_fields), array_keys($pmpro_required_user_fields));
+		
+		//required?
+		if(in_array($field, $required_fields))
+		{
+			$classes[] = "pmpro_required";
+		}	
+					
+		$classes = apply_filters("pmpro_field_classes", $classes, $field);
+		
+		if(!empty($classes))
+			return implode(" ", $classes);
+		else
+			return "";
 	}
 ?>
