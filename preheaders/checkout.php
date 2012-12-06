@@ -17,7 +17,10 @@
 		$gateway = pmpro_getOption("gateway");			
 	
 	//set valid gateways - the active gateway in the settings and any gateway added through the filter will be allowed
-	$valid_gateways = apply_filters("pmpro_valid_gateways", array(pmpro_getOption("gateway", true)));
+	if(pmpro_getOption("gateway", true) == "paypal")
+		$valid_gateways = apply_filters("pmpro_valid_gateways", array("paypal", "paypalexpress"));
+	else
+		$valid_gateways = apply_filters("pmpro_valid_gateways", array(pmpro_getOption("gateway", true)));
 		
 	//let's add an error now, if an invalid gateway is set
 	if(!in_array($gateway, $valid_gateways))
@@ -764,7 +767,8 @@
 		if(!$current_user->ID)
 		{
 			// create user
-			require_once( ABSPATH . WPINC . '/registration.php');
+			if(version_compare($wp_version, "3.1") < 0)
+				require_once( ABSPATH . WPINC . '/registration.php');	//need this for WP versions before 3.1
 			$user_id = wp_insert_user(array(
 							"user_login" => $username,							
 							"user_pass" => $password,
