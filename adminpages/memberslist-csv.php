@@ -1,10 +1,12 @@
-<?php
-	//this file is launched via AJAX to get various data from the DB for the stranger_products plugin
-
-	//wp includes
-	define('WP_USE_THEMES', false);
-	require('../../../../wp-load.php');
-
+<?php	
+	//only admins can get this
+	if(!function_exists("current_user_can") || !current_user_can("manage_options"))
+	{
+		die("You do not have permissions to perform this action.");
+	}	
+	
+	global $wpdb;	
+	
 	//get users	
 	if(isset($_REQUEST['s']))
 		$s = $_REQUEST['s'];
@@ -35,17 +37,17 @@
 		
 	if($s)
 	{
-		$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, mu.membership_id, mu.billing_amount, mu.cycle_period, UNIX_TIMESTAMP(mu.enddate) as enddate, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->usermeta um ON u.ID = um.user_id LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id WHERE mu.membership_id > 0 AND (u.user_login LIKE '%$s%' OR u.user_email LIKE '%$s%' OR um.meta_value LIKE '%$s%') ";
+		$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, u.user_login, u.user_nicename, u.user_url, u.user_registered, u.user_status, u.display_name, mu.membership_id, mu.initial_payment, mu.billing_amount, mu.cycle_period, UNIX_TIMESTAMP(mu.enddate) as enddate, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->usermeta um ON u.ID = um.user_id LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id WHERE mu.status = 'active' AND mu.membership_id > 0 AND (u.user_login LIKE '%" . $wpdb->escape($s) . "%' OR u.user_email LIKE '%" . $wpdb->escape($s) . "%' OR um.meta_value LIKE '%" . $wpdb->escape($s) . "%') ";
 	
 		if($l)
-			$sqlQuery .= " AND mu.membership_id = '" . $l . "' ";					
+			$sqlQuery .= " AND mu.membership_id = '" . $wpdb->escape($l) . "' ";					
 			
 		$sqlQuery .= "GROUP BY u.ID ORDER BY user_registered DESC LIMIT $start, $limit";
 	}
 	else
 	{
-		$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, mu.membership_id, mu.billing_amount, mu.cycle_period, UNIX_TIMESTAMP(mu.enddate) as enddate, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id ";
-		$sqlQuery .= "WHERE mu.membership_id > 0 ";
+		$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, u.user_login, u.user_nicename, u.user_url, u.user_registered, u.user_status, u.display_name, mu.membership_id, mu.initial_payment, mu.billing_amount, mu.cycle_period, UNIX_TIMESTAMP(mu.enddate) as enddate, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id";
+		$sqlQuery .= " WHERE mu.membership_id > 0 AND mu.status = 'active' ";
 		if($l)
 			$sqlQuery .= " AND mu.membership_id = '" . $l . "' ";										
 		$sqlQuery .= "ORDER BY user_registered DESC ";
@@ -54,7 +56,19 @@
 	}
 		
 	$theusers = $wpdb->get_results($sqlQuery);	
-	$csvoutput = "id,username,firstname,lastname,email,billing firstname,billing lastname,address1,address2,city,state,zipcode,phone,membership,fee,term,joined,expires\n";	
+	$csvoutput = "id,username,firstname,lastname,email,billing firstname,billing lastname,address1,address2,city,state,zipcode,country,phone,membership,initial payment,fee,term,joined,expires";
+	
+	//any extra columns
+	$extra_columns = apply_filters("pmpro_members_list_csv_extra_columns", array());
+	if(!empty($extra_columns))
+	{
+		foreach($extra_columns as $heading => $callback)
+		{
+			$csvoutput .= "," . $heading;
+		}
+	}
+	
+	$csvoutput .= "\n";	
 	
 	if($theusers)
 	{
@@ -63,7 +77,14 @@
 			//get meta
 			$sqlQuery = "SELECT meta_key as `key`, meta_value as `value` FROM $wpdb->usermeta WHERE $wpdb->usermeta.user_id = '" . $theuser->ID . "'";					
 			$metavalues = pmpro_getMetavalues($sqlQuery);	
-
+			$theuser->metavalues = $metavalues;
+			
+			/*
+				Fixing notice with bcountry. Should probably check other values just in case.				
+			*/
+			if(empty($metavalues->pmpro_bcountry))
+				$metavalues->pmpro_bcountry = "";
+			
 			$csvoutput .= enclose($theuser->ID) . "," .
 						  enclose($theuser->user_login) . "," .						  
 						  enclose($metavalues->first_name) . "," .
@@ -76,8 +97,10 @@
 						  enclose($metavalues->pmpro_bcity) . "," .
 						  enclose($metavalues->pmpro_bstate) . "," .
 						  enclose($metavalues->pmpro_bzipcode) . "," .
+						  enclose($metavalues->pmpro_bcountry) . "," .
 						  enclose($metavalues->pmpro_bphone) . "," .
 						  enclose($theuser->membership) . "," .
+						  enclose($theuser->initial_payment) . "," .
 						  enclose($theuser->billing_amount) . "," .
 						  enclose($theuser->cycle_period) . "," .					  
 						  enclose(date("m/d/Y", $theuser->joindate)) . ",";
@@ -85,6 +108,16 @@
 				$csvoutput .= enclose(date("m/d/Y", $theuser->enddate));
 			else
 				$csvoutput .= enclose("Never");
+				
+			//any extra columns			
+			if(!empty($extra_columns))
+			{
+				foreach($extra_columns as $heading => $callback)
+				{
+					$csvoutput .= "," . enclose(call_user_func($callback, $theuser));
+				}
+			}
+				
 			$csvoutput .= "\n";
 											
 		}
@@ -94,11 +127,11 @@
 	header("Content-type: text/csv");
 	//header("Content-type: application/vnd.ms-excel");
 	if($s && $l)
-		header("Content-Disposition: attachment; filename=members_list_" . $l . "_level" . $s . ".csv; size=$size_in_bytes");
+		header("Content-Disposition: attachment; filename=members_list_" . intval($l) . "_level" . sanitize_file_name($s) . ".csv; size=$size_in_bytes");
 	elseif($s)
-		header("Content-Disposition: attachment; filename=members_list_" . $s . ".csv; size=$size_in_bytes");
+		header("Content-Disposition: attachment; filename=members_list_" . sanitize_file_name($s) . ".csv; size=$size_in_bytes");
 	elseif($l)
-		header("Content-Disposition: attachment; filename=members_list_level" . $l . ".csv; size=$size_in_bytes");
+		header("Content-Disposition: attachment; filename=members_list_level" . intval($l) . ".csv; size=$size_in_bytes");
 	else
 		header("Content-Disposition: attachment; filename=members_list.csv; size=$size_in_bytes");
 	

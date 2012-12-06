@@ -1,4 +1,10 @@
 <?php
+	//only admins can get this
+	if(!function_exists("current_user_can") || !current_user_can("manage_options"))
+	{
+		die("You do not have permissions to perform this action.");
+	}	
+	
 	//vars
 	global $wpdb, $pmpro_currency_symbol;
 	
@@ -72,14 +78,18 @@
 		{
 			//get the submitted values
 			$all_levels_a = $_REQUEST['all_levels'];
-			$levels_a = $_REQUEST['levels'];
+			if(!empty($_REQUEST['levels']))
+				$levels_a = $_REQUEST['levels'];
+			else
+				$levels_a = array();
 			$initial_payment_a = $_REQUEST['initial_payment'];
 			$recurring_a = $_REQUEST['recurring'];
 			$billing_amount_a = $_REQUEST['billing_amount'];
 			$cycle_number_a = $_REQUEST['cycle_number'];
 			$cycle_period_a = $_REQUEST['cycle_period'];
 			$billing_limit_a = $_REQUEST['billing_limit'];
-			$custom_trial_a = $_REQUEST['custom_trial'];
+			if(!empty($_REQUEST['custom_trial']))
+				$custom_trial_a = $_REQUEST['custom_trial'];
 			$trial_amount_a = $_REQUEST['trial_amount'];
 			$trial_limit_a = $_REQUEST['trial_limit'];						
 			$expiration_a = $_REQUEST['expiration'];
@@ -91,99 +101,103 @@
 			$wpdb->query($sqlQuery);
 			
 			//add a row for each checked level
-			foreach($levels_a as $level_id)
+			if(!empty($levels_a))
 			{
-				//get the values ready
-				$n = array_search($level_id, $all_levels_a); 	//this is the key location of this level's values
-				$initial_payment = $initial_payment_a[$n];
-				
-				//is this recurring?
-				if($recurring_a)
+				foreach($levels_a as $level_id)
 				{
-					if(in_array($level_id, $recurring_a))
-						$recurring = 1;
+					//get the values ready
+					$n = array_search($level_id, $all_levels_a); 	//this is the key location of this level's values
+					$initial_payment = $initial_payment_a[$n];
+					
+					//is this recurring?
+					if($recurring_a)
+					{
+						if(in_array($level_id, $recurring_a))
+							$recurring = 1;
+						else
+							$recurring = 0;
+					}
 					else
 						$recurring = 0;
-				}
-				else
-					$recurring = 0;
-						
-				if($recurring)
-				{
-					$billing_amount = $billing_amount_a[$n];
-					$cycle_number = $cycle_number_a[$n];
-					$cycle_period = $cycle_period_a[$n];
-					$billing_limit = $billing_limit_a[$n];
-					
-					//custom trial
-					if($custom_trial_a)
+							
+					if($recurring)
 					{
-						if(in_array($level_id, $custom_trial_a))
-							$custom_trial = 1;
+						$billing_amount = $billing_amount_a[$n];
+						$cycle_number = $cycle_number_a[$n];
+						$cycle_period = $cycle_period_a[$n];
+						$billing_limit = $billing_limit_a[$n];
+						
+						//custom trial
+						if(!empty($custom_trial_a))
+						{
+							if(in_array($level_id, $custom_trial_a))
+								$custom_trial = 1;
+							else
+								$custom_trial = 0;
+						}
 						else
 							$custom_trial = 0;
+						
+						if(!empty($custom_trial))
+						{
+							$trial_amount = $trial_amount_a[$n];
+							$trial_limit = $trial_limit_a[$n];
+						}
+						else
+						{
+							$trial_amount = '';
+							$trial_limit = '';
+						}
 					}
 					else
+					{
+						$billing_amount = '';
+						$cycle_number = '';
+						$cycle_period = '';
+						$billing_limit = '';
 						$custom_trial = 0;
-					
-					if($custom_trial)
-					{
-						$trial_amount = $trial_amount_a[$n];
-						$trial_limit = $trial_limit_a[$n];
-					}
-					else
-					{
 						$trial_amount = '';
 						$trial_limit = '';
 					}
-				}
-				else
-				{
-					$billing_amount = '';
-					$cycle_number = '';
-					$cycle_period = '';
-					$billing_limit = '';
-					$custom_trial = 0;
-					$trial_amount = '';
-					$trial_limit = '';
-				}
-				
-				if($expiration_a)
-				{
-					if(in_array($level_id, $expiration_a))
-						$expiration = 1;
+					
+					if(!empty($expiration_a))
+					{
+						if(in_array($level_id, $expiration_a))
+							$expiration = 1;
+						else
+							$expiration = 0;
+					}
 					else
 						$expiration = 0;
-				}
-				else
-					$expiration = 0;
-				
-				if($expiration)
-				{
-					$expiration_number = $expiration_number_a[$n];
-					$expiration_period = $expiration_period_a[$n];
-				}
-				else
-				{
-					$expiration_number = '';
-					$expiration_period = '';
-				}
-				
-				//okay, do the insert
-				$sqlQuery = "INSERT INTO $wpdb->pmpro_discount_codes_levels (code_id, level_id, initial_payment, billing_amount, cycle_number, cycle_period, billing_limit, trial_amount, trial_limit, expiration_number, expiration_period) VALUES('" . $wpdb->escape($edit) . "', '" . $wpdb->escape($level_id) . "', '" . $wpdb->escape($initial_payment) . "', '" . $wpdb->escape($billing_amount) . "', '" . $wpdb->escape($cycle_number) . "', '" . $wpdb->escape($cycle_period) . "', '" . $wpdb->escape($billing_limit) . "', '" . $wpdb->escape($trial_amount) . "', '" . $wpdb->escape($trial_limit) . "', '" . $wpdb->escape($expiration_number) . "', '" . $wpdb->escape($expiration_period) . "')";
-								
-				if($wpdb->query($sqlQuery) !== false)
-				{
-					//okay
-				}
-				else
-				{
-					$level_errors[] = "Error saving values for the " . $wpdb->get_var("SELECT name FROM $wpdb->pmpro_membership_levels WHERE id = '" . $level_id . "' LIMIT 1") . " level.";
+					
+					if(!empty($expiration))
+					{
+						$expiration_number = $expiration_number_a[$n];
+						$expiration_period = $expiration_period_a[$n];
+					}
+					else
+					{
+						$expiration_number = '';
+						$expiration_period = '';
+					}
+					
+					//okay, do the insert
+					$sqlQuery = "INSERT INTO $wpdb->pmpro_discount_codes_levels (code_id, level_id, initial_payment, billing_amount, cycle_number, cycle_period, billing_limit, trial_amount, trial_limit, expiration_number, expiration_period) VALUES('" . $wpdb->escape($edit) . "', '" . $wpdb->escape($level_id) . "', '" . $wpdb->escape($initial_payment) . "', '" . $wpdb->escape($billing_amount) . "', '" . $wpdb->escape($cycle_number) . "', '" . $wpdb->escape($cycle_period) . "', '" . $wpdb->escape($billing_limit) . "', '" . $wpdb->escape($trial_amount) . "', '" . $wpdb->escape($trial_limit) . "', '" . $wpdb->escape($expiration_number) . "', '" . $wpdb->escape($expiration_period) . "')";
+									
+					if($wpdb->query($sqlQuery) !== false)
+					{
+						//okay												
+						do_action("pmpro_save_discount_code_level", $saveid, $level_id);						
+					}
+					else
+					{
+						$level_errors[] = "Error saving values for the " . $wpdb->get_var("SELECT name FROM $wpdb->pmpro_membership_levels WHERE id = '" . $level_id . "' LIMIT 1") . " level.";
+					}
 				}
 			}
 			
 			//errors?
-			if($level_errors)
+			if(!empty($level_errors))
 			{
 				$pmpro_msg = "There were errors updating the level values: " . explode(" ", $level_errors);
 				$pmpro_msgt = "error";				
@@ -192,16 +206,18 @@
 			{
 				//all good. set edit = NULL so we go back to the overview page
 				$edit = NULL;
+				
+				do_action("pmpro_save_discount_code", $saveid);
 			}
 		}
 	}
 	
 	//are we deleting?
-	if($delete)
+	if(!empty($delete))
 	{
 		//is this a code?
 		$code = $wpdb->get_var("SELECT code FROM $wpdb->pmpro_discount_codes WHERE id = '" . $delete . "' LIMIT 1");
-		if($code)
+		if(!empty($code))
 		{
 			//delete the code levels
 			$r1 = $wpdb->query("DELETE FROM $wpdb->pmpro_discount_codes_levels WHERE code_id = '" . $delete . "'");
@@ -266,7 +282,7 @@
 			?>
 		</h2>
 		
-		<?php if($pmpro_msg){?>
+		<?php if(!empty($pmpro_msg)) { ?>
 			<div id="message" class="<?php if($pmpro_msgt == "success") echo "updated fade"; else echo "error"; ?>"><p><?php echo $pmpro_msg?></p></div>
 		<?php } ?>
 		
@@ -276,11 +292,11 @@
 				if($edit > 0)
 				{
 					$code = $wpdb->get_row("SELECT *, UNIX_TIMESTAMP(starts) as starts, UNIX_TIMESTAMP(expires) as expires FROM $wpdb->pmpro_discount_codes WHERE id = '" . $edit . "' LIMIT 1", OBJECT);
-					$uses = $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->pmpro_discount_codes_uses WHERE code_id = '" . $code->ID . "'");
+					$uses = $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->pmpro_discount_codes_uses WHERE code_id = '" . $code->id . "'");
 					$levels = $wpdb->get_results("SELECT l.id, l.name, cl.initial_payment, cl.billing_amount, cl.cycle_number, cl.period, cl.billing_limit, cl.trial_amount, cl.trial_limit FROM $wpdb->pmpro_membership_levels l LEFT JOIN $wpdb->pmpro_discount_codes_levels cl ON l.id = cl.level_id WHERE cl.code_id = '" . $code->code . "'");
 					$temp_id = $code->id;
 				}
-				elseif($copy > 0)		
+				elseif(!empty($copy) && $copy > 0)		
 				{	
 					$code = $wpdb->get_row("SELECT *, UNIX_TIMESTAMP(starts) as starts, UNIX_TIMESTAMP(expires) as expires FROM $wpdb->pmpro_discount_codes WHERE id = '" . $copy . "' LIMIT 1", OBJECT);					
 					$temp_id = $level->id;
@@ -288,7 +304,7 @@
 				}
 
 				// didn't find a discount code, let's add a new one...
-				if(!$code->id) $edit = -1;
+				if(empty($code->id)) $edit = -1;
 
 				//defaults for new codes
 				if($edit == -1)
@@ -303,7 +319,7 @@
                 <tbody>
                     <tr>
                         <th scope="row" valign="top"><label>ID:</label></th>
-                        <td class="pmpro_lite"><?php if($code->id) echo $code->id; else echo "This will be generated when you save.";?></td>
+                        <td class="pmpro_lite"><?php if(!empty($code->id)) echo $code->id; else echo "This will be generated when you save.";?></td>
                     </tr>								                
                     
                     <tr>
@@ -314,31 +330,31 @@
 					<?php
 						//some vars for the dates
 						$current_day = date("j");
-						if($code->starts) 
+						if(!empty($code->starts))
 							$selected_starts_day = date("j", $code->starts);
 						else
 							$selected_starts_day = $current_day;
-						if($code->expires) 
+						if(!empty($code->expires))
 							$selected_expires_day = date("j", $code->expires);
 						else
 							$selected_expires_day = $current_day;
 							
 						$current_month = date("M");
-						if($code->starts) 
+						if(!empty($code->starts))
 							$selected_starts_month = date("m", $code->starts);
 						else
 							$selected_starts_month = date("m");
-						if($code->expires) 
+						if(!empty($code->expires))
 							$selected_expires_month = date("m", $code->expires);
 						else
 							$selected_expires_month = date("m");
 							
 						$current_year = date("Y");						
-						if($code->starts) 
+						if(!empty($code->starts))
 							$selected_starts_year = date("Y", $code->starts);
 						else
 							$selected_starts_year = $current_year;
-						if($code->expires) 
+						if(!empty($code->expires))
 							$selected_expires_year = date("Y", $code->expires);
 						else
 							$selected_expires_year = (int)$current_year + 1;
@@ -383,13 +399,15 @@
 					<tr>
                         <th scope="row" valign="top"><label for="uses">Uses:</label></th>
                         <td>
-							<input name="uses" type="text" size="10" value="<?php echo str_replace("\"", "&quot;", stripslashes($code->uses))?>" />
+							<input name="uses" type="text" size="10" value="<?php if(!empty($code->uses)) echo str_replace("\"", "&quot;", stripslashes($code->uses));?>" />
 							<small class="pmpro_lite">Leave blank for unlimited uses.</small>
 						</td>
                     </tr>
-                    
+                    					
 				</tbody>
 			</table>
+			
+			<?php do_action("pmpro_discount_code_after_settings"); ?>
 			
 			<h3>Which Levels Will This Code Apply To?</h3>
 			
@@ -415,9 +433,9 @@
 				?>
 				<div>
 					<input type="hidden" name="all_levels[]" value="<?php echo $level->id?>" />
-					<input type="checkbox" name="levels[]" value="<?php echo $level->id?>" <?php if($level->checked) { ?>checked="checked"<?php } ?> onclick="if(jQuery(this).is(':checked')) jQuery(this).next().show();	else jQuery(this).next().hide();" />
+					<input type="checkbox" name="levels[]" value="<?php echo $level->id?>" <?php if(!empty($level->checked)) { ?>checked="checked"<?php } ?> onclick="if(jQuery(this).is(':checked')) jQuery(this).next().show();	else jQuery(this).next().hide();" />
 					<?php echo $level->name?>
-					<div class="pmpro_discount_levels_pricing level_<?php echo $level->id?>" <?php if(!$level->checked) { ?>style="display: none;"<?php } ?>>
+					<div class="pmpro_discount_levels_pricing level_<?php echo $level->id?>" <?php if(empty($level->checked)) { ?>style="display: none;"<?php } ?>>
 						<table class="form-table">
 						<tbody>
 							<tr>
@@ -497,6 +515,8 @@
 						</tbody>
 					</table>
 					
+					<?php do_action("pmpro_discount_code_after_level_settings", $edit, $level); ?>
+					
 					</div>					
 				</div>
 				<script>												
@@ -509,7 +529,7 @@
 			
 			<p class="submit topborder">
 				<input name="save" type="submit" class="button-primary" value="Save Code" /> 					
-				<input name="cancel" type="button" value="Cancel" onclick="location.href='<?php echo home_url('/wp-admin/admin.php?page=pmpro-discountcodes')?>';" />
+				<input name="cancel" type="button" value="Cancel" onclick="location.href='<?php echo get_admin_url(NULL, '/admin.php?page=pmpro-discountcodes')?>';" />
 			</p>
 			</form>
 		</div>
@@ -521,7 +541,7 @@
 			<a href="admin.php?page=pmpro-discountcodes&edit=-1" class="button add-new-h2">Add New Discount Code</a>
 		</h2>		
 		
-		<?php if($pmpro_msg){?>
+		<?php if(!empty($pmpro_msg)) { ?>
 			<div id="message" class="<?php if($pmpro_msgt == "success") echo "updated fade"; else echo "error"; ?>"><p><?php echo $pmpro_msg?></p></div>
 		<?php } ?>
 		
@@ -529,7 +549,7 @@
 			<p class="search-box">
 				<label class="screen-reader-text" for="post-search-input">Search Discount Codes:</label>
 				<input type="hidden" name="page" value="pmpro-discountcodes" />
-				<input id="post-search-input" type="text" value="<?php echo $s?>" name="s" size="30" />
+				<input id="post-search-input" type="text" value="<?php if(!empty($s)) echo $s;?>" name="s" size="30" />
 				<input class="button" type="submit" value="Search" id="search-submit "/>
 			</p>		
 		</form>	
@@ -552,7 +572,7 @@
 		<tbody>
 			<?php
 				$sqlQuery = "SELECT *, UNIX_TIMESTAMP(starts) as starts, UNIX_TIMESTAMP(expires) as expires FROM $wpdb->pmpro_discount_codes ";
-				if($s)
+				if(!empty($s))
 					$sqlQuery .= "WHERE code LIKE '%$s%' ";
 				$sqlQuery .= "ORDER BY id ASC";
 				
