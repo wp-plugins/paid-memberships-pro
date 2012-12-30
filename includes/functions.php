@@ -28,7 +28,7 @@
 	
 	//from: http://stackoverflow.com/questions/5266945/wordpress-how-detect-if-current-page-is-the-login-page/5892694#5892694
 	function pmpro_is_login_page() {
-		return in_array($GLOBALS['pagenow'], array('wp-login.php', 'wp-register.php'));
+		return (in_array($GLOBALS['pagenow'], array('wp-login.php', 'wp-register.php')) || is_page("login"));
 	}
 	
 	//thanks: http://wordpress.org/support/topic/is_plugin_active
@@ -1047,7 +1047,7 @@
 		if(!empty($dbcode->starts) && $dbcode->starts > $today)
 		{
 			if($return_errors)
-				return array(false, "This discount code goes into effect on " . date("m/d/Y", $dbcode->starts) . ".");
+				return array(false, "This discount code goes into effect on " . date(get_option('date_format'), $dbcode->starts) . ".");
 			else
 				return false;
 		}
@@ -1056,7 +1056,7 @@
 		if(!empty($dbcode->expires) && $dbcode->expires < $today)
 		{
 			if($return_errors)
-				return array(false, "This discount code expired on " . date("m/d/Y", $dbcode->expires) . ".");
+				return array(false, "This discount code expired on " . date(get_option('date_format'), $dbcode->expires) . ".");
 			else
 				return false;
 		}
@@ -1150,6 +1150,8 @@
 			return false;
 		}
 
+		global $all_membership_levels;
+
 		if(isset($all_membership_levels[$user_id]))
 		{
 			return $all_membership_levels[$user_id];
@@ -1163,6 +1165,8 @@
 																mu.id as subscription_id,
 																l.name AS name,
 																l.description,
+																l.expiration_number,
+																l.expiration_period,
 																mu.initial_payment,
 																mu.billing_amount,
 																mu.cycle_number,
@@ -1210,6 +1214,8 @@
 									mu.id as subscription_id,
 									l.name,
 									l.description,
+									l.expiration_number,
+									l.expiration_period,
 									mu.initial_payment,
 									mu.billing_amount,
 									mu.cycle_number,

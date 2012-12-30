@@ -21,7 +21,7 @@
 	if(isset($_REQUEST['saveid']))
 		$saveid = $_POST['saveid'];
 	else
-		$saveid = false;
+		$saveid = false;			
 	
 	if($saveid)
 	{
@@ -83,7 +83,8 @@
 			else
 				$levels_a = array();
 			$initial_payment_a = $_REQUEST['initial_payment'];
-			$recurring_a = $_REQUEST['recurring'];
+			if(!empty($_REQUEST['recurring']))
+				$recurring_a = $_REQUEST['recurring'];
 			$billing_amount_a = $_REQUEST['billing_amount'];
 			$cycle_number_a = $_REQUEST['cycle_number'];
 			$cycle_period_a = $_REQUEST['cycle_period'];
@@ -92,7 +93,8 @@
 				$custom_trial_a = $_REQUEST['custom_trial'];
 			$trial_amount_a = $_REQUEST['trial_amount'];
 			$trial_limit_a = $_REQUEST['trial_limit'];						
-			$expiration_a = $_REQUEST['expiration'];
+			if(!empty($_REQUEST['expiration']))
+				$expiration_a = $_REQUEST['expiration'];
 			$expiration_number_a = $_REQUEST['expiration_number'];
 			$expiration_period_a = $_REQUEST['expiration_period'];
 			
@@ -110,7 +112,7 @@
 					$initial_payment = $initial_payment_a[$n];
 					
 					//is this recurring?
-					if($recurring_a)
+					if(!empty($recurring_a))
 					{
 						if(in_array($level_id, $recurring_a))
 							$recurring = 1;
@@ -120,7 +122,7 @@
 					else
 						$recurring = 0;
 							
-					if($recurring)
+					if(!empty($recurring))
 					{
 						$billing_amount = $billing_amount_a[$n];
 						$cycle_number = $cycle_number_a[$n];
@@ -597,10 +599,10 @@
 							<a href="?page=pmpro-discountcodes&edit=<?php echo $code->id?>"><?php echo $code->code?></a>
 						</td>
 						<td>
-							<?php echo date("m/d/Y", $code->starts)?>
+							<?php echo date(get_option('date_format'), $code->starts)?>
 						</td>
 						<td>
-							<?php echo date("m/d/Y", $code->expires)?>
+							<?php echo date(get_option('date_format'), $code->expires)?>
 						</td>				
 						<td>
 							<?php

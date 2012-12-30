@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships
-Version: 1.5.7
+Version: 1.5.8
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -44,7 +44,7 @@ $urlparts = explode("//", home_url());
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.5.7");
+define("PMPRO_VERSION", "1.5.8");
 define("PMPRO_DOMAIN", pmpro_getDomainFromURL(site_url()));
 
 global $gateway_environment;
@@ -168,6 +168,14 @@ function pmpro_set_current_user()
 			global $ezCount, $urCount;
 			$ezCount = 100;
 			$urCount = 100;
+		}
+		
+		//disable ads in Easy Adsense (newer versions)
+		if(class_exists("EzAdSense"))
+		{
+			global $ezAdSense;
+			$ezAdSense->ezCount = 100;
+			$ezAdSense->urCount = 100;
 		}
 
 		//set a global variable to hide ads
@@ -1179,6 +1187,10 @@ function pmpro_login_redirect($redirect_to, $request, $user)
 		//not logging in (login form) so return what was given		
 	}
 	
+	//let's strip the https if force_ssl_login is set, but force_ssl_admin is not
+	if(force_ssl_login() && !force_ssl_admin())
+		$redirect_to = str_replace("https:", "http:", $redirect_to);
+	
 	return apply_filters("pmpro_login_redirect_url", $redirect_to, $request, $user);
 }
 add_filter('login_redirect','pmpro_login_redirect', 10, 3);
@@ -1232,27 +1244,32 @@ function pmpro_besecure()
 	//check the post option
 	if(!empty($post->ID) && !$besecure)
 		$besecure = get_post_meta($post->ID, "besecure", true);
-	
-	if(!$besecure && (force_ssl_admin() || force_ssl_login()))
-		$besecure = true;
-
+		
+	//if forcing ssl on admin, be secure in admin and login page
+	if(!$besecure && force_ssl_admin() && (is_admin() || pmpro_is_login_page()))
+		$besecure = true;		
+		
+	//if forcing ssl on login, be secure on the login page
+	if(!$besecure && force_ssl_login() && pmpro_is_login_page())
+		$besecure = true;			
+		
 	$besecure = apply_filters("pmpro_besecure", $besecure);
-			
+						
 	if($besecure && (empty($_SERVER['HTTPS']) || $_SERVER['HTTPS'] == "off" || $_SERVER['HTTPS'] == "false"))
 	{
-		//need to be secure
+		//need to be secure		
 		wp_redirect("https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 		exit;
 	}
 	elseif(!$besecure && !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != "off" && $_SERVER['HTTPS'] != "false")
 	{
-		//don't need to be secure
+		//don't need to be secure		
 		wp_redirect("http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 		exit;
 	}	
 }
 add_action('wp', 'pmpro_besecure', 2);
-add_action('login_head', 'pmpro_besecure', 2);
+add_action('login_init', 'pmpro_besecure', 2);
 
 //If the site URL starts with https:, then force SSL/besecure to true. (Added 1.5.2)
 function pmpro_check_site_url_for_https($besecure)

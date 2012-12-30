@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal, stripe
 Requires at least: 3.0
 Tested up to: 3.5
-Stable tag: 1.5.7
+Stable tag: 1.5.8
 
 A customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -51,6 +51,20 @@ If you would like more help using PMPro on a network install, sign up for suppor
 3. Use Discount Codes to offer access at lower prices for special customers.
 
 == Changelog == 
+= 1.5.8 =
+* Fixed bugs with the Membership Billing page.
+* The getMembershipLevelForUser function and getMembershipLevel method of the MemberOrders class will now include expiration_number and expiration_period properties on the returned level. These are needed to properly extend membership levels when checking out for the same level.
+* Added pmpro_before_send_to_paypal_standard hook. This is executed at checkout before calling the sendToPayPal method on the order. The register helper plugin has been updated to update user meta fields during this hook in addition to the pmpro_after_checkout hook. (Because for PayPal Standard, when pmpro_after_checkout is called, the $_SESSION vars are unavailable to it. So other plugins relying on the pmpro_after_checkout hook may have issues with PayPal Standard.)
+* Re-Added !class_exists("Stripe") check before loading Stripe library. This assumes that other plugins using the Stripe lib are loading compatible versions and/or also checking first before loading the Stripe lib. (*It's important that you test things if you are using multiple plugins loading Stripe. If the other plugins are loading old Stripe APIs first, PMPro may not work correctly.*) The alternative is to namespace the Stripe library for PMPro which would take some more effort.
+* Now running email subject lines through html_entity_decode to avoid special characters for apostrophes/etc.
+* pmpro_is_login_page() now also checks if is_page("login")
+* The pmpro_login_redirect and pmpro_besecure functions, which handle HTTP/HTTPS logic have been updated. pmpro_besecure is now running on login_init instead of login_head to avoid a "cannot resend headers" error. pmpro_login_redirect will strip https from the URL if FORCE_SSL_LOGIN is set but FORCE_SSL_ADMIN is not set to avoid "need to login twice" bugs.
+* Updated code to support auto-hiding ads with newer versions of Easy AdSense.
+* Updated how the members list CSV is generated to avoid PHP notices when meta values are not found/etc. Also added a prefix to the enclose function in memberslist-csv.php (enclose => pmpro_enclose).
+* Now using get_option("date_format") when outputing a date in the admin, frontend, or in an email.
+* Proper trial support for Stripe. (We use the trial_period_days parameter of the Stripe plan object to push the first payment back - since the first payment is handled in its own transaction. We now also add days to this based on the # of trial subscriptions set for the level in the admin.
+* Added a pmpro_require_billing javascript variable when using Stripe. If a discount code changes the membership level to free, pmpro_require_billing will be set to false and the Stripe JS checks won't fire.
+
 = 1.5.7 =
 * Ready for WordPress 3.5
 * Fixed issues in the PayPal IPN Handler that were leading to errors when users would checkout using the PayPal standard gateway.
