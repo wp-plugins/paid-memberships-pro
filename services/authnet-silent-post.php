@@ -5,10 +5,15 @@
 	global $logstr;
 	$logstr = "";
 		
-	//wp includes	
-	define('WP_USE_THEMES', false);
-	require('../../../../wp-load.php');
-		
+	//in case the file is loaded directly
+	if(!defined("WP_USE_THEMES"))
+	{
+		define('WP_USE_THEMES', false);
+		require_once(dirname(__FILE__) . '/../../../../wp-load.php');
+	}
+	
+	global $wpdb;
+	
 	//some code taken from http://www.merchant-account-services.org/blog/handling-authorizenet-arb-subscription-failures/	
 	// Flag if this is an ARB transaction. Set to false by default.
 	$arb = false;
@@ -26,7 +31,10 @@
 			$arb = true;
 		}
 	}
-		
+	
+	$fields = apply_filters("pmpro_authnet_silent_post_fields", $fields);
+	do_action("pmpro_before_authnet_silent_post", $fields);
+	
 	// If it is an ARB transaction, do something with it
 	if($arb == true)
 	{
@@ -66,6 +74,7 @@
 				$morder->billing->city = $fields['x_city'];
 				$morder->billing->state = $fields['x_state'];
 				$morder->billing->zip = $fields['x_zip'];
+				$morder->billing->country = $fields['x_country'];
 				$morder->billing->phone = $fields['x_phone'];
 				
 				//get CC info that is on file
@@ -98,6 +107,7 @@
 			$morder->billing->city = $fields['x_city'];
 			$morder->billing->state = $fields['x_state'];
 			$morder->billing->zip = $fields['x_zip'];
+			$morder->billing->country = $fields['x_country'];
 			$morder->billing->phone = $fields['x_phone'];
 			
 			//get CC info that is on file
@@ -121,5 +131,6 @@
 			$pmproemail->data = array("body"=>"<p>A payment is being held for review within Authorize.net.</p><p>Payment Information From Authorize.net:<br />" . nl2br(var_export($fields, true)));
 			$pmproemail->sendEmail(get_bloginfo("admin_email"));			
 		}
-	}		
-?>
+	}	
+
+	do_action("pmpro_after_authnet_silent_post", $fields);

@@ -24,7 +24,7 @@
 		<?php } ?>
 		
 		<?php if($current_user->membership_level->enddate) { ?>
-			<li><strong>Membership Expires:</strong> <?php echo date("n/j/Y", $current_user->membership_level->enddate)?></li>
+			<li><strong>Membership Expires:</strong> <?php echo date(get_option('date_format'), $current_user->membership_level->enddate)?></li>
 		<?php } ?>
 		
 		<?php if($current_user->membership_level->trial_limit) { ?>
@@ -48,7 +48,7 @@
 		<div class="pmpro_left">
 			<div class="pmpro_box">
 				<?php get_currentuserinfo(); ?> 
-				<h3><a class="pmpro_a-right" href="<?php echo home_url()?>/wp-admin/profile.php">Edit</a>My Account</h3>
+				<h3><a class="pmpro_a-right" href="<?php echo admin_url('profile.php')?>">Edit</a>My Account</h3>
 				<p>
 				<?php if($current_user->user_firstname) { ?>
 					<?php echo $current_user->user_firstname?> <?php echo $current_user->user_lastname?><br />
@@ -56,7 +56,7 @@
 				<small>
 					<strong>Username:</strong> <?php echo $current_user->user_login?><br />
 					<strong>Email:</strong> <?php echo $current_user->user_email?><br />
-					<strong>Password:</strong> ****** <small><a href="<?php echo home_url()?>/wp-admin/profile.php">change</a></small>				
+					<strong>Password:</strong> ****** <small><a href="<?php echo admin_url('profile.php')?>">change</a></small>				
 				</small>
 				</a>
 			</div>
@@ -65,8 +65,8 @@
 				//$ssorder = $wpdb->get_row("SELECT *, UNIX_TIMESTAMP(timestamp) as timestamp FROM $wpdb->pmpro_membership_orders WHERE user_id = '$current_user->ID' AND membership_id = '" . $current_user->membership_level->ID . "' AND status = 'success' ORDER BY timestamp DESC LIMIT 1");				
 				$ssorder = new MemberOrder();
 				$ssorder->getLastMemberOrder();
-				$invoices = $wpdb->get_results("SELECT *, UNIX_TIMESTAMP(timestamp) as timestamp FROM $wpdb->pmpro_membership_orders WHERE user_id = '$current_user->ID' ORDER BY timestamp DESC");
-				if($ssorder)
+				$invoices = $wpdb->get_results("SELECT *, UNIX_TIMESTAMP(timestamp) as timestamp FROM $wpdb->pmpro_membership_orders WHERE user_id = '$current_user->ID' ORDER BY timestamp DESC");				
+				if(!empty($ssorder->id) && $ssorder->gateway != "check" && $ssorder->gateway != "paypalexpress")
 				{
 					//default values from DB (should be last order or last update)
 					$bfirstname = get_user_meta($current_user->ID, "pmpro_bfirstname", true);
@@ -76,6 +76,7 @@
 					$bcity = get_user_meta($current_user->ID, "pmpro_bcity", true);
 					$bstate = get_user_meta($current_user->ID, "pmpro_bstate", true);
 					$bzipcode = get_user_meta($current_user->ID, "pmpro_bzipcode", true);
+					$bcountry = get_user_meta($current_user->ID, "pmpro_bcountry", true);
 					$bphone = get_user_meta($current_user->ID, "pmpro_bphone", true);
 					$bemail = get_user_meta($current_user->ID, "pmpro_bemail", true);
 					$bconfirmemail = get_user_meta($current_user->ID, "pmpro_bconfirmemail", true);
@@ -85,7 +86,8 @@
 					$ExpirationYear = get_user_meta($current_user->ID, "pmpro_ExpirationYear", true);	
 				?>		
 				<div class="pmpro_box">				
-					<h3><a class="pmpro_a-right" href="<?php echo pmpro_url("billing", "")?>">Edit</a>Billing Information</h3>
+					<h3><?php if((isset($ssorder->status) && $ssorder->status == "success") && (isset($ssorder->gateway) && in_array($ssorder->gateway, array("authorizenet", "paypal", "stripe")))) { ?><a class="pmpro_a-right" href="<?php echo pmpro_url("billing", "")?>">Edit</a><?php } ?>Billing Information</h3>
+					<?php if(!empty($baddress1)) { ?>
 					<p>
 						<strong>Billing Address</strong><br />
 						<?php echo $bfirstname . " " . $blastname?>
@@ -93,11 +95,12 @@
 						<?php echo $baddress1?><br />
 						<?php if($baddress2) echo $baddress2 . "<br />";?>
 						<?php if($bcity && $bstate) { ?>
-							<?php echo $bcity?>, <?php echo $bstate?> <?php echo $bzipcode?>
+							<?php echo $bcity?>, <?php echo $bstate?> <?php echo $bzipcode?> <?php echo $bcountry?>
 						<?php } ?>                         
 						<br />
 						<?php echo formatPhone($bphone)?>
 					</p>
+					<?php } ?>
 					<p>
 						<strong>Payment Method</strong><br />
 						<?php echo $CardType?>: <?php echo last4($AccountNumber)?> (<?php echo $ExpirationMonth?>/<?php echo $ExpirationYear?>)
@@ -109,19 +112,25 @@
 			<div class="pmpro_box">
 				<h3>Member Links</h3>
 				<ul>
-					<?php if($ssorder->status == "success" && in_array($ssorder->gateway, array("authorizenet", "paypal"))) { ?>
+					<?php 
+						do_action("pmpro_member_links_top");
+					?>
+					<?php if((isset($ssorder->status) && $ssorder->status == "success") && (isset($ssorder->gateway) && in_array($ssorder->gateway, array("authorizenet", "paypal", "stripe")))) { ?>
 						<li><a href="<?php echo pmpro_url("billing", "", "https")?>">Update Billing Information</a></li>
 					<?php } ?>
 					<?php if(count($pmpro_levels) > 1) { ?>
 						<li><a href="<?php echo pmpro_url("levels")?>">Change Membership Level</a></li>
 					<?php } ?>
 					<li><a href="<?php echo pmpro_url("cancel")?>">Cancel Membership</a></li>
+					<?php 
+						do_action("pmpro_member_links_bottom");
+					?>
 				</ul>
 			</div>
 		</div> <!-- end pmpro_left -->
 		
 		<div class="pmpro_right">
-			<?php if($invoices) { ?>
+			<?php if(!empty($invoices)) { ?>
 			<div class="pmpro_box">
 				<h3>Past Invoices</h3>
 				<ul>
@@ -144,4 +153,3 @@
 		
 <?php
 	}
-?>

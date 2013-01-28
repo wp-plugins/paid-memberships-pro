@@ -1,6 +1,12 @@
 <?php
+	//only admins can get this
+	if(!function_exists("current_user_can") || !current_user_can("manage_options"))
+	{
+		die("You do not have permissions to perform this action.");
+	}	
+	
 	//vars
-	global $wpdb;
+	global $wpdb, $pmpro_currency_symbol;
 	if(isset($_REQUEST['s']))
 		$s = $_REQUEST['s'];
 	else
@@ -18,23 +24,12 @@
 		
 		<div class="pmpro_meta"><a href="<?php echo pmpro_https_filter("http://www.paidmembershipspro.com")?>">Plugin Support</a> | <a href="http://www.paidmembershipspro.com/forums/">User Forum</a> | <strong>Version <?php echo PMPRO_VERSION?></strong></div>
 	</div>
-	<br style="clear:both;" />
-	
-	<?php
-		//include(pmpro_https_filter("http://www.paidmembershipspro.com/notifications/?v=" . PMPRO_VERSION));
-	?>
-	<div id="pmpro_notifications">
-	</div>
-	<script>
-		jQuery.get('<?php echo pmpro_https_filter("http://www.paidmembershipspro.com/notifications/?v=" . PMPRO_VERSION)?>', function(data) {
-		  jQuery('#pmpro_notifications').html(data);		 
-		});
-	</script>
+	<br style="clear:both;" />		
 
 	<form id="posts-filter" method="get" action="">	
 	<h2>
 		Members Report
-		<small>(<a target="_blank" href="<?php echo PMPRO_URL?>/adminpages/memberslist-csv.php?s=<?php echo $s?>&l=<?php echo $l?>">Export to CSV</a>)</small>
+		<small>(<a target="_blank" href="<?php echo admin_url('admin-ajax.php');?>?action=memberslist_csv&s=<?php echo $s?>&l=<?php echo $l?>">Export to CSV</a>)</small>
 	</h2>		
 	<ul class="subsubsub">
 		<li>			
@@ -75,7 +70,7 @@
 					
 		if($s)
 		{
-			$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, mu.membership_id, mu.initial_payment, mu.billing_amount, mu.cycle_period, mu.cycle_number, mu.billing_limit, mu.trial_amount, mu.trial_limit, UNIX_TIMESTAMP(mu.startdate) as startdate, UNIX_TIMESTAMP(mu.enddate) as enddate, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->usermeta um ON u.ID = um.user_id LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id WHERE mu.membership_id > 0 AND (u.user_login LIKE '%$s%' OR u.user_email LIKE '%$s%' OR um.meta_value LIKE '%$s%') ";
+			$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, mu.membership_id, mu.initial_payment, mu.billing_amount, mu.cycle_period, mu.cycle_number, mu.billing_limit, mu.trial_amount, mu.trial_limit, UNIX_TIMESTAMP(mu.startdate) as startdate, UNIX_TIMESTAMP(mu.enddate) as enddate, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->usermeta um ON u.ID = um.user_id LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id WHERE mu.status = 'active' AND mu.membership_id > 0 AND (u.user_login LIKE '%$s%' OR u.user_email LIKE '%$s%' OR um.meta_value LIKE '%$s%') ";
 		
 			if($l)
 				$sqlQuery .= " AND mu.membership_id = '" . $l . "' ";					
@@ -84,10 +79,10 @@
 		}
 		else
 		{
-			$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, mu.membership_id, mu.initial_payment, mu.billing_amount, mu.cycle_period, mu.cycle_number, mu.billing_limit, mu.trial_amount, mu.trial_limit, UNIX_TIMESTAMP(mu.startdate) as startdate, UNIX_TIMESTAMP(mu.enddate) as enddate, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id ";
-			$sqlQuery .= "WHERE mu.membership_id > 0 ";
+			$sqlQuery = "SELECT SQL_CALC_FOUND_ROWS u.ID, u.user_login, u.user_email, UNIX_TIMESTAMP(u.user_registered) as joindate, mu.membership_id, mu.initial_payment, mu.billing_amount, mu.cycle_period, mu.cycle_number, mu.billing_limit, mu.trial_amount, mu.trial_limit, UNIX_TIMESTAMP(mu.startdate) as startdate, UNIX_TIMESTAMP(mu.enddate) as enddate, m.name as membership FROM $wpdb->users u LEFT JOIN $wpdb->pmpro_memberships_users mu ON u.ID = mu.user_id LEFT JOIN $wpdb->pmpro_membership_levels m ON mu.membership_id = m.id";
+			$sqlQuery .= " WHERE mu.membership_id > 0  AND mu.status = 'active' ";
 			if($l)
-				$sqlQuery .= " AND mu.membership_id = '" . $l . "' ";										
+				$sqlQuery .= " AND mu.membership_id = '" . $l . "' ";
 			$sqlQuery .= "ORDER BY user_registered DESC LIMIT $start, $limit";
 		}
 						
@@ -137,27 +132,40 @@
 							<td><?php echo $metavalues->last_name?></td>
 							<td><a href="mailto:<?php echo $theuser->user_email?>"><?php echo $theuser->user_email?></a></td>
 							<td>
-								<?php echo trim($metavalues->pmpro_bfirstname . " " . $metavalues->pmpro_blastname);?><br />
-								<?php echo $metavalues->pmpro_baddress1; ?><br />
-								<?php if(!empty($metavalues->pmpro_baddress2)) echo $metavalues->pmpro_baddress2 . "<br />"; ?>										
-								<?php if($metavalues->pmpro_bcity && $metavalues->pmpro_bstate) { ?>
-									<?php echo $metavalues->pmpro_bcity?>, <?php echo $metavalues->pmpro_bstate?> <?php echo $metavalues->pmpro_bzipcode?><br />												
+								<?php 
+									if(empty($metavalues->pmpro_bfirstname))
+										$metavalues->pmpro_bfirstname = "";
+									if(empty($metavalues->pmpro_blastname))
+										$metavalues->pmpro_blastname = "";
+									echo trim($metavalues->pmpro_bfirstname . " " . $metavalues->pmpro_blastname);
+								?><br />
+								<?php if(!empty($metavalues->pmpro_baddress1)) { ?>
+									<?php echo $metavalues->pmpro_baddress1; ?><br />
+									<?php if(!empty($metavalues->pmpro_baddress2)) echo $metavalues->pmpro_baddress2 . "<br />"; ?>										
+									<?php if($metavalues->pmpro_bcity && $metavalues->pmpro_bstate) { ?>
+										<?php echo $metavalues->pmpro_bcity?>, <?php echo $metavalues->pmpro_bstate?> <?php echo $metavalues->pmpro_bzipcode?>  <?php if(!empty($metavalues->pmpro_bcountry)) echo $metavalues->pmpro_bcountry?><br />												
+									<?php } ?>
 								<?php } ?>
-								<?php echo formatPhone($metavalues->pmpro_bphone)?>
+								<?php if(!empty($metavalues->pmpro_bphone)) echo formatPhone($metavalues->pmpro_bphone);?>
 							</td>
 							<td><?php echo $theuser->membership?></td>	
-							<td>
-								<?php if($theuser->billing_amount > 0) { ?>
-									$<?php echo $theuser->billing_amount?>/<?php echo $theuser->cycle_period?>
-								<?php } else { ?>
+							<td>										
+								<?php if((float)$theuser->initial_payment > 0) { ?>
+									<?php echo $pmpro_currency_symbol; ?><?php echo $theuser->initial_payment?>
+								<?php } ?>
+								<?php if((float)$theuser->initial_payment > 0 && (float)$theuser->billing_amount > 0) { ?>+<br /><?php } ?>
+								<?php if((float)$theuser->billing_amount > 0) { ?>
+									<?php echo $pmpro_currency_symbol; ?><?php echo $theuser->billing_amount?>/<?php echo $theuser->cycle_period?>
+								<?php } ?>
+								<?php if((float)$theuser->initial_payment <= 0 && (float)$theuser->billing_amount <= 0) { ?>
 									-
 								<?php } ?>
 							</td>						
-							<td><?php echo date("m/d/Y", $theuser->joindate)?></td>
+							<td><?php echo date(get_option('date_format'), $theuser->joindate)?></td>
 							<td>
 								<?php 
 									if($theuser->enddate) 
-										echo date("m/d/Y", $theuser->enddate);
+										echo date(get_option('date_format'), $theuser->enddate);
 									else
 										echo "Never";
 								?>
@@ -180,9 +188,7 @@
 	</form>
 	
 	<?php
-	echo pmpro_getPaginationString($pn, $totalrows, $limit, 1, home_url("/wp-admin/admin.php?page=pmpro-memberslist&s=" . urlencode($s)), "&l=$l&limit=$limit&pn=");
+	echo pmpro_getPaginationString($pn, $totalrows, $limit, 1, get_admin_url(NULL, "/admin.php?page=pmpro-memberslist&s=" . urlencode($s)), "&l=$l&limit=$limit&pn=");
 	?>
 	
 </div>
-<?php
-?>
