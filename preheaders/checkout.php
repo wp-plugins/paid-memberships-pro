@@ -1,6 +1,6 @@
 <?php
-	global $post, $gateway, $wpdb, $besecure, $discount_code, $pmpro_level, $pmpro_levels, $pmpro_msg, $pmpro_msgt, $pmpro_review, $skip_account_fields, $pmpro_paypal_token, $pmpro_show_discount_code, $pmpro_error_fields, $pmpro_required_billing_fields, $pmpro_required_user_fields;
-			
+	global $post, $gateway, $wpdb, $besecure, $discount_code, $pmpro_level, $pmpro_levels, $pmpro_msg, $pmpro_msgt, $pmpro_review, $skip_account_fields, $pmpro_paypal_token, $pmpro_show_discount_code, $pmpro_error_fields, $pmpro_required_billing_fields, $pmpro_required_user_fields, $wp_version;	
+	
 	//this var stores fields with errors so we can make them red on the frontend
 	$pmpro_error_fields = array();			
 	
@@ -872,10 +872,15 @@
 					$current_user = $user; //in case the user just signed up
 				pmpro_set_current_user();
 			
-				//add discount code use
-				if(!empty($morder) && $discount_code && $use_discount_code)
+				//add discount code use				
+				if($discount_code && $use_discount_code)
 				{
-					$wpdb->query("INSERT INTO $wpdb->pmpro_discount_codes_uses (code_id, user_id, order_id, timestamp) VALUES('" . $discount_code_id . "', '" . $current_user->ID . "', '" . $morder->id . "', now())");					
+					if(!empty($morder->id))
+						$code_order_id = $morder->id;
+					else
+						$code_order_id = "";
+						
+					$wpdb->query("INSERT INTO $wpdb->pmpro_discount_codes_uses (code_id, user_id, order_id, timestamp) VALUES('" . $discount_code_id . "', '" . $current_user->ID . "', '" . $code_order_id . "', now())");										
 				}
 			
 				//save billing info ect, as user meta																		

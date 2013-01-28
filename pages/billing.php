@@ -64,7 +64,7 @@
 				}
 			?>                        	                       	                       														          
 										
-			<?php if(empty($pmpro_stripe_lite) && $gateway == "stripe") { ?>
+			<?php if(empty($pmpro_stripe_lite) || $gateway != "stripe") { ?>
 			<table id="pmpro_billing_address_fields" class="pmpro_checkout" width="100%" cellpadding="0" cellspacing="0" border="0">
 			<thead>
 				<tr>
@@ -236,7 +236,7 @@
 							<?php
 							}
 						?>
-						<?php if(empty($pmpro_stripe_lite) && $gateway == "stripe") { ?>
+						<?php if(empty($pmpro_stripe_lite) || $gateway != "stripe") { ?>
 						<div>				
 							<label for="CardType">Card Type</label>
 							<select id="CardType" <?php if($gateway != "stripe") { ?>name="CardType"<?php } ?>>

@@ -44,10 +44,14 @@
 						
 			$this->headers = array("Content-Type: text/html");
 			
-			//load the template
-			if(file_exists(TEMPLATEPATH . "/membership-email-" . $this->template . ".html"))
+			//load the template			
+			if(file_exists(get_stylesheet_directory() . "/paid-memberships-pro/email/" . $this->template . ".html"))
+				$this->body = file_get_contents(get_stylesheet_directory() . "/paid-memberships-pro/email/" . $this->template . ".html");			
+			elseif(file_exists(get_stylesheet_directory() . "/membership-email-" . $this->template . ".html"))
+				$this->body = file_get_contents(get_stylesheet_directory() . "/membership-email-" . $this->template . ".html");
+			elseif(file_exists(TEMPLATEPATH . "/membership-email-" . $this->template . ".html"))
 				$this->body = file_get_contents(TEMPLATEPATH . "/membership-email-" . $this->template . ".html");
-			else
+			elseif(file_exists(PMPRO_DIR . "/email/" . $this->template . ".html"))
 				$this->body = file_get_contents(PMPRO_DIR . "/email/" . $this->template . ".html");			
 						
 			//header and footer
@@ -62,9 +66,14 @@
 			}
 			*/
 			
-			//swap data
+			//if data is a string, assume we mean to replace !!body!! with it
 			if(is_string($this->data))
-				$data = array("body"=>$data);			
+				$this->data = array("body"=>$data);											
+				
+			//filter for data
+			$this->data = apply_filters("pmpro_email_data", $this->data, $this);	//filter
+			
+			//swap data into body
 			if(is_array($this->data))
 			{
 				foreach($this->data as $key => $value)
@@ -74,13 +83,14 @@
 			}
 			
 			//filters
-			$this->email = apply_filters("pmpro_email_recipient", $this->email, $this);
-			$this->from = apply_filters("pmpro_email_sender", $this->from, $this);
-			$this->fromname = apply_filters("pmpro_email_sender_name", $this->fromname, $this);
-			$this->subject = apply_filters("pmpro_email_subject", $this->subject, $this);
-			$this->template = apply_filters("pmpro_email_template", $this->template, $this);
-			$this->body = apply_filters("pmpro_email_body", $this->body, $this);
-			$this->headers = apply_filters("pmpro_email_headers", $this->headers, $this);
+			$temail = apply_filters("pmpro_email_filter", $this);		//allows filtering entire email at once
+			$this->email = apply_filters("pmpro_email_recipient", $temail->email, $this);
+			$this->from = apply_filters("pmpro_email_sender", $temail->from, $this);
+			$this->fromname = apply_filters("pmpro_email_sender_name", $temail->fromname, $this);
+			$this->subject = apply_filters("pmpro_email_subject", $temail->subject, $this);
+			$this->template = apply_filters("pmpro_email_template", $temail->template, $this);
+			$this->body = apply_filters("pmpro_email_body", $temail->body, $this);
+			$this->headers = apply_filters("pmpro_email_headers", $temail->headers, $this);
 			
 			if(wp_mail($this->email,$this->subject,$this->body,$this->headers))
 			{
@@ -104,7 +114,7 @@
 			$this->email = $user->user_email;
 			$this->subject = "Your membership at " . get_option("blogname") . " has been CANCELED";
 			$this->template = "cancel";
-			$this->data = array("name" => $user->display_name, "sitename" => get_option("blogname"), "siteemail" => pmpro_getOption("from_email"));
+			$this->data = array("name" => $user->display_name, "user_login" => $user->user_login, "sitename" => get_option("blogname"), "siteemail" => pmpro_getOption("from_email"));
 			
 			return $this->sendEmail();
 		}
@@ -159,6 +169,7 @@
 			$this->data = array(
 								"subject" => $this->subject, 
 								"name" => $user->display_name, 
+								"user_login" => $user->user_login,
 								"sitename" => get_option("blogname"),
 								"siteemail" => pmpro_getOption("from_email"),
 								"membership_level_name" => $user->membership_level->name,
@@ -241,6 +252,7 @@
 			$this->data = array(
 								"subject" => $this->subject, 
 								"name" => $user->display_name, 
+								"user_login" => $user->user_login,
 								"sitename" => get_option("blogname"),
 								"siteemail" => pmpro_getOption("from_email"),
 								"membership_level_name" => $user->membership_level->name,
@@ -316,6 +328,7 @@
 			$this->data = array(
 								"subject" => $this->subject, 
 								"name" => $user->display_name, 
+								"user_login" => $user->user_login,
 								"sitename" => get_option("blogname"),
 								"siteemail" => pmpro_getOption("from_email"),
 								"membership_level_name" => $user->membership_level->name,
@@ -359,6 +372,7 @@
 			$this->data = array(
 								"subject" => $this->subject, 
 								"name" => $user->display_name, 
+								"user_login" => $user->user_login,
 								"sitename" => get_option("blogname"),
 								"siteemail" => pmpro_getOption("from_email"),
 								"membership_level_name" => $user->membership_level->name,
@@ -397,6 +411,7 @@
 			$this->data = array(
 								"subject" => $this->subject, 
 								"name" => $user->display_name, 
+								"user_login" => $user->user_login,
 								"sitename" => get_option("blogname"),
 								"siteemail" => pmpro_getOption("from_email"),
 								"membership_level_name" => $user->membership_level->name,
@@ -433,6 +448,7 @@
 			$this->data = array(
 								"subject" => $this->subject, 
 								"name" => "Admin", 
+								"user_login" => $user->user_login,
 								"sitename" => get_option("blogname"),
 								"siteemail" => pmpro_getOption("from_email"),
 								"membership_level_name" => $user->membership_level->name,
@@ -471,6 +487,7 @@
 			$this->data = array(
 								"subject" => $this->subject, 
 								"name" => $user->display_name, 
+								"user_login" => $user->user_login,
 								"sitename" => get_option("blogname"),
 								"siteemail" => pmpro_getOption("from_email"),
 								"membership_level_name" => $user->membership_level->name,
@@ -531,6 +548,7 @@
 			$this->data = array(
 				"subject" => $this->subject, 
 				"name" => $user->display_name, 
+				"user_login" => $user->user_login,
 				"sitename" => get_option("blogname"), 				
 				"membership_level_name" => $user->membership_level->name, 
 				"siteemail" => get_bloginfo("admin_email"), 
@@ -560,7 +578,7 @@
 			$this->email = $user->user_email;
 			$this->subject = "Your membership at " . get_option("blogname") . " has ended";
 			$this->template = "membership_expired";
-			$this->data = array("subject" => $this->subject, "name" => $user->display_name, "sitename" => get_option("blogname"), "siteemail" => get_bloginfo("admin_email"), "login_link" => wp_login_url(), "display_name" => $user->display_name, "user_email" => $user->user_email, "levels_link" => pmpro_url("levels"));			
+			$this->data = array("subject" => $this->subject, "name" => $user->display_name, "user_login" => $user->user_login, "sitename" => get_option("blogname"), "siteemail" => get_bloginfo("admin_email"), "login_link" => wp_login_url(), "display_name" => $user->display_name, "user_email" => $user->user_email, "levels_link" => pmpro_url("levels"));			
 			
 			return $this->sendEmail();
 		}
@@ -585,7 +603,7 @@
 			$this->email = $user->user_email;
 			$this->subject = "Your membership at " . get_option("blogname") . " will end soon";
 			$this->template = "membership_expiring";
-			$this->data = array("subject" => $this->subject, "name" => $user->display_name, "sitename" => get_option("blogname"), "membership_level_name" => $user->membership_level->name, "siteemail" => get_bloginfo("admin_email"), "login_link" => wp_login_url(), "enddate" => date(get_option('date_format'), $user->membership_level->enddate), "display_name" => $user->display_name, "user_email" => $user->user_email);			
+			$this->data = array("subject" => $this->subject, "name" => $user->display_name, "user_login" => $user->user_login, "sitename" => get_option("blogname"), "membership_level_name" => $user->membership_level->name, "siteemail" => get_bloginfo("admin_email"), "login_link" => wp_login_url(), "enddate" => date(get_option('date_format'), $user->membership_level->enddate), "display_name" => $user->display_name, "user_email" => $user->user_email);			
 			
 			return $this->sendEmail();
 		}
@@ -605,7 +623,7 @@
 			$this->email = $user->user_email;
 			$this->subject = "Your membership at " . get_option("blogname") . " has been changed";
 			$this->template = "admin_change";
-			$this->data = array("subject" => $this->subject, "name" => $user->display_name, "sitename" => get_option("blogname"), "membership_level_name" => $user->membership_level->name, "siteemail" => get_bloginfo("admin_email"), "login_link" => wp_login_url());
+			$this->data = array("subject" => $this->subject, "name" => $user->display_name, "user_login" => $user->user_login, "sitename" => get_option("blogname"), "membership_level_name" => $user->membership_level->name, "siteemail" => get_bloginfo("admin_email"), "login_link" => wp_login_url());
 			if($user->membership_level->ID)
 				$this->data["membership_change"] = "new level is " . $user->membership_level->name . ". This membership is free";
 			else
@@ -643,7 +661,7 @@
 			$this->email = get_bloginfo("admin_email");
 			$this->subject = "Membership for " . $user->user_login . " at " . get_option("blogname") . " has been changed";
 			$this->template = "admin_change_admin";
-			$this->data = array("subject" => $this->subject, "name" => $user->display_name, "sitename" => get_option("blogname"), "membership_level_name" => $user->membership_level->name, "siteemail" => get_bloginfo("admin_email"), "login_link" => wp_login_url());
+			$this->data = array("subject" => $this->subject, "name" => $user->display_name, "user_login" => $user->user_login, "sitename" => get_option("blogname"), "membership_level_name" => $user->membership_level->name, "siteemail" => get_bloginfo("admin_email"), "login_link" => wp_login_url());
 			if($user->membership_level->ID)
 				$this->data["membership_change"] = "The new level is " . $user->membership_level->name . ". This membership is free";
 			else

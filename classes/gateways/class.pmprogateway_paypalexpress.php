@@ -180,8 +180,8 @@
 			$this->httpParsedResponseAr = $this->PPHttpPost('DoExpressCheckoutPayment', $nvpStr);
 						
 			if("SUCCESS" == strtoupper($this->httpParsedResponseAr["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($this->httpParsedResponseAr["ACK"])) {			
-				$order->payment_transaction_id = urldecode($this->httpParsedResponseAr['PROFILEID']);								
-				$order->status = "firstpayment";				
+				$order->payment_transaction_id = urldecode($this->httpParsedResponseAr['TRANSACTIONID']);								
+				$order->status = "success";				
 				
 				//update order
 				$order->saveOrder();	

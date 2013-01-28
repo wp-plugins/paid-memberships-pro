@@ -122,7 +122,7 @@
 				jQuery('#other_discount_code_button').attr('disabled', 'disabled');				
 				
 				jQuery.ajax({
-					url: '<?php echo site_url()?>',type:'GET',timeout:2000,
+					url: '<?php echo home_url()?>',type:'GET',timeout:2000,
 					dataType: 'html',
 					data: "action=applydiscountcode&code=" + code + "&level=" + level_id + "&msgfield=pmpro_message",
 					error: function(xml){
@@ -499,7 +499,7 @@
 	<table id="pmpro_payment_information_fields" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0" <?php if(!$pmpro_requirebilling || $gateway == "paypalexpress" || $gateway == "paypalstandard") { ?>style="display: none;"<?php } ?>>
 	<thead>
 		<tr>
-			<th colspan="2"><span class="pmpro_thead-msg">We Accept <?php echo $pmpro_accepted_credit_cards_string?></span>Payment Information</th>
+			<th><span class="pmpro_thead-msg">We Accept <?php echo $pmpro_accepted_credit_cards_string?></span>Payment Information</th>
 		</tr>
 	</thead>
 	<tbody>                    
@@ -598,7 +598,7 @@
 				jQuery('#discount_code_button').attr('disabled', 'disabled');
 				
 				jQuery.ajax({
-					url: '<?php echo site_url()?>',type:'GET',timeout:2000,
+					url: '<?php echo home_url()?>',type:'GET',timeout:2000,
 					dataType: 'html',
 					data: "action=applydiscountcode&code=" + code + "&level=" + level_id + "&msgfield=discount_code_message",
 					error: function(xml){
