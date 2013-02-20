@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships
-Version: 1.5.9
+Version: 1.5.9.1
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -44,7 +44,7 @@ $urlparts = explode("//", home_url());
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.5.9");
+define("PMPRO_VERSION", "1.5.9.1");
 define("PMPRO_DOMAIN", pmpro_getDomainFromURL(site_url()));
 
 global $gateway_environment;
@@ -1076,7 +1076,7 @@ function pmpro_page_save($post_id)
 		if(is_array($mydata))
 		{
 			foreach($mydata as $level)
-				$wpdb->query("INSERT INTO {$wpdb->pmpro_memberships_pages} (membership_id, page_id) VALUES('" . $wpdb->escape($level) . "', '" . $post_id . "')");
+				$wpdb->query("INSERT INTO {$wpdb->pmpro_memberships_pages} (membership_id, page_id) VALUES('" . intval($level) . "', '" . intval($post_id) . "')");
 		}
 	
 		return $mydata;
@@ -1503,8 +1503,15 @@ function pmpro_login_head()
 		//redirect registration page to levels page
 		if(isset($_REQUEST['action']) && $_REQUEST['action'] == "register" || isset($_REQUEST['registration']) && $_REQUEST['registration'] == "disabled")
 		{
-			wp_redirect(pmpro_url("levels"));
-			exit;
+			//redirect to levels page unless filter is set.
+			$link = apply_filters("pmpro_register_redirect", pmpro_url("levels"));
+			if(!empty($link))
+			{
+				wp_redirect($link);
+				exit;
+			}
+			else
+				break;	//don't redirect if pmpro_register_redirect filter returns false or a blank URL
 		}
 
 		//if theme my login is installed, redirect all logins to the login page

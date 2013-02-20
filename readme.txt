@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal, stripe
 Requires at least: 3.0
 Tested up to: 3.5.1
-Stable tag: 1.5.9
+Stable tag: 1.5.9.1
 
 A customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -51,6 +51,12 @@ If you would like more help using PMPro on a network install, sign up for suppor
 3. Use Discount Codes to offer access at lower prices for special customers.
 
 == Changelog == 
+= 1.5.9.1 =
+* Revamped the ipnhandler code. It's much cleaner now and should be easier to support with all 3 PayPal APIs (Standard, Website Payments Pro, Express) working through the one handler.
+* Added Payflow Pro as a gateway option. Currently, only one-time charges is supported.
+* Added the pmpro_register_redirect filter to allow you to change the URL PMPro redirects wp-login.php?action=register to. Returning false or an empty string will result in no redirect from the register page.
+* Added pmpro_subscription_payment_failed hook that runs if a failed payment comes in through the IPN Handler, Authorize.net silent post, or Stripe web hook. do_action("pmpro_subscription_payment_failed", $old_order); $old_order is a MemberOrder object.
+
 = 1.5.9 =
 * Fixed bug on Membership Billing page that was hiding the billing address fields.
 * Changed all of the instances of "firstpayment" order statuses to "success". Also running query to fix statues in the DB. This caused issues for levels with only a one-time payment, where the invoice wouldn't show up in their account page.
