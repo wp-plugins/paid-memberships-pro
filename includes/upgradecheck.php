@@ -40,6 +40,23 @@ function pmpro_checkForUpgrades()
 		
 	if($pmpro_db_version < 1.59)
 		$pmpro_db_version = pmpro_upgrade_1_5_9();
+		
+	if($pmpro_db_version < 1.6)
+		$pmpro_db_version = pmpro_upgrade_1_6();
+}
+
+function pmpro_upgrade_1_6()
+{
+	global $wpdb;
+	$wpdb->hide_errors();
+	$wpdb->pmpro_membership_orders = $wpdb->prefix . 'pmpro_membership_orders';
+	
+	//add notes column to orders
+	$sqlQuery = "ALTER TABLE  `" . $wpdb->pmpro_membership_orders . "` ADD  `notes` TEXT NOT NULL";
+	$wpdb->query($sqlQuery);
+	
+	pmpro_setOption("db_version", "1.6");
+	return 1.6;
 }
 
 function pmpro_upgrade_1_5_9()
@@ -52,6 +69,7 @@ function pmpro_upgrade_1_5_9()
 	$sqlQuery = "UPDATE " . $wpdb->pmpro_membership_orders . " SET status = 'success' WHERE status = 'firstpayment'";
 	$wpdb->query($sqlQuery);
 	
+	pmpro_setOption("db_version", "1.59");
 	return 1.59;
 }
 

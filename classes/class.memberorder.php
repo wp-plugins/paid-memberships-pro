@@ -87,8 +87,11 @@
 				$this->affiliate_id = $dbobj->affiliate_id;
 				$this->affiliate_subid = $dbobj->affiliate_subid;
 				
+				$this->notes = $dbobj->notes;
+				
 				//reset the gateway
-				$this->setGateway();
+				if(empty($this->nogateway))
+					$this->setGateway();
 				
 				return $this->id;
 			}
@@ -110,11 +113,14 @@
 				$classname .= "_" . $this->gateway;	//adding the gateway suffix
 							
 			//try to load it
-			require_once(dirname(__FILE__) . "/gateways/class." . strtolower($classname) . ".php");
+			include_once(dirname(__FILE__) . "/gateways/class." . strtolower($classname) . ".php");
 			if(class_exists($classname))
 				$this->Gateway = new $classname($this->gateway);
 			else
-				die("Could not locate the gateway class file with class name = " . $classname . ".");
+			{
+				$error = new WP_Error("PMPro1001", "Could not locate the gateway class file with class name = " . $classname . ".");
+				//die("Could not locate the gateway class file with class name = " . $classname . ".");
+			}
 			
 			return $this->Gateway;
 		}
@@ -130,10 +136,12 @@
 				
 			//build query
 			$this->sqlQuery = "SELECT id FROM $wpdb->pmpro_membership_orders WHERE user_id = '" . $user_id . "' ";
-			if(!empty($status))
+			if(!empty($status) && is_array($status))
+				$this->sqlQuery .= "AND status IN('" . implode("','", $status) . "') ";
+			elseif(!empty($status))
 				$this->sqlQuery .= "AND status = '" . $wpdb->escape($status) . "' ";
 			$this->sqlQuery .= "ORDER BY timestamp DESC LIMIT 1";
-				
+						
 			//get id
 			$id = $wpdb->get_var($this->sqlQuery);
 			
@@ -286,6 +294,25 @@
 			return $this->tax;
 		}
 		
+		function updateTimestamp($year, $month, $day, $time = NULL)
+		{
+			if(empty($this->id))
+				return false;		//need a saved order
+			
+			if(empty($time))
+				$time = "00:00:00";
+			
+			$date = $year . "-" . $month . "-" . $day . " " . $time;
+			
+			global $wpdb;
+			$this->sqlQuery = "UPDATE $wpdb->pmpro_membership_orders SET timestamp = '" . $date . "' WHERE id = '" . $this->id . "' LIMIT 1";
+			
+			if($wpdb->query($this->sqlQuery) !== "false")			
+				return $this->getMemberOrderByID($this->id);
+			else
+				return false;
+		}
+		
 		function saveOrder()
 		{			
 			global $current_user, $wpdb;
@@ -297,14 +324,26 @@
 			//figure out how much we charged
 			if(!empty($this->InitialPayment))
 				$amount = $this->InitialPayment;
+			elseif(!empty($this->subtotal))
+				$amount = $this->subtotal;
 			else
-				$amount = 0;
+				$amount = 0;							
 						
 			//Todo: Tax?!, Coupons, Certificates, affiliates
-			$this->subtotal = $amount;
-			$tax = $this->getTax(true);
+			if(empty($this->subtotal))
+				$this->subtotal = $amount;
+			if(isset($this->tax))
+				$tax = $this->tax;
+			else
+				$tax = $this->getTax(true);
 			$this->certificate_id = "";
 			$this->certificateamount = "";
+			
+			//calculate total
+			if(!empty($this->total))
+				$total = $this->total;
+			else
+				$total = (float)$amount + (float)$tax;
 			
 			//these fix some warnings/notices
 			if(empty($this->billing))
@@ -333,6 +372,9 @@
 			if(empty($this->gateway_environment))
 				$this->gateway_environment = pmpro_getOption("gateway_environment");
 			
+			if(empty($this->notes))
+				$this->notes = "";
+			
 			//build query			
 			if(!empty($this->id))
 			{
@@ -346,13 +388,13 @@
 									`user_id` = '" . $this->user_id . "',
 									`membership_id` = '" . $this->membership_id . "',
 									`paypal_token` = '" . $this->paypal_token . "',
-									`billing_name` = '" . $this->billing->name . "',
-									`billing_street` = '" . $this->billing->street . "',
-									`billing_city` = '" . $this->billing->city . "',
-									`billing_state` = '" . $this->billing->state . "',
-									`billing_zip` = '" . $this->billing->zip . "',
-									`billing_country` = '" . $this->billing->country . "',
-									`billing_phone` = '" . $this->billing->phone . "',
+									`billing_name` = '" . $wpdb->escape($this->billing->name) . "',
+									`billing_street` = '" . $wpdb->escape($this->billing->street) . "',
+									`billing_city` = '" . $wpdb->escape($this->billing->city) . "',
+									`billing_state` = '" . $wpdb->escape($this->billing->state) . "',
+									`billing_zip` = '" . $wpdb->escape($this->billing->zip) . "',
+									`billing_country` = '" . $wpdb->escape($this->billing->country) . "',
+									`billing_phone` = '" . $wpdb->escape($this->billing->phone) . "',
 									`subtotal` = '" . $this->subtotal . "',
 									`tax` = '" . $this->tax . "',
 									`couponamount` = '" . $this->couponamount . "',
@@ -364,13 +406,14 @@
 									`accountnumber` = '" . $this->accountnumber . "',
 									`expirationmonth` = '" . $this->expirationmonth . "',
 									`expirationyear` = '" . $this->expirationyear . "',
-									`status` = '" . $this->status . "',
+									`status` = '" . $wpdb->escape($this->status) . "',
 									`gateway` = '" . $this->gateway . "',
 									`gateway_environment` = '" . $this->gateway_environment . "',
-									`payment_transaction_id` = '" . $this->payment_transaction_id . "',
-									`subscription_transaction_id` = '" . $this->subscription_transaction_id . "',									
-									`affiliate_id` = '" . $this->affiliate_id . "',
-									`affiliate_subid` = '" . $this->affiliate_subid . "'
+									`payment_transaction_id` = '" . $wpdb->escape($this->payment_transaction_id) . "',
+									`subscription_transaction_id` = '" . $wpdb->escape($this->subscription_transaction_id) . "',									
+									`affiliate_id` = '" . $wpdb->escape($this->affiliate_id) . "',
+									`affiliate_subid` = '" . $wpdb->escape($this->affiliate_subid) . "',
+									`notes` = '" . $wpdb->escape($this->notes) . "'
 									WHERE id = '" . $this->id . "'
 									LIMIT 1";
 			}
@@ -381,7 +424,7 @@
 				$after_action = "pmpro_added_order";
 				//insert
 				$this->sqlQuery = "INSERT INTO $wpdb->pmpro_membership_orders  
-								(`code`, `session_id`, `user_id`, `membership_id`, `paypal_token`, `billing_name`, `billing_street`, `billing_city`, `billing_state`, `billing_zip`, `billing_country`, `billing_phone`, `subtotal`, `tax`, `couponamount`, `certificate_id`, `certificateamount`, `total`, `payment_type`, `cardtype`, `accountnumber`, `expirationmonth`, `expirationyear`, `status`, `gateway`, `gateway_environment`, `payment_transaction_id`, `subscription_transaction_id`, `timestamp`, `affiliate_id`, `affiliate_subid`) 
+								(`code`, `session_id`, `user_id`, `membership_id`, `paypal_token`, `billing_name`, `billing_street`, `billing_city`, `billing_state`, `billing_zip`, `billing_country`, `billing_phone`, `subtotal`, `tax`, `couponamount`, `certificate_id`, `certificateamount`, `total`, `payment_type`, `cardtype`, `accountnumber`, `expirationmonth`, `expirationyear`, `status`, `gateway`, `gateway_environment`, `payment_transaction_id`, `subscription_transaction_id`, `timestamp`, `affiliate_id`, `affiliate_subid`, `notes`) 
 								VALUES('" . $this->code . "',
 									   '" . session_id() . "',
 									   '" . $this->user_id . "',
@@ -399,24 +442,25 @@
 									   '" . $this->couponamount. "',
 									   '" . intval($this->certificate_id) . "',
 									   '" . $this->certificateamount . "',
-									   '" . ((float)$amount + (float)$tax) . "',
+									   '" . $total . "',
 									   '" . $this->payment_type . "',
 									   '" . $this->cardtype . "',
 									   '" . hideCardNumber($this->accountnumber, false) . "',
 									   '" . substr($this->ExpirationDate, 0, 2) . "',
 									   '" . substr($this->ExpirationDate, 2, 4) . "',
-									   '" . $this->status . "',
+									   '" . $wpdb->escape($this->status) . "',
 									   '" . $this->gateway . "', 
 									   '" . $this->gateway_environment . "', 
-									   '" . $this->payment_transaction_id . "',
-									   '" . $this->subscription_transaction_id . "',
+									   '" . $wpdb->escape($this->payment_transaction_id) . "',
+									   '" . $wpdb->escape($this->subscription_transaction_id) . "',
 									   now(),
-									   '" . $this->affiliate_id . "',
-									   '" . $this->affiliate_subid . "'
+									   '" . $wpdb->escape($this->affiliate_id) . "',
+									   '" . $wpdb->escape($this->affiliate_subid) . "',
+									    '" . $wpdb->escape($this->notes) . "'
 									   )";
 			}
 						
-			do_action($before_action, $this);
+			do_action($before_action, $this);						
 			if($wpdb->query($this->sqlQuery) !== false)
 			{
 				if(empty($this->id))
@@ -486,4 +530,20 @@
 		{
 			return $this->Gateway->update($this);						
 		}									
+		
+		function deleteMe()
+		{
+			if(empty($this->id))
+				return false;
+			
+			global $wpdb;
+			$this->sqlQuery = "DELETE FROM $wpdb->pmpro_membership_orders WHERE id = '" . $this->id . "' LIMIT 1";
+			if($wpdb->query($this->sqlQuery) !== false)
+			{
+				do_action("pmpro_delete_order", $this->id, $this);
+				return true;
+			}
+			else
+				return false;
+		}
 	}

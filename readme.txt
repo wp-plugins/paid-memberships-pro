@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal, stripe
 Requires at least: 3.0
 Tested up to: 3.5.1
-Stable tag: 1.5.9.2
+Stable tag: 1.6
 
 A customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -25,6 +25,14 @@ Written instructions:
 http://www.paidmembershipspro.com/support/initial-plugin-setup/
 
 == Frequently Asked Questions ==
+
+= My site is broken or blank or not letting me log in after activating Paid Memberships Pro =
+
+This is typically caused by a conflict with another plugin that is trying to redirect around the login/register pages or trying to redirect from HTTP to HTTPS, etc.
+
+To regain access to your site, FTP to your site and rename the wp-content/plugins/paid-memberships-pro folder to wp-content/plugins/paid-memberhsips-pro-d (or anything different). Now WP will not be able to find PMPro, and you can gain access to /wp-admin/ again. From there, visit the plugins page to fully deactivate Paid Memberships Pro. (You'll want to rename the folder back to paid-memberhsips-pro again.)
+
+Long term, you will need to find and fix the conflict. We can usually do this for you very quickly if you sign up for support at http://www.paidmembershipspro.com/pricing/ and send us your WP admin and FTP credentials.
 
 = I found a bug in the plugin. =
 
@@ -51,6 +59,27 @@ If you would like more help using PMPro on a network install, sign up for suppor
 3. Use Discount Codes to offer access at lower prices for special customers.
 
 == Changelog == 
+= 1.6 =
+* Added Braintree payments as a gateway option. This should be considered in "beta". Please get in touch if you are using Braintree payments with PMPro. Everything should function except that we're still working out an issue with the webhook handler.
+* Added a new dashboard page Orders to view all orders processed by PMPro with an option to export to CSV.
+* Fixed bug where "Your membership level has changed" emails were being sent out the first time a user's profile was edited, even if the level wasn't changing.
+* Removed the revenue estimate from the members list page. This causes performance issues on sites with many members. A new reports dashboard page is coming soon.
+* Not showing payment settings warning now when Payflow is setup with all values filled in.
+* Updated preheaders/billing.php to get the most recent successful order from the DB to use when updating. (ORDER BY id DESC in the query)
+* Added pmpro_stripe_subscription_deleted hook in stripe-webhook.php for when subscriptions are cancelled on the Stripe side. Use this code to cancel on your site as well: https://gist.github.com/strangerstudios/5093710
+* Now using $pmpro_currency_symbol when membership price is shown on the edit profile page in the dashboard/etc.
+* Added pmpro_authorizenet_post_url filter to use Authorize.net gateway class with a different post url, e.g. if you have a gateway that offers an Authorize.net compatibility mode.
+* Added pmpro_check_status_after_checkout filter so you can e.g. set the status to "pending" instead of "success" when a user checks out with the check gateway. They will still have access to the membership level, but you can update the status via the orders dashboard later.
+* Added pmpro_confirmation_order_status filter so you change which status the confirmation page looks for. Can return an array as well since the getLastMemberOrder method call on MemberOrder has been updated to support $status as an array.
+* Orders made via the check gateway now have PaymentType = "Check" and CardType = "".
+* Added a notes column to orders.
+* Fixed bug where discount codes were not showing up in checkout emails if the level was free.
+* Added some wpdb->escape() wrappers to the saveOrder method of MemberOrder which will fix some bugs with orders with fields with apostrophe's in them, etc.
+* Added checks for custom capabilities to the PMPro admin pages in case you want to give non-admins access. Caps are: pmpro_discountcodes, pmpro_emailsettings, pmpro_membershiplevels, pmpro_memberslist, pmpro_memberslist_csv, pmpro_orders, pmpro_orders_csv, pmpro_pagesettings, pmpro_paymentsettings
+* Added pmpro_memberslist_extra_cols_header and pmpro_memberslist_extra_cols_body hooks to add extra columns to the members list page.
+* Fixed pmpro_paypal_express_return_url_parameters filter to properly encode & and = so the params are properly added to the ReturnURL instead of being seen as extra params to the full PayPal Express URL. The PMPro Addon Packages plugin has been updated to take advantage of this to make that plugin more compatible with PayPal Express.
+* Fixed bugs with Strip webook: now listening for charge.succeeded and charge.failed, other fixes.
+
 = 1.5.9.2 =
 * Fixed Members List bugs introduced in version 1.5.9.1.
 

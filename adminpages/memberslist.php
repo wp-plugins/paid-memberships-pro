@@ -1,6 +1,6 @@
 <?php
 	//only admins can get this
-	if(!function_exists("current_user_can") || !current_user_can("manage_options"))
+	if(!function_exists("current_user_can") || (!current_user_can("manage_options") && !current_user_can("pmpro_memberslist")))
 	{
 		die("You do not have permissions to perform this action.");
 	}	
@@ -91,11 +91,21 @@
 		
 		if($theusers)
 		{
-			$initial_payments = pmpro_calculateInitialPaymentRevenue($s, $l);
-			$recurring_payments = pmpro_calculateRecurringRevenue($s, $l);
-		?>
-		<p class="clear"><?php echo strval($totalrows)?> members found. These members have paid <strong>$<?php echo number_format($initial_payments)?> in initial payments</strong> and will generate an estimated <strong>$<?php echo number_format($recurring_payments)?> in revenue over the next year</strong>, or <strong>$<?php echo number_format($recurring_payments/12)?>/month</strong>. <span class="pmpro_lite">(This estimate does not take into account trial periods or billing limits.)</span></p>
-		<?php
+			$calculate_revenue = apply_filters("pmpro_memberslist_calculate_revenue", false);
+			if($calculate_revenue)
+			{
+				$initial_payments = pmpro_calculateInitialPaymentRevenue($s, $l);
+				$recurring_payments = pmpro_calculateRecurringRevenue($s, $l);			
+				?>
+				<p class="clear"><?php echo strval($totalrows)?> members found. These members have paid <strong>$<?php echo number_format($initial_payments)?> in initial payments</strong> and will generate an estimated <strong>$<?php echo number_format($recurring_payments)?> in revenue over the next year</strong>, or <strong>$<?php echo number_format($recurring_payments/12)?>/month</strong>. <span class="pmpro_lite">(This estimate does not take into account trial periods or billing limits.)</span></p>
+				<?php
+			}
+			else
+			{
+			?>
+			<p class="clear"><?php echo strval($totalrows)?> members found.	
+			<?php
+			}
 		}		
 	?>
 	<table class="widefat">
@@ -106,6 +116,7 @@
 				<th>First&nbsp;Name</th>
 				<th>Last&nbsp;Name</th>
 				<th>Email</th>
+				<?php do_action("pmpro_memberslist_extra_cols_header", $theusers);?>
 				<th>Billing Address</th>
 				<th>Membership</th>	
 				<th>Fee</th>
@@ -130,6 +141,7 @@
 							<td><?php echo $theuser->first_name?></td>
 							<td><?php echo $theuser->last_name?></td>
 							<td><a href="mailto:<?php echo $theuser->user_email?>"><?php echo $theuser->user_email?></a></td>
+							<?php do_action("pmpro_memberslist_extra_cols_body", $theuser);?>
 							<td>
 								<?php 
 									if(empty($theuser->pmpro_bfirstname))

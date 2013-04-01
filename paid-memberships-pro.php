@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships
-Version: 1.5.9.2
+Version: 1.6
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -44,7 +44,7 @@ $urlparts = explode("//", home_url());
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.5.9.2");
+define("PMPRO_VERSION", "1.6");
 define("PMPRO_DOMAIN", pmpro_getDomainFromURL(site_url()));
 
 global $gateway_environment;
@@ -93,6 +93,11 @@ function pmpro_advancedsettings()
 	require_once(dirname(__FILE__) . "/adminpages/advancedsettings.php");
 }
 
+function pmpro_orders()
+{
+	require_once(dirname(__FILE__) . "/adminpages/orders.php");
+}
+
 /*
 	Loading a service?
 */
@@ -132,12 +137,25 @@ function pmpro_wp_ajax_stripe_webhook()
 }
 add_action('wp_ajax_nopriv_stripe_webhook', 'pmpro_wp_ajax_stripe_webhook');
 add_action('wp_ajax_stripe_webhook', 'pmpro_wp_ajax_stripe_webhook');
+function pmpro_wp_ajax_braintree_webhook()
+{
+	require_once(dirname(__FILE__) . "/services/braintree-webhook.php");	
+	exit;
+}
+add_action('wp_ajax_nopriv_braintree_webhook', 'pmpro_wp_ajax_braintree_webhook');
+add_action('wp_ajax_braintree_webhook', 'pmpro_wp_ajax_braintree_webhook');
 function pmpro_wp_ajax_memberlist_csv()
 {
 	require_once(dirname(__FILE__) . "/adminpages/memberslist-csv.php");	
 	exit;
 }
 add_action('wp_ajax_memberslist_csv', 'pmpro_wp_ajax_memberlist_csv');
+function pmpro_wp_ajax_orders_csv()
+{
+	require_once(dirname(__FILE__) . "/adminpages/orders-csv.php");	
+	exit;
+}
+add_action('wp_ajax_orders_csv', 'pmpro_wp_ajax_orders_csv');
 	
 function pmpro_set_current_user()
 {
@@ -195,7 +213,7 @@ add_action('set_current_user', 'pmpro_set_current_user');
 /*
 	Checks if PMPro settings are complete or if there are any errors.
 */
-function pmpro_checkLevelForStripeCompatibilty($level = NULL)
+function pmpro_checkLevelForStripeCompatibility($level = NULL)
 {
 	$gateway = pmpro_getOption("gateway");
 	if($gateway == "stripe")
@@ -245,6 +263,56 @@ function pmpro_checkLevelForStripeCompatibilty($level = NULL)
 	return true;
 }
 
+/*
+	Checks if PMPro settings are complete or if there are any errors.
+*/
+function pmpro_checkLevelForBraintreeCompatibility($level = NULL)
+{
+	$gateway = pmpro_getOption("gateway");
+	if($gateway == "braintree")
+	{
+		global $wpdb;
+		
+		//check ALL the levels
+		if(empty($level))
+		{
+			$sqlQuery = "SELECT * FROM $wpdb->pmpro_membership_levels ORDER BY id ASC";		
+			$levels = $wpdb->get_results($sqlQuery, OBJECT);
+			if(!empty($levels))
+			{
+				foreach($levels as $level)
+				{
+					/*
+						Braintree currently does not support:
+						* Trial Amounts > 0.
+						* Daily or Weekly billing periods.												
+					*/
+					if($level->trial_amount > 0 ||
+					   $level->cycle_period == "Day" || $level->cycle_period == "Week")
+					{
+						return false;
+					}
+				}
+			}
+		}
+		else
+		{
+			//need to look it up?
+			if(is_numeric($level))
+				$level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . $wpdb->escape($level) . "' LIMIT 1");
+			
+			//check this level
+			if($level->trial_amount > 0 ||
+			   $level->cycle_period == "Day" || $level->cycle_period == "Week")
+			{
+				return false;
+			}
+		}
+	}
+	
+	return true;
+}
+
 function pmpro_is_ready()
 {
 	global $wpdb, $pmpro_pages, $pmpro_level_ready, $pmpro_gateway_ready, $pmpro_pages_ready;
@@ -285,9 +353,23 @@ function pmpro_is_ready()
 			else
 				$pmpro_gateway_ready = false;
 		}
+		elseif($gateway == "payflowpro")
+		{
+			if(pmpro_getOption("payflow_partner") && pmpro_getOption("payflow_vendor") && pmpro_getOption("payflow_user") && pmpro_getOption("payflow_pwd"))
+				$pmpro_gateway_ready = true;
+			else
+				$pmpro_gateway_ready = false;
+		}
 		elseif($gateway == "stripe")
 		{
 			if(pmpro_getOption("gateway_environment") && pmpro_getOption("stripe_secretkey") && pmpro_getOption("stripe_publishablekey"))
+				$pmpro_gateway_ready = true;
+			else
+				$pmpro_gateway_ready = false;
+		}
+		elseif($gateway == "braintree")
+		{
+			if(pmpro_getOption("gateway_environment") && pmpro_getOption("braintree_merchantid") && pmpro_getOption("braintree_publickey") && pmpro_getOption("braintree_privatekey"))
 				$pmpro_gateway_ready = true;
 			else
 				$pmpro_gateway_ready = false;
@@ -451,7 +533,7 @@ add_shortcode("pmpro_checkout", "pmpro_checkout_shortcode");
 
 function pmpro_membership_level_profile_fields($user)
 {
-	global $current_user;
+	global $current_user, $pmpro_currency_symbol;
 	if(!current_user_can("administrator"))
 		return false;
 
@@ -508,7 +590,7 @@ function pmpro_membership_level_profile_fields($user)
 					{
 					?>
 						<?php if($membership_values->billing_amount > 0) { ?>
-							at $<?php echo $membership_values->billing_amount?>
+							at <?php echo $pmpro_currency_symbol;?><?php echo $membership_values->billing_amount?>
 							<?php if($membership_values->cycle_number > 1) { ?>
 								per <?php echo $membership_values->cycle_number?> <?php echo sornot($membership_values->cycle_period,$membership_values->cycle_number)?>
 							<?php } elseif($membership_values->cycle_number == 1) { ?>
@@ -519,7 +601,7 @@ function pmpro_membership_level_profile_fields($user)
 						<?php if($membership_values->billing_limit) { ?> for <?php echo $membership_values->billing_limit.' '.sornot($membership_values->cycle_period,$membership_values->billing_limit)?><?php } ?>.
 
 						<?php if($membership_values->trial_limit) { ?>
-							The first <?php echo $membership_values->trial_limit?> <?php echo sornot("payments",$membership_values->trial_limit)?> will cost $<?php echo $membership_values->trial_amount?>.
+							The first <?php echo $membership_values->trial_limit?> <?php echo sornot("payments",$membership_values->trial_limit)?> will cost <?php echo $pmpro_currency_symbol;?><?php echo $membership_values->trial_amount?>.
 						<?php } ?>
 					<?php
 					}
@@ -634,10 +716,17 @@ function pmpro_membership_level_profile_fields_update()
 	}
 	elseif(isset($_REQUEST['expires']))
 	{
-		//null out the expiration
-		$sqlQuery = "UPDATE $wpdb->pmpro_memberships_users SET enddate = NULL WHERE status = 'active' AND user_id = '" . $user_ID . "' LIMIT 1";
-		if($wpdb->query($sqlQuery))
-			$expiration_changed = true;
+		//already blank? have to check for null or '0000-00-00 00:00:00' or '' here.
+		$sqlQuery = "SELECT user_id FROM $wpdb->pmpro_memberships_users WHERE (enddate IS NULL OR enddate = '' OR enddate = '0000-00-00 00:00:00') AND status = 'active' AND user_id = '" . $user_ID . "' LIMIT 1";
+		$blank = $wpdb->get_var($sqlQuery);
+		
+		if(empty($blank))
+		{		
+			//null out the expiration
+			$sqlQuery = "UPDATE $wpdb->pmpro_memberships_users SET enddate = NULL WHERE status = 'active' AND user_id = '" . $user_ID . "' LIMIT 1";
+			if($wpdb->query($sqlQuery))
+				$expiration_changed = true;
+		}
 	}
 	
 	//send email
@@ -674,7 +763,7 @@ function pmpro_has_membership_access($post_id = NULL, $user_id = NULL, $return_m
 		return false;
 
 	//if no post or current_user object, set them up
-	if($post_id == $post->ID)
+	if(!empty($post->ID) && $post_id == $post->ID)
 		$mypost = $post;
 	else
 		$mypost = get_post($post_id);
@@ -1108,8 +1197,9 @@ function pmpro_add_pages()
 	add_submenu_page('pmpro-membershiplevels', 'Email Settings', 'Email Settings', 'manage_options', 'pmpro-emailsettings', 'pmpro_emailsettings');
 	add_submenu_page('pmpro-membershiplevels', 'Advanced Settings', 'Advanced Settings', 'manage_options', 'pmpro-advancedsettings', 'pmpro_advancedsettings');
 	add_submenu_page('pmpro-membershiplevels', 'Members List', 'Members List', 'manage_options', 'pmpro-memberslist', 'pmpro_memberslist');
+	add_submenu_page('pmpro-membershiplevels', 'Orders', 'Orders', 'manage_options', 'pmpro-orders', 'pmpro_orders');
 	add_submenu_page('pmpro-membershiplevels', 'Discount Codes', 'Discount Codes', 'manage_options', 'pmpro-discountcodes', 'pmpro_discountcodes');
-
+	
 	//rename the automatically added Memberships submenu item
 	global $submenu;
 	if(!empty($submenu['pmpro-membershiplevels']))
@@ -1159,11 +1249,15 @@ function pmpro_admin_bar_menu() {
 	'title' => __( 'Members List'),
 	'href' => get_admin_url(NULL, '/admin.php?page=pmpro-memberslist') ) );
 	$wp_admin_bar->add_menu( array(
+	'id' => 'pmpro-orders',
+	'parent' => 'paid-memberships-pro',
+	'title' => __( 'Orders'),
+	'href' => get_admin_url(NULL, '/admin.php?page=pmpro-orders') ) );
+	$wp_admin_bar->add_menu( array(
 	'id' => 'pmpro-discount-codes',
 	'parent' => 'paid-memberships-pro',
 	'title' => __( 'Discount Codes'),
-	'href' => get_admin_url(NULL, '/admin.php?page=pmpro-discountcodes') ) );
-
+	'href' => get_admin_url(NULL, '/admin.php?page=pmpro-discountcodes') ) );	
 }
 add_action('admin_bar_menu', 'pmpro_admin_bar_menu', 1000);
 

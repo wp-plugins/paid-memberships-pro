@@ -7,7 +7,7 @@
 	//blank array for required fields, set below
 	$pmpro_required_billing_fields = array();
 	$pmpro_required_user_fields = array();
-	
+		
 	//was a gateway passed?
 	if(!empty($_REQUEST['gateway']))
 		$gateway = $_REQUEST['gateway'];
@@ -15,7 +15,7 @@
 		$gateway = "paypalexpress";
 	else
 		$gateway = pmpro_getOption("gateway");			
-	
+		
 	//set valid gateways - the active gateway in the settings and any gateway added through the filter will be allowed
 	if(pmpro_getOption("gateway", true) == "paypal")
 		$valid_gateways = apply_filters("pmpro_valid_gateways", array("paypal", "paypalexpress"));
@@ -201,6 +201,19 @@
 		}
 		add_filter("pmpro_required_billing_fields", "pmpro_stripe_dont_require_CVV");
 	}
+	
+	//code for Braintree
+	if($gateway == "braintree")
+	{
+		//don't require the CVV, but look for cvv (lowercase) that braintree sends
+		function pmpro_braintree_dont_require_CVV($fields)
+		{
+			unset($fields['CVV']);	
+			$fields['cvv'] = true;
+			return $fields;
+		}
+		add_filter("pmpro_required_billing_fields", "pmpro_braintree_dont_require_CVV");
+	}
 		
 	//get all levels in case we need them
 	global $pmpro_levels;
@@ -287,7 +300,7 @@
 	else
 		$bconfirmemail = "";
 		
-	if(isset($_REQUEST['CardType']))
+	if(isset($_REQUEST['CardType']) && !empty($_REQUEST['AccountNumber']))
 		$CardType = $_REQUEST['CardType'];
 	else
 		$CardType = "";
@@ -335,6 +348,14 @@
 	if(isset($_REQUEST['stripeToken']))
 	{
 		$stripeToken = $_REQUEST['stripeToken'];				
+	}
+	
+	//for Braintree, load up values
+	if(isset($_REQUEST['number']) && isset($_REQUEST['expiration_date']) && isset($_REQUEST['cvv']))
+	{
+		$braintree_number = $_REQUEST['number'];
+		$braintree_expiration_date = $_REQUEST['expiration_date'];
+		$braintree_cvv = $_REQUEST['cvv'];
 	}
 	
 	//_x stuff in case they clicked on the image button with their mouse
@@ -432,7 +453,7 @@
 		}
 			
 		if(!empty($pmpro_error_fields))
-		{
+		{			
 			pmpro_setMessage("Please complete all required fields.", "pmpro_error");
 		}				
 		if(!empty($password) && $password != $password2)
@@ -582,6 +603,15 @@
 						//stripeToken
 						if(isset($stripeToken))
 							$morder->stripeToken = $stripeToken;
+						
+						//Braintree values
+						if(isset($braintree_number))
+						{
+							$morder->braintree = new stdClass();
+							$morder->braintree->number = $braintree_number;
+							$morder->braintree->expiration_date = $braintree_expiration_date;
+							$morder->braintree->cvv = $braintree_cvv;
+						}
 						
 						//not saving email in order table, but the sites need it
 						$morder->Email = $bemail;
