@@ -18,7 +18,7 @@
 	}
 	
 	//if no user, redirect to levels page
-	if(!$current_user->ID)
+	if(empty($current_user->ID))
 	{		
 		$redirect = apply_filters("pmpro_account_preheader_no_user_redirect", pmpro_url("levels"));
 		if($redirect)
@@ -29,7 +29,7 @@
 	}
 	
 	//if no membership level, redirect to levels page
-	if(!$current_user->membership_level->ID)
+	if(empty($current_user->membership_level->ID))
 	{
 		$redirect = apply_filters("pmpro_account_preheader_redirect", pmpro_url("levels"));
 		if($redirect)
@@ -40,5 +40,5 @@
 	}	
 	
 	global $pmpro_levels;
-	$pmpro_levels = $wpdb->get_results( "SELECT * FROM " . $wpdb->pmpro_membership_levels . " WHERE allow_signups = 1", OBJECT );		
+	$pmpro_levels = pmpro_getAllLevels();		
 ?>
