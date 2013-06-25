@@ -2,7 +2,7 @@
 	//only admins can get this
 	if(!function_exists("current_user_can") || (!current_user_can("manage_options") && !current_user_can("pmpro_memberslist")))
 	{
-		die("You do not have permissions to perform this action.");
+		die(__("You do not have permissions to perform this action.", "pmpro"));
 	}	
 	
 	//vars
@@ -16,25 +16,20 @@
 		$l = $_REQUEST['l'];
 	else
 		$l = false;
+			
+	require_once(dirname(__FILE__) . "/admin_header.php");		
 ?>
-<div class="wrap pmpro_admin">	
-	<div class="pmpro_banner">		
-		<a class="pmpro_logo" title="Paid Memberships Pro - Membership Plugin for WordPress" target="_blank" href="<?php echo pmpro_https_filter("http://www.paidmembershipspro.com")?>"><img src="<?php echo PMPRO_URL?>/images/PaidMembershipsPro.gif" width="350" height="45" border="0" alt="Paid Memberships Pro(c) - All Rights Reserved" /></a>
-		<div class="pmpro_tagline">Membership Plugin for WordPress</div>
-		
-		<div class="pmpro_meta"><a href="<?php echo pmpro_https_filter("http://www.paidmembershipspro.com")?>">Plugin Support</a> | <a href="http://www.paidmembershipspro.com/forums/">User Forum</a> | <strong>Version <?php echo PMPRO_VERSION?></strong></div>
-	</div>
-	<br style="clear:both;" />		
 
 	<form id="posts-filter" method="get" action="">	
 	<h2>
-		Members Report
-		<small>(<a target="_blank" href="<?php echo admin_url('admin-ajax.php');?>?action=memberslist_csv&s=<?php echo $s?>&l=<?php echo $l?>">Export to CSV</a>)</small>
+		<?php _e('Members List', 'pmpro');?>
+		<a target="_blank" href="<?php echo admin_url('admin-ajax.php');?>?action=memberslist_csv&s=<?php echo $s?>&l=<?php echo $l?>" class="button add-new-h2"><?php _e('Export to CSV', 'pmpro');?></a>
 	</h2>		
 	<ul class="subsubsub">
 		<li>			
-			Show <select name="l" onchange="jQuery('#posts-filter').submit();">
-				<option value="" <?php if(!$l) { ?>selected="selected"<?php } ?>>All Levels</option>
+			<?php _e('Show', 'pmpro');?>
+			<select name="l" onchange="jQuery('#posts-filter').submit();">
+				<option value="" <?php if(!$l) { ?>selected="selected"<?php } ?>><?php _e('All Levels', 'pmpro');?></option>
 				<?php
 					$levels = $wpdb->get_results("SELECT id, name FROM $wpdb->pmpro_membership_levels ORDER BY name");
 					foreach($levels as $level)
@@ -48,10 +43,10 @@
 		</li>
 	</ul>
 	<p class="search-box">
-		<label class="hidden" for="post-search-input">Search Members:</label>
+		<label class="hidden" for="post-search-input"><?php _e('Search Members', 'pmpro');?>:</label>
 		<input type="hidden" name="page" value="pmpro-memberslist" />		
 		<input id="post-search-input" type="text" value="<?php echo $s?>" name="s"/>
-		<input class="button" type="submit" value="Search Members"/>
+		<input class="button" type="submit" value="<?php _e('Search Members', 'pmpro');?>"/>
 	</p>
 	<?php 
 		//some vars for the search
@@ -85,7 +80,9 @@
 				$sqlQuery .= " AND mu.membership_id = '" . $l . "' ";
 			$sqlQuery .= "GROUP BY u.ID ORDER BY user_registered DESC LIMIT $start, $limit";
 		}
-						
+
+		$sqlQuery = apply_filters("pmpro_members_list_sql", $sqlQuery);
+		
 		$theusers = $wpdb->get_results($sqlQuery);
 		$totalrows = $wpdb->get_var("SELECT FOUND_ROWS() as found_rows");
 		
@@ -103,7 +100,7 @@
 			else
 			{
 			?>
-			<p class="clear"><?php echo strval($totalrows)?> members found.	
+			<p class="clear"><?php printf(__("%d members found.", "pmpro"), $totalrows);?></span></p>			
 			<?php
 			}
 		}		
@@ -111,17 +108,17 @@
 	<table class="widefat">
 		<thead>
 			<tr class="thead">
-				<th>ID</th>
-				<th>Username</th>
-				<th>First&nbsp;Name</th>
-				<th>Last&nbsp;Name</th>
-				<th>Email</th>
+				<th><?php _e('ID', 'pmpro');?></th>
+				<th><?php _e('Username', 'pmpro');?></th>
+				<th><?php _e('First&nbsp;Name', 'pmpro');?></th>
+				<th><?php _e('Last&nbsp;Name', 'pmpro');?></th>
+				<th><?php _e('Email', 'pmpro');?></th>
 				<?php do_action("pmpro_memberslist_extra_cols_header", $theusers);?>
-				<th>Billing Address</th>
-				<th>Membership</th>	
-				<th>Fee</th>
-				<th>Joined</th>
-				<th>Expires</th>
+				<th><?php _e('Billing Address', 'pmpro');?></th>
+				<th><?php _e('Membership', 'pmpro');?></th>	
+				<th><?php _e('Fee', 'pmpro');?></th>
+				<th><?php _e('Joined', 'pmpro');?></th>
+				<th><?php _e('Expires', 'pmpro');?></th>
 			</tr>
 		</thead>
 		<tbody id="users" class="list:user user-list">	
@@ -136,7 +133,13 @@
 							<td><?php echo $theuser->ID?></td>
 							<td>
 								<?php echo get_avatar($theuser->ID, 32)?>
-								<strong><a href="user-edit.php?user_id=<?php echo $theuser->ID?>"><?php echo $theuser->user_login?></a></strong>
+								<strong>
+									<?php
+										$userlink = '<a href="user-edit.php?user_id=' . $theuser->ID . '">' . $theuser->user_login . '</a>';
+										$userlink = apply_filters("pmpro_members_list_user_link", $userlink, $theuser);
+										echo $userlink;
+									?>									
+								</strong>
 							</td>
 							<td><?php echo $theuser->first_name?></td>
 							<td><?php echo $theuser->last_name?></td>
@@ -178,7 +181,7 @@
 									if($auser->enddate) 
 										echo date(get_option('date_format'), $auser->enddate);
 									else
-										echo "Never";
+										echo __("Never", "pmpro");
 								?>
 							</td>
 						</tr>
@@ -189,7 +192,7 @@
 				{
 				?>
 				<tr>
-					<td colspan="9"><p>No members found. <?php if($l) { ?><a href="?page=pmpro-memberslist&s=<?php echo $s?>">Search all levels</a>.<?php } ?></p></td>
+					<td colspan="9"><p><?php _e("No members found.", "pmpro");?> <?php if($l) { ?><a href="?page=pmpro-memberslist&s=<?php echo $s?>"><?php _e("Search all levels", "pmpro");?></a>.<?php } ?></p></td>
 				</tr>
 				<?php
 				}
@@ -202,4 +205,6 @@
 	echo pmpro_getPaginationString($pn, $totalrows, $limit, 1, get_admin_url(NULL, "/admin.php?page=pmpro-memberslist&s=" . urlencode($s)), "&l=$l&limit=$limit&pn=");
 	?>
 	
-</div>
+<?php
+	require_once(dirname(__FILE__) . "/admin_footer.php");	
+?>

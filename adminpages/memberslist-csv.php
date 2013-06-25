@@ -2,7 +2,7 @@
 	//only admins can get this
 	if(!function_exists("current_user_can") || (!current_user_can("manage_options") && !current_user_can("pmpro_memberslist_csv")))
 	{
-		die("You do not have permissions to perform this action.");
+		die(__("You do not have permissions to perform this action.", "pmpro"));
 	}	
 	
 	global $wpdb;	
@@ -59,9 +59,14 @@
 		if($limit)
 			$sqlQuery .= "LIMIT $start, $limit";
 	}
-		
+	
+	$sqlQuery = apply_filters("pmpro_members_list_sql", $sqlQuery);	
+	
 	$theusers = $wpdb->get_results($sqlQuery);	
-	$csvoutput = "id,username,firstname,lastname,email,billing firstname,billing lastname,address1,address2,city,state,zipcode,country,phone,membership,initial payment,fee,term,joined,expires";
+
+	$heading = "id,username,firstname,lastname,email,billing firstname,billing lastname,address1,address2,city,state,zipcode,country,phone,membership,initial payment,fee,term,joined,expires";
+	$heading = apply_filters("pmpro_members_list_csv_heading", $heading);
+	$csvoutput = $heading;
 	
 	//these are the meta_keys for the fields (arrays are object, property. so e.g. $theuser->ID)
 	$default_columns = array(
@@ -75,7 +80,7 @@
 		array("metavalues", "pmpro_baddress1"),
 		array("metavalues", "pmpro_baddress2"),
 		array("metavalues", "pmpro_bcity"),
-		array("metavalues", "pmpro_bzipcode"),
+		array("metavalues", "pmpro_bstate"),
 		array("metavalues", "pmpro_bzipcode"),
 		array("metavalues", "pmpro_bcountry"),
 		array("metavalues", "pmpro_bphone"),
@@ -85,6 +90,9 @@
 		array("theuser", "cycle_period")
 		//joindate and enddate are handled specifically below
 	);
+
+	//filter
+	$default_columns = apply_filters("pmpro_members_list_csv_default_columns", $default_columns);
 	
 	//any extra columns
 	$extra_columns = apply_filters("pmpro_members_list_csv_extra_columns", array());

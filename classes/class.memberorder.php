@@ -173,8 +173,13 @@
 		*/
 		function getLastMemberOrderBySubscriptionTransactionID($subscription_transaction_id)
 		{
+			//did they pass a sub id?
+			if(empty($subscription_transaction_id))
+				return false;
+			
 			global $wpdb;
 			$id = $wpdb->get_var("SELECT id FROM $wpdb->pmpro_membership_orders WHERE subscription_transaction_id = '" . $wpdb->escape($subscription_transaction_id) . "' ORDER BY id DESC LIMIT 1");
+			
 			if($id)
 				return $this->getMemberOrderByID($id);
 			else
@@ -484,6 +489,7 @@
 			{
 				$scramble = md5(AUTH_KEY . time() . SECURE_AUTH_KEY);			
 				$code = substr($scramble, 0, 10);
+				$code = apply_filters("pmpro_random_code", $code, $this);	//filter				
 				$check = $wpdb->get_var("SELECT id FROM $wpdb->pmpro_membership_orders WHERE code = '$code' LIMIT 1");				
 				if($check || is_numeric($code))
 					$code = NULL;
