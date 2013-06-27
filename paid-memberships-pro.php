@@ -3,7 +3,7 @@
 Plugin Name: Paid Memberships Pro
 Plugin URI: http://www.paidmembershipspro.com
 Description: Plugin to Handle Memberships
-Version: 1.7
+Version: 1.7.0.1
 Author: Stranger Studios
 Author URI: http://www.strangerstudios.com
 */
@@ -51,7 +51,7 @@ require_once(PMPRO_DIR . "/includes/content.php");				//code to check for memebr
 require_once(PMPRO_DIR . "/includes/email.php");				//code related to email
 require_once(PMPRO_DIR . "/includes/recaptcha.php");			//load recaptcha files if needed
 require_once(PMPRO_DIR . "/includes/cleanup.php");				//clean things up when deletes happen, etc.
-require_once(PMPRO_DIR . "/includes/login.php");
+require_once(PMPRO_DIR . "/includes/login.php");				//code to redirect away from login/register page
 
 require_once(PMPRO_DIR . "/shortcodes/checkout.php");			//[pmpro_checkout] shortcode for checkout pages
 require_once(PMPRO_DIR . "/shortcodes/checkout_button.php");	//[checkout_button] shortcode to show link to checkout for a level
@@ -71,7 +71,7 @@ $urlparts = explode("//", home_url());
 define("SITEURL", $urlparts[1]);
 define("SECUREURL", str_replace("http://", "https://", get_bloginfo("wpurl")));
 define("PMPRO_URL", WP_PLUGIN_URL . "/paid-memberships-pro");
-define("PMPRO_VERSION", "1.7");
+define("PMPRO_VERSION", "1.7.0.1");
 define("PMPRO_DOMAIN", pmpro_getDomainFromURL(site_url()));
 
 /*
