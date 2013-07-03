@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, ecommerce, authorize.net, paypal, stripe
 Requires at least: 3.0
 Tested up to: 3.5.2
-Stable tag: 1.7.0.1
+Stable tag: 1.7.0.2
 
 A customizable Membership Plugin for WordPress integrated with Authorize.net or PayPal(r) for recurring payments, flexible content control, themed registration, checkout, and more ...
 
@@ -59,6 +59,10 @@ If you would like more help using PMPro on a network install, sign up for suppor
 3. Use Discount Codes to offer access at lower prices for special customers.
 
 == Changelog == 
+= 1.7.0.2 =
+* Fixed HUGE issue with the DB setup on fresh 1.7+ installs. If you installed version 1.7 or 1.7.0.1 fresh (not upgraded from earlier version) then PMPro will not work until you upgrade to version 1.7.0.2.
+* Removed from old PHP short tag use
+
 = 1.7.0.1 =
 * Added the redirect away from wp-login.php page (was accidentally removed in version 1.7).
 * Added support for Theme My Login versions 6.3+
@@ -66,7 +70,7 @@ If you would like more help using PMPro on a network install, sign up for suppor
 * Fixed some warnings.
 * Fixed generation of cost text when using built in tax.
 * Added "pmpro_subscribe_order" filter.
-* Added an index to the user_id column of pmpro_memberships_users table which will help with performance of the new logins report and other user search functions.:
+* Added an index to the user_id column of pmpro_memberships_users table which will help with performance of the new logins report and other user search functions.
 
 = 1.7 =
 * Ready for localization efforts.
