@@ -564,7 +564,7 @@ function pmpro_db_delta()
 		   KEY `code_id` (`code_id`),
 		   KEY `enddate` (`enddate`),
 		   KEY `user_id` (`user_id`),
-		   KEY `user_id` (`status`)
+		   KEY `status` (`status`)
 		);
 	";
 	dbDelta($sqlQuery);		
