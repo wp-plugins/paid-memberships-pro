@@ -833,7 +833,7 @@
 				$wpuser = new WP_User(0, $username);
 		
 				//make the user a subscriber
-				$wpuser->set_role("subscriber");
+				$wpuser->set_role(get_option('default_role', 'subscriber'));
 									
 				//okay, log them in to WP							
 				$creds = array();
@@ -978,7 +978,7 @@
 			else
 			{
 				//uh oh. we charged them then the membership creation failed
-				if($morder->cancel())
+				if(isset($morder) && $morder->cancel())
 				{
 					$pmpro_msg = __("IMPORTANT: Something went wrong during membership creation. Your credit card authorized, but we cancelled the order immediately. You should not try to submit this form again. Please contact the site owner to fix this issue.", "pmpro");
 					$morder = NULL;
