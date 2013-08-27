@@ -2,10 +2,16 @@
 	global $isapage;
 	$isapage = true;
 		
-	//wp includes	
-	define('WP_USE_THEMES', false);
-	require('../../../../wp-load.php');	
-	require_once('../classes/class.mimetype.php');
+	//in case the file is loaded directly
+	if(!function_exists("get_userdata"))
+	{
+		define('WP_USE_THEMES', false);
+		require_once(dirname(__FILE__) . '/../../../../wp-load.php');
+	}
+	
+	require_once(dirname(__FILE__) . '/../classes/class.mimetype.php');
+	
+	global $wpdb;
 	
 	$uri = $_SERVER['REQUEST_URI'];
 	if($uri[0] == "/")
@@ -46,9 +52,9 @@
 		{
 			if(!pmpro_has_membership_access($file_post_parent))
 			{
-				//nope
-				echo "HTTP/1.1 503 Service Unavailable";
+				//nope				
 				header('HTTP/1.1 503 Service Unavailable', true, 503);
+				echo "HTTP/1.1 503 Service Unavailable";
 				exit;
 			}
 		}		
