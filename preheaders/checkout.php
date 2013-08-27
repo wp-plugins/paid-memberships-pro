@@ -529,7 +529,7 @@
 			//only continue if there are no other errors yet
 			if($pmpro_msgt != "pmpro_error")
 			{								
-				//check recaptch first
+				//check recaptcha first
 				global $recaptcha;
 				if(!$skip_account_fields && ($recaptcha == 2 || ($recaptcha == 1 && pmpro_isLevelFree($pmpro_level))))
 				{
@@ -567,7 +567,7 @@
 						{
 							$_SESSION['pmpro_signup_username'] = $username;
 							$_SESSION['pmpro_signup_password'] = $password;
-							$_SESSION['pmpro_signup_email'] = $bemail;														
+							$_SESSION['pmpro_signup_email'] = $bemail;							
 						}
 						
 						//can use this hook to save some other variables to the session
@@ -854,6 +854,10 @@
 				$morder->user_id = $user_id;				
 				$morder->saveOrder();
 				
+				//save discount code use
+				if(!empty($discount_code_id))
+					$wpdb->query("INSERT INTO $wpdb->pmpro_discount_codes_uses (code_id, user_id, order_id, timestamp) VALUES('" . $discount_code_id . "', '" . $user_id . "', '" . $morder->id . "', now())");	
+				
 				do_action("pmpro_before_send_to_paypal_standard", $user_id, $morder);
 				
 				$morder->Gateway->sendToPayPal($morder);
@@ -895,6 +899,15 @@
 			if(pmpro_changeMembershipLevel($custom_level, $user_id))
 			{
 				//we're good
+				//blank order for free levels
+				if(empty($morder))
+				{					
+					$morder = new MemberOrder();						
+					$morder->InitialPayment = 0;	
+					$morder->Email = $bemail;
+					$morder->gateway = "free";					
+				}
+				
 				//add an item to the history table, cancel old subscriptions
 				if(!empty($morder))
 				{
@@ -917,7 +930,7 @@
 					else
 						$code_order_id = "";
 						
-					$wpdb->query("INSERT INTO $wpdb->pmpro_discount_codes_uses (code_id, user_id, order_id, timestamp) VALUES('" . $discount_code_id . "', '" . $current_user->ID . "', '" . intval($code_order_id) . "', now())");										
+					$wpdb->query("INSERT INTO $wpdb->pmpro_discount_codes_uses (code_id, user_id, order_id, timestamp) VALUES('" . $discount_code_id . "', '" . $user_id . "', '" . intval($code_order_id) . "', now())");										
 				}
 			
 				//save billing info ect, as user meta																		

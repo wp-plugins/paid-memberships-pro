@@ -11,9 +11,9 @@ function pmpro_has_membership_access($post_id = NULL, $user_id = NULL, $return_m
 	if(!$user_id)
 		$user_id = $current_user->ID;
 
-	//no post, return false
+	//no post, return true (changed from false in version 1.7.2)
 	if(!$post_id)
-		return false;
+		return true;
 
 	//if no post or current_user object, set them up
 	if(!empty($post->ID) && $post_id == $post->ID)
@@ -222,10 +222,10 @@ function pmpro_membership_content_filter($content, $skipcheck = false)
 			$content = "";
 		}
 
-		if(!$post_membership_levels_ids)
+		if(empty($post_membership_levels_ids))
 			$post_membership_levels_ids = array();
 
-		if(!$post_membership_levels_names)
+		if(empty($post_membership_levels_names))
 			$post_membership_levels_names = array();
 
 		$pmpro_content_message_pre = '<div class="pmpro_content_message">';
