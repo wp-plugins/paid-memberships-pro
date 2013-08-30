@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, membership, authorize.net, ecommerce, paypal, stripe, braintree, restrict access, restrict content, directory site, payflow
 Requires at least: 3.0
 Tested up to: 3.6
-Stable tag: 1.7.2
+Stable tag: 1.7.2.1
 
 The easiest way to GET PAID with your WordPress site. Flexible content control by Membership Level, Reports, Affiliates and Discounts
 
@@ -100,6 +100,16 @@ Not sure? You can find out by doing a bit a research.
 4. Offer Membership Discounts with specific price rules (restricted by level, unique pricing for each level, # of uses, expiration date.)
 
 == Changelog == 
+= 1.7.2.1 =
+* Fixed warning when trying to load the "free" gateway on free level checkouts.
+* Fixed warning coming from login report tracking.
+* Changed all $wpdb->escape() calls to esc_sql() to fix notice.
+* Fixed another bug in revenue/sales report for daily charts. (backported to 1.7.2, but a few people who upgraded missed it)
+* Fixed bug on add/edit level page that was causing issues in some versions of IE.
+* Fixed bug where links in the email_header.html and email_footer.html templates were not being converted to true links.
+* Removed an extra $ from the PayPal Express confirmation emails.
+* Fixed loading of local (in the paid-memberships-pro/languages directory) translation files. (Should have some bundled with the plugin soon.)
+
 = 1.7.2 =
 * Fixed the revenue/sales report to accurately track recurring sales and reports from earlier years.
 * Now trimming whitespace on any text field updated through the PMPro settings pages. This prevents issues like those that come up if you have whitespace in your Stripe API key, etc.  Thanks, Scott Sousa.

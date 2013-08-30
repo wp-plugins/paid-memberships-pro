@@ -94,19 +94,19 @@
 		if($saveid > 0)
 		{
 			$sqlQuery = " UPDATE {$wpdb->pmpro_membership_levels}
-						SET name = '" . $wpdb->escape($ml_name) . "',
-						  description = '" . $wpdb->escape($ml_description) . "',
-						  confirmation = '" . $wpdb->escape($ml_confirmation) . "',
-						  initial_payment = '" . $wpdb->escape($ml_initial_payment) . "',
-						  billing_amount = '" . $wpdb->escape($ml_billing_amount) . "',
-						  cycle_number = '" . $wpdb->escape($ml_cycle_number) . "',
-						  cycle_period = '" . $wpdb->escape($ml_cycle_period) . "',
-						  billing_limit = '" . $wpdb->escape($ml_billing_limit) . "',
-						  trial_amount = '" . $wpdb->escape($ml_trial_amount) . "',
-						  trial_limit = '" . $wpdb->escape($ml_trial_limit) . "',                    
-						  expiration_number = '" . $wpdb->escape($ml_expiration_number) . "',
-						  expiration_period = '" . $wpdb->escape($ml_expiration_period) . "',
-						  allow_signups = '" . $wpdb->escape($ml_allow_signups) . "'
+						SET name = '" . esc_sql($ml_name) . "',
+						  description = '" . esc_sql($ml_description) . "',
+						  confirmation = '" . esc_sql($ml_confirmation) . "',
+						  initial_payment = '" . esc_sql($ml_initial_payment) . "',
+						  billing_amount = '" . esc_sql($ml_billing_amount) . "',
+						  cycle_number = '" . esc_sql($ml_cycle_number) . "',
+						  cycle_period = '" . esc_sql($ml_cycle_period) . "',
+						  billing_limit = '" . esc_sql($ml_billing_limit) . "',
+						  trial_amount = '" . esc_sql($ml_trial_amount) . "',
+						  trial_limit = '" . esc_sql($ml_trial_limit) . "',                    
+						  expiration_number = '" . esc_sql($ml_expiration_number) . "',
+						  expiration_period = '" . esc_sql($ml_expiration_period) . "',
+						  allow_signups = '" . esc_sql($ml_allow_signups) . "'
 						WHERE id = '$saveid' LIMIT 1;";	 
 			$wpdb->query($sqlQuery);
 			
@@ -129,7 +129,7 @@
 			$sqlQuery = " INSERT INTO {$wpdb->pmpro_membership_levels}
 						( name, description, confirmation, initial_payment, billing_amount, cycle_number, cycle_period, billing_limit, trial_amount, trial_limit, expiration_number, expiration_period, allow_signups)
 						VALUES
-						( '" . $wpdb->escape($ml_name) . "', '" . $wpdb->escape($ml_description) . "', '" . $wpdb->escape($ml_confirmation) . "', '" . $wpdb->escape($ml_initial_payment) . "', '" . $wpdb->escape($ml_billing_amount) . "', '" . $wpdb->escape($ml_cycle_number) . "', '" . $wpdb->escape($ml_cycle_period) . "', '" . $wpdb->escape($ml_billing_limit) . "', '" . $wpdb->escape($ml_trial_amount) . "', '" . $wpdb->escape($ml_trial_limit) . "', '" . $wpdb->escape($ml_expiration_number) . "', '" . $wpdb->escape($ml_expiration_period) . "', '" . $wpdb->escape($ml_allow_signups) . "' )";
+						( '" . esc_sql($ml_name) . "', '" . esc_sql($ml_description) . "', '" . esc_sql($ml_confirmation) . "', '" . esc_sql($ml_initial_payment) . "', '" . esc_sql($ml_billing_amount) . "', '" . esc_sql($ml_cycle_number) . "', '" . esc_sql($ml_cycle_period) . "', '" . esc_sql($ml_billing_limit) . "', '" . esc_sql($ml_trial_amount) . "', '" . esc_sql($ml_trial_limit) . "', '" . esc_sql($ml_expiration_number) . "', '" . esc_sql($ml_expiration_period) . "', '" . esc_sql($ml_allow_signups) . "' )";
 			$wpdb->query($sqlQuery);
 			if(!mysql_errno())
 			{
@@ -490,10 +490,10 @@
 	<h2><?php _e('Membership Levels', 'pmpro');?> <a href="admin.php?page=pmpro-membershiplevels&edit=-1" class="button add-new-h2"><?php _e('Add New Level', 'pmpro');?></a></h2>
 	<form id="posts-filter" method="get" action="">			
 		<p class="search-box">
-			<label class="screen-reader-text" for="post-search-input<?php _e('Search Levels', 'pmpro');?>:</label>
+			<label class="screen-reader-text" for="post-search-input"><?php _e('Search Levels', 'pmpro');?>:</label>
 			<input type="hidden" name="page" value="pmpro-membershiplevels" />
 			<input id="post-search-input" type="text" value="<?php echo $s?>" name="s" size="30" />
-			<input class="button" type="submit" value="<?php _e('Search Levels', 'pmpro');?>" id="search-submit "/>
+			<input class="button" type="submit" value="<?php _e('Search Levels', 'pmpro');?>" id="search-submit" />
 		</p>		
 	</form>	
 	
