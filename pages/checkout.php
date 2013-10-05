@@ -1,9 +1,8 @@
 <?php		
 	global $gateway, $pmpro_review, $skip_account_fields, $pmpro_paypal_token, $wpdb, $current_user, $pmpro_msg, $pmpro_msgt, $pmpro_requirebilling, $pmpro_level, $pmpro_levels, $tospage, $pmpro_currency_symbol, $pmpro_show_discount_code, $pmpro_error_fields;
 	global $discount_code, $username, $password, $password2, $bfirstname, $blastname, $baddress1, $baddress2, $bcity, $bstate, $bzipcode, $bcountry, $bphone, $bemail, $bconfirmemail, $CardType, $AccountNumber, $ExpirationMonth,$ExpirationYear;	
-
-	//set to true via filter to have Stripe use the minimal billing fields
-	$pmpro_stripe_lite = apply_filters("pmpro_stripe_lite", false);		
+	
+	$pmpro_stripe_lite = apply_filters("pmpro_stripe_lite", !pmpro_getOption("stripe_billingaddress"));	//default is oposite of the stripe_billingaddress setting
 ?>
 
 <form id="pmpro_form" class="pmpro_form" action="<?php if(!empty($_REQUEST['review'])) echo pmpro_url("checkout", "?level=" . $pmpro_level->id); ?>" method="post">
@@ -308,7 +307,7 @@
 	<?php } ?>
 	
 	<?php if(empty($pmpro_stripe_lite) || $gateway != "stripe") { ?>
-	<table id="pmpro_billing_address_fields" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0" <?php if(!$pmpro_requirebilling || $gateway == "paypalexpress" || $gateway == "paypalstandard") { ?>style="display: none;"<?php } ?>>
+	<table id="pmpro_billing_address_fields" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0" <?php if(!$pmpro_requirebilling || $gateway == "paypalexpress" || $gateway == "paypalstandard" || $gateway == "twocheckout") { ?>style="display: none;"<?php } ?>>
 	<thead>
 		<tr>
 			<th><?php _e('Billing Address', 'pmpro');?></th>
@@ -335,7 +334,7 @@
 				</div>
 				
 				<?php
-					$longform_address = apply_filters("pmpro_longform_address", false);
+					$longform_address = apply_filters("pmpro_longform_address", true);
 					if($longform_address)
 					{
 				?>
@@ -405,7 +404,7 @@
 				?>
 				
 				<?php
-					$show_country = apply_filters("pmpro_international_addresses", false);
+					$show_country = apply_filters("pmpro_international_addresses", true);
 					if($show_country)
 					{
 				?>
@@ -414,10 +413,10 @@
 					<select name="bcountry" class=" <?php echo pmpro_getClassForField("bcountry");?>">
 						<?php
 							global $pmpro_countries, $pmpro_default_country;
+							if(!$bcountry)
+								$bcountry = $pmpro_default_country;
 							foreach($pmpro_countries as $abbr => $country)
-							{
-								if(!$bcountry)
-									$bcountry = $pmpro_default_country;
+							{								
 							?>
 							<option value="<?php echo $abbr?>" <?php if($abbr == $bcountry) { ?>selected="selected"<?php } ?>><?php echo $country?></option>
 							<?php
@@ -487,7 +486,7 @@
 		$pmpro_accepted_credit_cards_string = pmpro_implodeToEnglish($pmpro_accepted_credit_cards);	
 	?>
 	
-	<table id="pmpro_payment_information_fields" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0" <?php if(!$pmpro_requirebilling || $gateway == "paypalexpress" || $gateway == "paypalstandard") { ?>style="display: none;"<?php } ?>>
+	<table id="pmpro_payment_information_fields" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0" <?php if(!$pmpro_requirebilling || $gateway == "paypalexpress" || $gateway == "paypalstandard" || $gateway == "twocheckout") { ?>style="display: none;"<?php } ?>>
 	<thead>
 		<tr>
 			<th><span class="pmpro_thead-msg"><?php printf(__('We Accept %s', 'pmpro'), $pmpro_accepted_credit_cards_string);?></span><?php _e('Payment Information', 'pmpro');?></th>
@@ -672,13 +671,13 @@
 			<?php if($gateway == "paypal" || $gateway == "paypalexpress" || $gateway == "paypalstandard") { ?>
 			<span id="pmpro_paypalexpress_checkout" <?php if(($gateway != "paypalexpress" && $gateway != "paypalstandard") || !$pmpro_requirebilling) { ?>style="display: none;"<?php } ?>>
 				<input type="hidden" name="submit-checkout" value="1" />		
-				<input type="image" value="<?php _e('Check Out with PayPal', 'pmpro');?> &raquo;" src="https://www.paypal.com/en_US/i/btn/btn_xpressCheckout.gif" />
+				<input type="image" value="<?php _e('Check Out with PayPal', 'pmpro');?> &raquo;" src="<?php echo apply_filters("pmpro_paypal_button_image", "https://www.paypal.com/en_US/i/btn/btn_xpressCheckout.gif");?>" />
 			</span>
 			<?php } ?>
 			
 			<span id="pmpro_submit_span" <?php if(($gateway == "paypalexpress" || $gateway == "paypalstandard") && $pmpro_requirebilling) { ?>style="display: none;"<?php } ?>>
 				<input type="hidden" name="submit-checkout" value="1" />		
-				<input type="submit" class="pmpro_btn pmpro_btn-submit-checkout" value="<?php if($pmpro_requirebilling) { _e('Submit and Check Out', 'pmpro'); } else { _e('Submit and Confirm', 'pmpro');}?> &raquo;" />				
+				<input type="submit" class="pmpro_btn pmpro_btn-submit-checkout" value="<?php if($pmpro_requirebilling) { if($gateway == "twocheckout") { _e('Submit and Pay with 2CheckOut', 'pmpro'); } else { _e('Submit and Check Out', 'pmpro'); } } else { _e('Submit and Confirm', 'pmpro');}?> &raquo;" />				
 			</span>
 		<?php } ?>
 		
@@ -734,5 +733,29 @@
 	//unhighlight error fields when the user edits them
 	jQuery('.pmpro_error').bind("change keyup input", function() {
 		jQuery(this).removeClass('pmpro_error');
+	});
+	
+	//click apply button on enter in discount code box
+	jQuery('#discount_code').keydown(function (e){
+	    if(e.keyCode == 13){
+		   e.preventDefault();
+		   jQuery('#discount_code_button').click();
+	    }
+	});
+	
+	//hide apply button if a discount code was passed in
+	<?php if(!empty($_REQUEST['discount_code'])) {?>
+		jQuery('#discount_code_button').hide();
+		jQuery('#discount_code').bind('change keyup', function() { 
+			jQuery('#discount_code_button').show(); 
+		});
+	<?php } ?>
+	
+	//click apply button on enter in *other* discount code box
+	jQuery('#other_discount_code').keydown(function (e){
+	    if(e.keyCode == 13){
+		   e.preventDefault();
+		   jQuery('#other_discount_code_button').click();
+	    }
 	});
 </script>

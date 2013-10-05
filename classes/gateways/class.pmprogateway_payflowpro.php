@@ -207,8 +207,7 @@
 			
 			//taxes on the amount
 			$amount = $order->PaymentAmount;
-			$amount_tax = $order->getTaxForPrice($amount);						
-			$order->subtotal = $amount;
+			$amount_tax = $order->getTaxForPrice($amount);									
 			$amount = round((float)$amount + (float)$amount_tax, 2);
 			
 			if($order->BillingPeriod == "Week")
@@ -310,9 +309,6 @@
 				$order->shorterror = urldecode($this->httpParsedResponseAr['RESPMSG']);				
 				return false;				
 			}	
-		
-			//$order->error = "Recurring subscriptions with Payflow are not currently supported by Paid Memberships Pro";
-			//return false;
 		}	
 		
 		function update(&$order)

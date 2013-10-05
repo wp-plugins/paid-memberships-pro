@@ -2,8 +2,8 @@
 Contributors: strangerstudios
 Tags: memberships, membership, authorize.net, ecommerce, paypal, stripe, braintree, restrict access, restrict content, directory site, payflow
 Requires at least: 3.0
-Tested up to: 3.6
-Stable tag: 1.7.2.1
+Tested up to: 3.6.1
+Stable tag: 1.7.3
 
 The easiest way to GET PAID with your WordPress site. Flexible content control by Membership Level, Reports, Affiliates and Discounts
 
@@ -28,7 +28,7 @@ Set up the membership levels that best fit your business, whether they are Free,
 2. Members List with CSV Export
 3. Easy Payment Gateway Setup with testing mode.
 4. Ever expanding list of Membership Reports
-5. Membership Discounts with customizable price rules. 
+5. Membership Discounts with customizable price rules.
 
 = Control the User-Experience from Start to Finish. =
 Your members can update their billing information or cancel their account directly on your site. Any active subscription will be cancelled at the payment gateway for you.
@@ -102,6 +102,30 @@ Not sure? You can find out by doing a bit a research.
 4. Offer Membership Discounts with specific price rules (restricted by level, unique pricing for each level, # of uses, expiration date.)
 
 == Changelog == 
+= 1.7.3 =
+* pmpro_longform_address and pmpro_international_addresses now default to true. See this gist to go back to US-specific address format: https://gist.github.com/strangerstudios/6478242
+* Added "Show Billing Address Fields" option for the Stripe payment gateway. Set to 'No' to hide billing address fields. Replaces the functionality of the "Stripe Lite" plugin.
+* Added language files for es_ES, es_CL, and es_PE. Thanks, Javier Monorové (zillionsk8 on GitHub).
+* Added language files for fr_FR. Thanks, Jérémy De la casa.
+* NOTE: Language files may not be complete. The get involved, join us on GitHub. 
+* Added Cybersource and 2Checkout gateways in beta.
+* Added pmpro_paypal_button_image filter so you can override the URL of the PayPal button image.
+* Added a new report showing signups vs. cancellations, monthly recurring revenue, and lifetime value.
+* Fixed issue where the checkout_paid template was always being used for emails. It now checks if the level at checkout is free and sends either the checkout_free, checkout_paid, or checkout_trial templates accordingly. (Thanks, inator on GitHub)
+* Fixed sales report to not show $ when hovering over bars for "sales" vs. "revenue".
+* Fixed issue where PayPal Standard levels using a billing frequency > 1 (e.g. every 3 months) would have an extra payment charged after one period.
+* Fixed SQL error in discount code admin page that could result in cycle_periods of code levels saving incorrectly. (Thanks, Sam D'Amico)
+* Removed note that Payflow gateway doesn't support recurring payments. It does.
+* Now passing the membership level id in the $data var for checkout and cancellation emails. The key is "membership_id" so use $data['membership_id'] to check/access it.
+* No longer setting the subtotal property of orders when the "subscribe" method of the gateways is called. This will fix cases where an initial order or a subscription with a free trial showed a charge amount > $0.
+* Clicking enter in discount code box at checkout will no longer submit form and will click the "apply" button.
+* Hiding the "Apply" button on the checkout page if a discount code was passed in. Showing it if the text field is changed.
+* Authorize.net now supports CAD, GBP, and EUR currencies (for US merchants only) http://community.developer.authorize.net/t5/The-Authorize-Net-Developer-Blog/Authorize-Net-Expansion-into-Canada-the-United-Kingdom-and/ba-p/33690
+* Fixed notice in getfile.php
+* Fixed notices and expiration dates in login report.
+* Fixed notices in includes/notifications.php (Thanks, Nilesh)
+* Allowing dashes (-) in discount codes now.
+
 = 1.7.2.1 =
 * Fixed warning when trying to load the "free" gateway on free level checkouts.
 * Fixed warning coming from login report tracking.
