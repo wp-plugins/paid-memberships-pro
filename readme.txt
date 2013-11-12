@@ -2,8 +2,8 @@
 Contributors: strangerstudios
 Tags: memberships, membership, authorize.net, ecommerce, paypal, stripe, braintree, restrict access, restrict content, directory site, payflow
 Requires at least: 3.0
-Tested up to: 3.6.1
-Stable tag: 1.7.3.1
+Tested up to: 3.7.1
+Stable tag: 1.7.4
 
 The easiest way to GET PAID with your WordPress site. Flexible content control by Membership Level, Reports, Affiliates and Discounts
 
@@ -102,6 +102,25 @@ Not sure? You can find out by doing a bit a research.
 4. Offer Membership Discounts with specific price rules (restricted by level, unique pricing for each level, # of uses, expiration date.)
 
 == Changelog == 
+= 1.7.4 =
+* Updated PayPal IPN to use HTTP 1.1 and "Connection: Close" per recent PayPal IPN updates.
+* Fixed bug with slashes being added to the SSL Seal text when Payment Settings are saved.
+* Now applying the pmpro_checkout_level filter when a membership level is loaded from an order during the review step with PayPal Express checkouts. This will fix many customizations that might have not worked with PayPal Express.
+* Cleaned up PayPal Express API integration a bit. Fixes some bugs on sites with one-time payments and taxes calculated in.
+* Change the use_ssl payment setting. You can choose "No" now for gateways that require SSL. Just make sure you set it to Yes when going live or use another method to force SSL on your checkout page. You can also set it to Yes (use JavaScript redirect) to fix some issues that come up with infinite redirects on shared hosting with specific caching/proxy techniques.
+* Optimized the members list and orders CSV exports to run with less memory. Especially important for large sites.
+* Including Italian, French, Spanish/Peru, and Spanish/Chile language files contributed from the community. Thanks Mirco Babini (mirkolofio on GitHub) and Javier Monorové (zillionsk8 on GitHub)
+* Fixed the email template issue for admin emails as well. The email sent to admins for free checkouts won't include the empty billing address info anymore. (Thanks, inator on GitHub)
+* Now redirecting from /register/ to PMPro levels page when latest versions of Theme My Login are activated. Can still disable by returning false with the pmpro_register_redirect or pmpro_login_redirect filter.
+* Now showing a "renew" button for the current user's level on the levels page if their level is not recurring.
+* Fix in crons.php where in rare cases the pmpro_expiration_notice meta was not being set correctly for users, which might lead to multiple expiration warning emails.
+* Updated pmpro_next_payment to work for any cycle number or period. (Thanks, antonv and others.)
+* Now checking for a logged in user before trying to get a billing address to prepopulate at checkout.
+* Updated frontend.css to make sure that background gifs in error messages aren't repeated or applied to dropdowns.
+* Added some currencies: CNY, INR, IDR, KRW, TRY, VND, ZAR
+* All currencies now available to all gateways. You still need to make sure that your gateway supports the chosen currency.
+* Now sending all emails from the PMProEmail class from the pmpro_getOption("from_email") setting. Some were sent from the get_option("admin_email") setting before.
+
 = 1.7.3.1 =
 * Using MySQL to calculate months since first order instead of date_diff, which is only available in PHP 5.3+
 
