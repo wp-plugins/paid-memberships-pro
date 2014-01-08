@@ -132,11 +132,11 @@ function pmpro_url($page = NULL, $querystring = "", $scheme = NULL)
 			
 	//start with the permalink
 	$url = get_permalink($pmpro_pages[$page]);
-	
+		
 	//WPML/etc support
-	if(function_exists("icl_object_id") && !empty($_REQUEST['lang']))
+	if(function_exists("icl_object_id") && defined("ICL_LANGUAGE_CODE"))
 	{		
-		$trans_id = icl_object_id($pmpro_pages[$page], "page", false, $_REQUEST['lang']);
+		$trans_id = icl_object_id($pmpro_pages[$page], "page", false, ICL_LANGUAGE_CODE);
 		if(!empty($trans_id))
 		{
 			$url = get_permalink($trans_id);
@@ -227,6 +227,9 @@ function pmpro_getLevelCost(&$level, $tags = true)
 	}
 	else
 		$r .= '.';
+	
+	//add a space
+	$r .= ' ';
 	
 	//trial part
 	if($level->trial_limit)
@@ -548,10 +551,10 @@ function pmpro_changeMembershipLevel($level, $user_id = NULL)
 				
 	$pmpro_cancel_previous_subscriptions = apply_filters("pmpro_cancel_previous_subscriptions", true);
 	if($pmpro_cancel_previous_subscriptions)
-	{
+	{		
 		//deactivate old memberships (updates pmpro_memberships_users table)
 		if(!empty($old_levels))
-		{
+		{			
 			foreach($old_levels as $old_level) {
 				$sql = "UPDATE $wpdb->pmpro_memberships_users SET `status`='inactive', `enddate`=NOW() WHERE `id`=".$old_level->subscription_id;				
 				if(!$wpdb->query($sql))
@@ -561,13 +564,14 @@ function pmpro_changeMembershipLevel($level, $user_id = NULL)
 				}										
 			}
 		}
-
+		
 		//cancel any other subscriptions they have (updates pmpro_membership_orders table)
-		$other_order_ids = $wpdb->get_col("SELECT id FROM $wpdb->pmpro_membership_orders WHERE user_id = '" . $user_id . "' AND status = 'success' ORDER BY id DESC");
+		$other_order_ids = $wpdb->get_col("SELECT id FROM $wpdb->pmpro_membership_orders WHERE user_id = '" . $user_id . "' AND status = 'success' ORDER BY id DESC");		
+				
 		foreach($other_order_ids as $order_id)
 		{
 			$c_order = new MemberOrder($order_id);
-			$c_order->cancel();
+			$c_order->cancel();			
 		}
 	}
 
@@ -608,7 +612,7 @@ function pmpro_changeMembershipLevel($level, $user_id = NULL)
 		}
 		else
 		{
-			$sql = "INSERT INTO $wpdb->pmpro_memberships_users (`membership_id`,`user_id`) VALUES ('" . $level . "','" . $user_id . "')";
+			$sql = "INSERT INTO $wpdb->pmpro_memberships_users (`membership_id`,`user_id`, `startdate`) VALUES ('" . $level . "','" . $user_id . "',NOW())";
 			if(!$wpdb->query($sql))
 			{
 				$pmpro_error = __("Error interacting with database", "pmpro") . ": ".(mysql_errno()?mysql_error():'unavailable');
@@ -622,6 +626,10 @@ function pmpro_changeMembershipLevel($level, $user_id = NULL)
 		$level_id = $level['membership_id'];	//custom level
 	else
 		$level_id = $level;	//just id
+	
+	//remove cached level
+	global $all_membership_levels;
+	unset($all_membership_levels[$user_id]);
 	
 	//update user data and call action
 	pmpro_set_current_user();
@@ -1032,13 +1040,13 @@ function pmpro_generateUsername($firstname = "", $lastname = "", $email = "")
 }
 
 //get a new random code for discount codes
-function pmpro_getDiscountCode()
+function pmpro_getDiscountCode($seed = NULL)
 {
 	global $wpdb;
 	
 	while(empty($code))
 	{
-		$scramble = md5(AUTH_KEY . time() . SECURE_AUTH_KEY);			
+		$scramble = md5(AUTH_KEY . time() . $seed . SECURE_AUTH_KEY);		
 		$code = substr($scramble, 0, 10);
 		$check = $wpdb->get_var("SELECT code FROM $wpdb->pmpro_discount_codes WHERE code = '$code' LIMIT 1");				
 		if($check || is_numeric($code))
@@ -1175,7 +1183,7 @@ function pmpro_text_limit( $text, $limit, $finish = '&hellip;')
  *		Success returns the level object.
  *		Failure returns false.
  */
-function pmpro_getMembershipLevelForUser($user_id = NULL)
+function pmpro_getMembershipLevelForUser($user_id = NULL, $force = false)
 {
 	if(empty($user_id))
 	{
@@ -1190,7 +1198,7 @@ function pmpro_getMembershipLevelForUser($user_id = NULL)
 
 	global $all_membership_levels;
 
-	if(isset($all_membership_levels[$user_id]))
+	if(isset($all_membership_levels[$user_id]) && !$force)
 	{
 		return $all_membership_levels[$user_id];
 	}
@@ -1538,6 +1546,44 @@ function pmpro_getParam($index, $method = "REQUEST", $default = "")
 	}
 	
 	return $default;
+}
+
+/*
+	Format an address from address, city, state, zip, country, and phone
+*/
+function pmpro_formatAddress($name, $address1, $address2, $city, $state, $zip, $country, $phone, $nl2br = true)
+{
+	$address = "";
+	
+	if(!empty($name))
+		$address .= $name . "\n";
+	
+	if(!empty($address1))
+		$address .= $address1 . "\n";
+		
+	if(!empty($address2))
+		$address .= $address2 . "\n";
+		
+	if(!empty($city) && !empty($state))
+	{
+		$address .= $city . ", " . $state;
+		
+		if(!empty($zip))
+			$address .= " " . $zip;
+			
+		$address .= "\n";
+	}
+	
+	if(!empty($country))
+		$address .= $country . "\n";
+		
+	if(!empty($phone))
+		$address .= formatPhone($phone);
+		
+	if($nl2br)
+		$address = nl2br($address);
+		
+	return $address;	
 }
 
 /*

@@ -157,11 +157,11 @@
 					<select id="gateway" name="gateway" onchange="pmpro_changeGateway(jQuery(this).val());">
 						<option value="">Testing Only</option>
 						<option value="check" <?php selected( $gateway, "check" ); ?>><?php _e('Pay by Check', 'pmpro');?></option>
-						<option value="stripe" <?php selected( $gateway, "stripe" ); ?>>Stripe</option>
-						<option value="paypalstandard" <?php selected( $gateway, "paypalstandard" ); ?>>PayPal Standard</option>
+						<option value="stripe" <?php selected( $gateway, "stripe" ); ?>>Stripe</option>						
 						<option value="paypalexpress" <?php selected( $gateway, "paypalexpress" ); ?>>PayPal Express</option>
 						<option value="paypal" <?php selected( $gateway, "paypal" ); ?>>PayPal Website Payments Pro</option>
 						<option value="payflowpro" <?php selected( $gateway, "payflowpro" ); ?>>PayPal Payflow Pro/PayPal Pro</option>
+						<option value="paypalstandard" <?php selected( $gateway, "paypalstandard" ); ?>>PayPal Standard</option>
 						<option value="authorizenet" <?php selected( $gateway, "authorizenet" ); ?>>Authorize.net</option>
 						<option value="braintree" <?php selected( $gateway, "braintree" ); ?>>Braintree Payments</option>
 						<option value="twocheckout" <?php selected( $gateway, "twocheckout" ); ?>>2Checkout</option>
@@ -173,7 +173,12 @@
 				<td colspan="2">
 					<strong><?php _e('Note', 'pmpro');?>:</strong> <?php _e('This gateway option is in beta. Some functionality may not be available. Please contact Paid Memberships Pro with any issues you run into. <strong>Please be sure to upgrade Paid Memberships Pro to the latest versions when available.</strong>', 'pmpro');?>
 				</td>	
-			</tr> 						
+			</tr>
+			<tr class="gateway gateway_paypalstandard" <?php if($gateway != "paypalstandard") { ?>style="display: none;"<?php } ?>>
+				<td colspan="2">
+					<strong><?php _e('Note', 'pmpro');?>:</strong> <?php _e('We do not recommend using PayPal Standard. We suggest using PayPal Express, Website Payments Pro (Legacy), or PayPal Pro (Payflow Pro). <a target="_blank" href="http://www.paidmembershipspro.com/2013/09/read-using-paypal-standard-paid-memberships-pro/">More information on why can be found here.</a>', 'pmpro');?>
+				</td>	
+			</tr>			
 			<tr>
 				<th scope="row" valign="top">
 					<label for="gateway_environment"><?php _e('Gateway Environment', 'pmpro');?>:</label>
@@ -429,7 +434,7 @@
 						<option value="0" <?php if(empty($stripe_billingaddress)) { ?>selected="selected"<?php } ?>><?php _e('No', 'pmpro');?></option>
 						<option value="1" <?php if(!empty($stripe_billingaddress)) { ?>selected="selected"<?php } ?>><?php _e('Yes', 'pmpro');?></option>						
 					</select>
-					<small><?php _e("Stripe doesn't require billing address fields. Choose 'No' to hide them on the checkout page.", 'pmpro');?></small>
+					<small><?php _e("Stripe doesn't require billing address fields. Choose 'No' to hide them on the checkout page.<br /><strong>If No, make sure you disable address verification in the Stripe dashboard settings.</strong>", 'pmpro');?></small>
 				</td>
 			</tr>
 			
@@ -442,7 +447,7 @@
 					<input type="text" id="tax_state" name="tax_state" size="4" value="<?php echo esc_attr($tax_state)?>" /> <small>(<?php _e('abbreviation, e.g. "PA"', 'pmpro');?>)</small>
 					&nbsp; Tax Rate:
 					<input type="text" id="tax_rate" name="tax_rate" size="10" value="<?php echo esc_attr($tax_rate)?>" /> <small>(<?php _e('decimal, e.g. "0.06"', 'pmpro');?>)</small>
-					<p><small><?php _e('If values are given, tax will be applied for any members ordering from the selected state. For more complex tax rules, use the "pmpro_tax" filter.', 'pmpro');?></small></p>
+					<p><small><?php _e('US only. If values are given, tax will be applied for any members ordering from the selected state.<br />For non-US or more complex tax rules, use the <a target="_blank" href="http://www.paidmembershipspro.com/2013/10/non-us-taxes-paid-memberships-pro/">pmpro_tax filter</a>.', 'pmpro');?></small></p>
 				</td>
 			</tr>
 			<tr class="gateway gateway_ gateway_stripe gateway_paypalexpress gateway_check gateway_paypalstandard gateway_braintree gateway_twocheckout gateway_cybersource gateway_payflowpro gateway_authorizenet gateway_paypal">
@@ -464,6 +469,7 @@
 				</th>
 				<td>
 					<textarea id="sslseal" name="sslseal" rows="3" cols="80"><?php echo stripslashes(esc_textarea($sslseal))?></textarea>
+					<br /><small>Your <strong><a target="_blank" href="http://www.paidmembershipspro.com/documentation/initial-plugin-setup/ssl/">SSL Certificate</a></strong> must be installed by your web host. Your <strong>SSL Seal</strong> will be a short HTML or JavaScript snippet that can be pasted here.</small>
 				</td>
 		   </tr>		   
 		   <tr>
@@ -482,7 +488,7 @@
 					<p><?php _e('To fully integrate with PayPal, be sure to set your IPN Handler URL to ', 'pmpro');?> <pre><?php echo admin_url("admin-ajax.php") . "?action=ipnhandler";?></pre></p>
 				</td>
 			</tr>
-		   <tr class="gateway gateway_paypal gateway_twocheckout" <?php if($gateway != "twocheckout") { ?>style="display: none;"<?php } ?>>
+		   <tr class="gateway gateway_twocheckout" <?php if($gateway != "twocheckout") { ?>style="display: none;"<?php } ?>>
 				<th scope="row" valign="top">
 					<label><?php _e('TwoCheckout INS URL', 'pmpro');?>:</label>
 				</th>

@@ -3,7 +3,7 @@ Contributors: strangerstudios
 Tags: memberships, membership, authorize.net, ecommerce, paypal, stripe, braintree, restrict access, restrict content, directory site, payflow
 Requires at least: 3.5
 Tested up to: 3.8
-Stable tag: 1.7.5
+Stable tag: 1.7.6
 
 The easiest way to GET PAID with your WordPress site. Flexible content control by Membership Level, Reports, Affiliates and Discounts
 
@@ -102,6 +102,30 @@ Not sure? You can find out by doing a bit a research.
 4. Offer Membership Discounts with specific price rules (restricted by level, unique pricing for each level, # of uses, expiration date.)
 
 == Changelog == 
+= 1.7.6 =
+* Added "Old Members" option to the members list page to view members who don't have an active membership, but did in the past. (Note that we don't differentiate between members who expired and who cancelled.)
+* Stripe now supports weekly recurring payments. Removed the error message RE this. You may have to upgrade your Stripe API from the Stripe dashboard to use this.
+* The PayPal IPN Handler has been updated to process "subscr_cancel" messages from PayPal. This should cancel memberships in WP/PMPro when users or PayPal admins cancel a subscription at PayPal when using PayPal Express or Website Payments Pro. There are still known issues with syncing cancellations with PayPal Standard.
+* Fixed bug where "error cancelling subscription" emails were being sent out erroneously. These should only go out now if PMPro has trouble cancelling a subscription. If you got a lot of these before, you should get less. If you never got this, you might start getting it sometimes.
+* Orders are now set to "cancelled" status whether any attached subscriptions were cancelled or not. (Keeps us from trying again.)
+* Fixed bug where All Pages view in WP dashboard would sometimes redirect to the registration page if you had Theme My Login installed.
+* Setting startdate to NOW() when a user's level is changed via pmpro_changeMembershipLevel() usering a level ID... also when admin's manually change a user's level. This fixes issues with PMPro Series where users who were given a level this way appear to have a start date in 1970, etc.
+* Fixed bug with the pmpro_save_discount_code_level filter where -1 was being passed as the code_id for brand new codes.
+* Updated "The ____ code has been applied to your order" message to it is wrapped for localization.
+* Now checking ICL_LANGUAGE_CODE instead of $_REQUEST['lang'] to support WPML using different language URL formats.
+* Unsetting $all_membership_levels[$user_id] at the bottom of pmpro_changeMembershipLevel().
+* Added $force parameter to pmpro_getMembershipLevelForUser($user_id, $force). If set to true, it will ignore the cached value and pull the level from the DB.
+* Added autocomplete="off" to credit card account number field on checkout and update billing pages.
+* Added an optional $seed parameter to pmpro_getDiscountCode() which will add $seed to the scrambled string. Useful when generating many discount codes quickly and time() might not have changed.
+* Now hiding "Change Membership Level" link from Member Links section of Membership Account page if PMPRO_DEFAULT_LEVEL is defined.
+* Clearing the AccountNumber value at checkout if it is XXXX..., e.g. when we mask the Stripe CC number. This way users will know they need to re-enter the credit card again. (Thanks, Gary)
+* Fixed bug on checkout page where html classes for the bstate field were being set based on the bcity value instead.
+* Fixed bug where there was no space after the "." in some level cost text. (Thanks, multiple observers ;)
+* Added some explanatory text to the payment settings page about taxes and SSL seals.
+* Added a pmpro_formatAddress() function to format billing addresses/etc.
+* Fixed bug where blank billing addresses were showing up in confirmation emails. If you use custom email templates, update them to use the !!billing_address!! variable instead of the full address section.
+* Design updates to checkout buttons, admin screens, etc, to work better with WP 3.8 and the TwentyFourteen theme.
+
 = 1.7.5 =
 * Fixed all open bugs with 2Checkout gateway. You can now use this gateway for one time and recurring levels. We're still keeping the beta message though until we have further live testing.
 * The shortcodes for the PMPro pages (e.g. pmpro_levels/etc) will now work on multiple pages. Things may still act funny if you put the shortcodes on pages other than those set in the page settings, but you can do so if you know what you are doing. One limitation still in place is that you can only have one PMPro page shortcode per page. Whichever comes first will be used.

@@ -48,7 +48,7 @@
 				
 				<div id="pmpro_level_cost">
 					<?php if($discount_code && pmpro_checkDiscountCode($discount_code)) { ?>
-						<?php printf(__('<p>The <strong>%s</strong> code has been applied to your order.</p>', 'pmpro'), $discount_code);?>
+						<?php printf(__('<p class="pmpro_level_discount_applied">The <strong>%s</strong> code has been applied to your order.</p>', 'pmpro'), $discount_code);?>
 					<?php } ?>
 					<?php echo wpautop(pmpro_getLevelCost($pmpro_level)); ?>
 					<?php echo wpautop(pmpro_getLevelExpiration($pmpro_level)); ?>
@@ -265,6 +265,10 @@
 		do_action('pmpro_checkout_after_user_fields');
 	?>
 	
+	<?php
+		do_action('pmpro_checkout_boxes');
+	?>
+	
 	<?php					
 		if($tospage && !$pmpro_review)
 		{						
@@ -290,7 +294,7 @@
 		}
 	?>
 	
-	<?php do_action("pmpro_checkout_boxes"); ?>	
+	<?php do_action("pmpro_checkout_after_tos_fields"); ?>	
 		
 	<?php if(pmpro_getOption("gateway", true) == "paypal" && empty($pmpro_review)) { ?>
 		<table id="pmpro_payment_method" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0" <?php if(!$pmpro_requirebilling) { ?>style="display: none;"<?php } ?>>
@@ -352,7 +356,7 @@
 					</div>
 					<div>
 						<label for="bstate"><?php _e('State', 'pmpro');?></label>																
-						<input id="bstate" name="bstate" type="text" class="input <?php echo pmpro_getClassForField("bcity");?>" size="30" value="<?php echo esc_attr($bstate)?>" /> 					
+						<input id="bstate" name="bstate" type="text" class="input <?php echo pmpro_getClassForField("bstate");?>" size="30" value="<?php echo esc_attr($bstate)?>" /> 					
 					</div>
 					<div>
 						<label for="bzipcode"><?php _e('Postal Code', 'pmpro');?></label>
@@ -525,7 +529,7 @@
 			
 				<div>
 					<label for="AccountNumber"><?php _e('Card Number', 'pmpro');?></label>
-					<input id="AccountNumber" <?php if($gateway != "stripe" && $gateway != "braintree") { ?>name="AccountNumber"<?php } ?> class="input <?php echo pmpro_getClassForField("AccountNumber");?>" type="text" size="25" value="<?php echo esc_attr($AccountNumber)?>" <?php if($gateway == "braintree") { ?>data-encrypted-name="number"<?php } ?> /> 
+					<input id="AccountNumber" <?php if($gateway != "stripe" && $gateway != "braintree") { ?>name="AccountNumber"<?php } ?> class="input <?php echo pmpro_getClassForField("AccountNumber");?>" type="text" size="25" value="<?php echo esc_attr($AccountNumber)?>" <?php if($gateway == "braintree") { ?>data-encrypted-name="number"<?php } ?> autocomplete="off" /> 
 				</div>
 			
 				<div>
