@@ -5,10 +5,15 @@
 	global $logstr;
 	$logstr = "";
 		
-	//wp includes	
-	define('WP_USE_THEMES', false);
-	require('../../../../wp-load.php');
-		
+	//in case the file is loaded directly
+	if(!defined("WP_USE_THEMES"))
+	{
+		define('WP_USE_THEMES', false);
+		require_once(dirname(__FILE__) . '/../../../../wp-load.php');
+	}
+	
+	global $wpdb;
+	
 	//some code taken from http://www.merchant-account-services.org/blog/handling-authorizenet-arb-subscription-failures/	
 	// Flag if this is an ARB transaction. Set to false by default.
 	$arb = false;
@@ -26,12 +31,20 @@
 			$arb = true;
 		}
 	}
-		
+	
+	$fields = apply_filters("pmpro_authnet_silent_post_fields", $fields);
+	do_action("pmpro_before_authnet_silent_post", $fields);
+	
+	//uncomment or add this to your wp-config to log requests by email
+	//define('PMPRO_AUTHNET_SILENT_POST_DEBUG', true);
+	if(defined('PMPRO_AUTHNET_SILENT_POST_DEBUG') && PMPRO_AUTHNET_SILENT_POST_DEBUG)
+		wp_mail(get_option("admin_email"), "Authorize.net Silent Post From " . get_option("blogname"), nl2br(var_export($fields, true)));
+	
 	// If it is an ARB transaction, do something with it
 	if($arb == true)
 	{
 		// okay, add an invoice. first lookup the user_id from the subscription id passed
-		$old_order_id = $wpdb->get_var("SELECT id FROM $wpdb->pmpro_membership_orders WHERE subscription_transaction_id = '" . $wpdb->escape($fields['x_subscription_id']) . "' AND gateway = 'authorizenet' ORDER BY timestamp DESC LIMIT 1");
+		$old_order_id = $wpdb->get_var("SELECT id FROM $wpdb->pmpro_membership_orders WHERE subscription_transaction_id = '" . esc_sql($fields['x_subscription_id']) . "' AND gateway = 'authorizenet' ORDER BY timestamp DESC LIMIT 1");
 		$old_order = new MemberOrder($old_order_id);
 		$user_id = $old_order->user_id;	
 		$user = get_userdata($user_id);
@@ -66,6 +79,7 @@
 				$morder->billing->city = $fields['x_city'];
 				$morder->billing->state = $fields['x_state'];
 				$morder->billing->zip = $fields['x_zip'];
+				$morder->billing->country = $fields['x_country'];
 				$morder->billing->phone = $fields['x_phone'];
 				
 				//get CC info that is on file
@@ -90,6 +104,8 @@
 			// Suspend the user's account
 				//But we can't suspend the account, maybe a future feature
 
+			do_action("pmpro_subscription_payment_failed", $old_order);	
+
 			//prep this order for the failure emails
 			$morder = new MemberOrder();
 			$morder->user_id = $user_id;
@@ -98,6 +114,7 @@
 			$morder->billing->city = $fields['x_city'];
 			$morder->billing->state = $fields['x_state'];
 			$morder->billing->zip = $fields['x_zip'];
+			$morder->billing->country = $fields['x_country'];
 			$morder->billing->phone = $fields['x_phone'];
 			
 			//get CC info that is on file
@@ -118,8 +135,9 @@
 		{
 			//response 4? send an email to the admin			
 			$pmproemail = new PMProEmail();	
-			$pmproemail->data = array("body"=>"<p>A payment is being held for review within Authorize.net.</p><p>Payment Information From Authorize.net:<br />" . nl2br(var_export($fields, true)));
+			$pmproemail->data = array("body"=>__("<p>A payment is being held for review within Authorize.net.</p><p>Payment Information From Authorize.net", "pmpro") . ":<br />" . nl2br(var_export($fields, true)));
 			$pmproemail->sendEmail(get_bloginfo("admin_email"));			
 		}
-	}		
-?>
+	}	
+
+	do_action("pmpro_after_authnet_silent_post", $fields);
