@@ -3,18 +3,15 @@ global $wpdb, $pmpro_msg, $pmpro_msgt, $pmpro_levels, $current_user, $pmpro_curr
 if($pmpro_msg)
 {
 ?>
-<div class="message <?php echo $pmpro_msgt?>"><?php echo $pmpro_msg?></div>
+<div class="pmpro_message <?php echo $pmpro_msgt?>"><?php echo $pmpro_msg?></div>
 <?php
 }
 ?>
-
-<table id="pmpro_levels_table" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0">
+<table id="pmpro_levels_table" class="pmpro_checkout">
 <thead>
   <tr>
-	<th>Level</th>
-	<th>Initial Payment</th>
-	<th>Subscription Pricing</th>
-	<th>Trial Period/Duration</th>
+	<th><?php _e('Level', 'pmpro');?></th>
+	<th><?php _e('Price', 'pmpro');?></th>	
 	<th>&nbsp;</th>
   </tr>
 </thead>
@@ -26,69 +23,48 @@ if($pmpro_msg)
 	  if(isset($current_user->membership_level->ID))
 		  $current_level = ($current_user->membership_level->ID == $level->id);
 	  else
-	  	  $current_level = false;
+		  $current_level = false;
 	?>
-	<tr valign="top" class="<?php if($count++ % 2 == 0) { ?>odd<?php } ?><?php if($current_level == $level) { ?> active<?php } ?>">
+	<tr class="<?php if($count++ % 2 == 0) { ?>odd<?php } ?><?php if($current_level == $level) { ?> active<?php } ?>">
 		<td><?php echo $current_level ? "<strong>{$level->name}</strong>" : $level->name?></td>
 		<td>
-			<?php if(pmpro_isLevelFree($level)) { ?>
-				<strong>Free</strong>
-			<?php } else { ?>
-				<?php echo $pmpro_currency_symbol?><?php echo $level->initial_payment?>
-			<?php } ?>
-		</td>
-		<td>
-		<?php if(pmpro_isLevelFree($level)) { ?>
-			<strong>Free</strong>
-		<?php } elseif(pmpro_isLevelRecurring($level)) { ?>
-			<strong><?php echo $pmpro_currency_symbol?><?php echo $level->billing_amount?></strong>
-			<?php if($level->cycle_number == '1') { ?>
-				per <?php echo sornot($level->cycle_period,$level->cycle_number)?>
-			<?php } else { ?>
-				every <?php echo $level->cycle_number.' '.sornot($level->cycle_period,$level->cycle_number)?>
-			<?php } ?>
-		<?php } else { ?>
-			N/A
-		<?php } ?>
-		</td>		
-		<td>
-		<?php
-		  if (pmpro_isLevelTrial($level)) 
-		  {			
+			<?php 
+				if(pmpro_isLevelFree($level))
+					$cost_text = "<strong>Free</strong>";
+				else
+					$cost_text = pmpro_getLevelCost($level, true, true); 
+				$expiration_text = pmpro_getLevelExpiration($level);
+				if(!empty($cost_text) && !empty($expiration_text))
+					echo $cost_text . "<br />" . $expiration_text;
+				elseif(!empty($cost_text))
+					echo $cost_text;
+				elseif(!empty($expiration_text))
+					echo $expiration_text;
 			?>
-				<p><?php if($level->trial_amount == '0.00') { ?><strong>Free</strong><?php } else { ?><?php echo $pmpro_currency_symbol . $level->trial_amount?><?php } ?> for the next <?php echo $level->trial_limit.' ' .sornot("payment",$level->trial_limit)?>.</p>
-			<?php
-		  }		  
-		  
-		  if($level->billing_limit > 0 && $level->initial_payment > 0) 
-		  {		
-			?>
-				<p><strong><?php echo ($level->billing_limit+1).' '.sornot("payment",($level->billing_limit+1))?></strong> total.</p>
-			<?php
-		  }
-		  elseif($level->billing_limit)
-		  {
-		   ?>
-				<p><strong><?php echo $level->billing_limit.' '.sornot("payment",$level->billing_limit)?></strong> total.</p>
-		   <?php
-		  }
-		  
-		  $expiration_text = pmpro_getLevelExpiration($level);
-		  if($expiration_text)
-		  {
-		  ?>
-			<p><?php echo $expiration_text?></p>
-		  <?php
-		  }
-		?>
 		</td>
 		<td>
 		<?php if(empty($current_user->membership_level->ID)) { ?>
-			<a href="<?php echo pmpro_url("checkout", "?level=" . $level->id, "https")?>">I&nbsp;want&nbsp;<?php echo $level->name?>!</a>               
+			<a class="pmpro_btn pmpro_btn-select" href="<?php echo pmpro_url("checkout", "?level=" . $level->id, "https")?>"><?php _e('Select', 'pmpro');?></a>
 		<?php } elseif ( !$current_level ) { ?>                	
-			<a href="<?php echo pmpro_url("checkout", "?level=" . $level->id, "https")?>">I&nbsp;want&nbsp;<?php echo $level->name?>!</a>       			
+			<a class="pmpro_btn pmpro_btn-select" href="<?php echo pmpro_url("checkout", "?level=" . $level->id, "https")?>"><?php _e('Select', 'pmpro');?></a>
 		<?php } elseif($current_level) { ?>      
-			<a href="<?php echo pmpro_url("account")?>">Your Level</a>
+			
+			<?php
+				//if it's a one-time-payment level, offer a link to renew				
+				if(!pmpro_isLevelRecurring($current_user->membership_level))
+				{
+				?>
+					<a class="pmpro_btn pmpro_btn-select" href="<?php echo pmpro_url("checkout", "?level=" . $level->id, "https")?>"><?php _e('Renew', 'pmpro');?></a>
+				<?php
+				}
+				else
+				{
+				?>
+					<a class="pmpro_btn disabled" href="<?php echo pmpro_url("account")?>"><?php _e('Your&nbsp;Level', 'pmpro');?></a>
+				<?php
+				}
+			?>
+			
 		<?php } ?>
 		</td>
 	</tr>
@@ -96,17 +72,13 @@ if($pmpro_msg)
 	}
 	?>
 </tbody>
-<tfoot>
-  <tr>
-  	<td colspan="5" align="center">
-		<small>-- 
-		<?php if(!empty($current_user->membership_level->ID)) { ?>
-			<a href="<?php echo pmpro_url("account")?>">return to your membership account</a>
-		<?php } else { ?>
-			<a href="<?php echo home_url()?>">return to the home page</a>
-		<?php } ?>
-		--</small>
-	</td>
-  </tr>
-</tfoot>
 </table>
+<nav id="nav-below" class="navigation" role="navigation">
+	<div class="nav-previous alignleft">
+		<?php if(!empty($current_user->membership_level->ID)) { ?>
+			<a href="<?php echo pmpro_url("account")?>"><?php _e('&larr; Return to Your Account', 'pmpro');?></a>
+		<?php } else { ?>
+			<a href="<?php echo home_url()?>"><?php _e('&larr; Return to Home', 'pmpro');?></a>
+		<?php } ?>
+	</div>
+</nav>
