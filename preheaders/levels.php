@@ -7,7 +7,7 @@
 		
 	if($default_level)
 	{
-		wp_redirect(pmpro_url("checkout", "?level=" . $default_level, "https"));
+		wp_redirect(pmpro_url("checkout", "?level=" . $default_level));
 		exit;
 	}
 	
@@ -16,11 +16,11 @@
 	{
 		if ($_REQUEST['msg']==1)
 		{
-			$pmpro_msg = 'Your membership status has been updated - Thank you!';
+			$pmpro_msg = __('Your membership status has been updated - Thank you!', 'pmpro');
 		}
 		else
 		{
-			$pmpro_msg = 'Sorry, your request could not be completed - please try again in a few moments.';
+			$pmpro_msg = __('Sorry, your request could not be completed - please try again in a few moments.', 'pmpro');
 			$pmpro_msgt = "pmpro_error";
 		}
 	}
@@ -30,6 +30,5 @@
 	}
 	
 	global $pmpro_levels;
-	$pmpro_levels = $wpdb->get_results( "SELECT * FROM " . $wpdb->pmpro_membership_levels . " WHERE allow_signups = 1 ORDER BY id", OBJECT );	
+	$pmpro_levels = pmpro_getAllLevels(false, true);		
 	$pmpro_levels = apply_filters("pmpro_levels_array", $pmpro_levels);
-?>
