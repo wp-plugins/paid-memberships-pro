@@ -2,8 +2,8 @@
 Contributors: strangerstudios
 Tags: memberships, membership, authorize.net, ecommerce, paypal, stripe, braintree, restrict access, restrict content, directory site, payflow
 Requires at least: 3.5
-Tested up to: 3.9
-Stable tag: 1.7.11
+Tested up to: 3.9.1
+Stable tag: 1.7.12
 
 The easiest way to GET PAID with your WordPress site. Flexible content control by Membership Level, Reports, Affiliates and Discounts
 
@@ -15,7 +15,7 @@ Set up unlimited membership levels and provide restricted access to pages, posts
 Paid Memberships Pro is the community solution for adding paid memberships to your WordPress site. PMPro is 100% GPL. All code, including add-ons, is available for free from the WordPress repository here or on our site at http://www.paidmembershipspro.com. This version in the WordPress repository is the full version of the plugin with no restrictions or additional licenses required. Developers should get involved at [our GitHub page](https://github.com/strangerstudios/paid-memberships-pro/).
 
 = Integrate with The Most Popular Payment Gateways. =
-Stripe, Authorize.net, Braintree Payments, and PayPal (Standard, Express, Website Payments Pro, and PayPal Payments Pro/Payflow)
+Stripe, Authorize.net, Braintree Payments, and PayPal (Standard, Express, Website Payments Pro, Payflow, & Advanced)
 
 = Works with Any Theme You Want. =
 Your Existing Theme or a Popular Free or Premium Third-Party Theme.
@@ -102,6 +102,16 @@ Not sure? You can find out by doing a bit a research.
 4. Offer Membership Discounts with specific price rules (restricted by level, unique pricing for each level, # of uses, expiration date.)
 
 == Changelog == 
+= 1.7.12 =
+* Now including expiration text in text that is updated when a discount code is used. (Thanks, John Zeiger)
+* Making sure that $myuser->membership_level is set in pmpro_has_membership_access().
+* Added Norwegian locale files. (Thanks, Maritk)
+* Fixed error where "undefined" was being passed to Stripe for the name.
+* Fixed error with setting enddates on the edit user page for users with multiple "active" memberships.
+* "Renew" link will show up on levels page only if the user has the level and it is not recurring and has an enddate.
+* Stripe gateway is using $pmpro_currency global instead of getting value via pmpro_getOption, so it can be overridden via code like https://gist.github.com/strangerstudios/8806443
+* Payflow Pro gateway is now passing the currency code to the API for non-US currencies. (Thanks
+
 = 1.7.11 =
 * Added "Filter searches and archives?" setting to advanced settings tab. If you had "Show excerpts to non-members?" set to No before, then this will be set to Yes after upgrade. But now you can show excerpts on single post pages while still hiding restricted content from searches and archives.
 
