@@ -2,7 +2,8 @@
 
 global $post, $gateway, $wpdb, $besecure, $discount_code, $pmpro_level, $pmpro_levels, $pmpro_msg, $pmpro_msgt, $pmpro_review, $skip_account_fields, $pmpro_paypal_token, $pmpro_show_discount_code, $pmpro_error_fields, $pmpro_required_billing_fields, $pmpro_required_user_fields, $wp_version, $current_user;
 
-$current_user->membership_level = pmpro_getMembershipLevelForUser($current_user->ID);
+if($current_user->ID)
+    $current_user->membership_level = pmpro_getMembershipLevelForUser($current_user->ID);
 
 //this var stores fields with errors so we can make them red on the frontend
 $pmpro_error_fields = array();
@@ -133,7 +134,7 @@ if ($gateway == "stripe" && !pmpro_isLevelFree($pmpro_level)) {
                             exp_month: jQuery('#ExpirationMonth').val(),
                             exp_year: jQuery('#ExpirationYear').val()
                             <?php
-                                $pmpro_stripe_verify_address = apply_filters("pmpro_stripe_verify_address", true);
+                                $pmpro_stripe_verify_address = apply_filters("pmpro_stripe_verify_address", pmpro_getOption('stripe_billingaddress'));
                                 if(!empty($pmpro_stripe_verify_address))
                                 {
                                 ?>, address_line1: jQuery('#baddress1').val(),
@@ -147,7 +148,7 @@ if ($gateway == "stripe" && !pmpro_isLevelFree($pmpro_level)) {
                             ?>
                         };
 
-                        if (jQuery('#bfirstname') && jQuery('#blastname'))
+                        if (jQuery('#bfirstname').length && jQuery('#blastname').length)
                             args['name'] = jQuery.trim(jQuery('#bfirstname').val() + ' ' + jQuery('#blastname').val());
 
                         //create token
