@@ -412,7 +412,7 @@ $pmpro_required_user_fields = apply_filters("pmpro_required_user_fields", $pmpro
 if ($submit && $pmpro_msgt != "pmpro_error") {
 
     //make sure javascript is ok
-    if(apply_filters("pmpro_require_javascript_for_checkout", true) && empty($_REQUEST['javascriptok'])) {
+    if(apply_filters("pmpro_require_javascript_for_checkout", true) && !empty($_REQUEST['checkjavascript']) && empty($_REQUEST['javascriptok'])) {
         pmpro_setMessage(__("There are JavaScript errors on the page. Please contact the webmaster.", "pmpro"), "pmpro_error");
     }
 
@@ -462,7 +462,8 @@ if ($submit && $pmpro_msgt != "pmpro_error") {
     }
 
     if (!empty($pmpro_error_fields)) {
-        pmpro_setMessage(__("Please complete all required fields.", "pmpro"), "pmpro_error");
+        d($pmpro_error_fields);
+		pmpro_setMessage(__("Please complete all required fields.", "pmpro"), "pmpro_error");
     }
     if (!empty($password) && $password != $password2) {
         pmpro_setMessage(__("Your passwords do not match. Please try again.", "pmpro"), "pmpro_error");
