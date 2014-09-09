@@ -2,40 +2,36 @@
 	global $wpdb, $current_user, $pmpro_msg, $pmpro_msgt, $pmpro_currency_symbol, $show_paypal_link;
 	global $bfirstname, $blastname, $baddress1, $baddress2, $bcity, $bstate, $bzipcode, $bcountry, $bphone, $bemail, $bconfirmemail, $CardType, $AccountNumber, $ExpirationMonth, $ExpirationYear;
 	
+	$gateway = pmpro_getOption("gateway");
+	
+	//set to true via filter to have Stripe use the minimal billing fields
+	$pmpro_stripe_lite = apply_filters("pmpro_stripe_lite", !pmpro_getOption("stripe_billingaddress")); //default is oposite of the stripe_billingaddress setting
+	
 	$level = $current_user->membership_level;
 	if($level) 
 	{ 
 	?>
-		<p>Logged in as <strong><?php echo $current_user->user_login?></strong>. <small><a href="<?php echo wp_logout_url(get_bloginfo("url") . "/membership-checkout/?level=" . $level->id);?>">logout</a></small></p>
+		<p><?php printf(__("Logged in as <strong>%s</strong>.", "pmpro"), $current_user->user_login);?> <small><a href="<?php echo wp_logout_url(get_bloginfo("url") . "/membership-checkout/?level=" . $level->id);?>"><?php _e("logout", "pmpro");?></a></small></p>
 		<ul>
-			<li><strong>Level:</strong> <?php echo $level->name?></li>
+			<li><strong><?php _e("Level", "pmpro");?>:</strong> <?php echo $level->name?></li>
 		<?php if($level->billing_amount > 0) { ?>
-			<li><strong>Membership Fee:</strong>
-			<?php echo $pmpro_currency_symbol?><?php echo $level->billing_amount?>
-			<?php if($level->cycle_number > 1) { ?>
-				per <?php echo $level->cycle_number?> <?php echo sornot($level->cycle_period,$level->cycle_number)?>
-			<?php } elseif($level->cycle_number == 1) { ?>
-				per <?php echo $level->cycle_period?>
-			<?php } ?>
+			<li><strong><?php _e("Membership Fee", "pmpro");?>:</strong>
+				<?php
+					$level = $current_user->membership_level;
+					if($current_user->membership_level->cycle_number > 1) {
+						printf(__('%s every %d %s.', 'pmpro'), $pmpro_currency_symbol . $level->billing_amount, $level->cycle_number, pmpro_translate_billing_period($level->cycle_period, $level->cycle_number));
+					} elseif($current_user->membership_level->cycle_number == 1) {
+						printf(__('%s per %s.', 'pmpro'), $pmpro_currency_symbol . $level->billing_amount, pmpro_translate_billing_period($level->cycle_period));
+					} else {
+						echo $pmpro_currency_symbol, $current_user->membership_level->billing_amount;
+					}
+				?>
 			</li>
 		<?php } ?>						
 		
 		<?php if($level->billing_limit) { ?>
-			<li><strong>Duration:</strong> <?php echo $level->billing_limit.' '.sornot($level->cycle_period,$level->billing_limit)?></li>
-		<?php } ?>
-		
-		<?php
-			//the nextpayment code is not tight yet
-			/*
-			$nextpayment = pmpro_next_payment();
-			if($nextpayment)
-			{
-			?>
-				<li><strong>Next Invoice:</strong> <?php echo date("F j, Y", $nextpayment)?></li>
-			<?php
-			}
-			*/
-		?>
+			<li><strong><?php _e("Duration", "pmpro");?>:</strong> <?php echo $level->billing_limit.' '.sornot($level->cycle_period,$level->billing_limit)?></li>
+		<?php } ?>		
 		</ul>
 	<?php 
 	} 
@@ -44,11 +40,11 @@
 <?php if(pmpro_isLevelRecurring($level)) { ?>
 	<?php if($show_paypal_link) { ?>
 		
-		<p>Your payment subscription is managed by PayPal. Please <a href="http://www.paypal.com">login to PayPal here</a> to update your billing information.</p>
+		<p><?php  _e('Your payment subscription is managed by PayPal. Please <a href="http://www.paypal.com">login to PayPal here</a> to update your billing information.', 'pmpro');?></p>
 		
 	<?php } else { ?>
 	
-		<form class="pmpro_form" action="<?php echo pmpro_url("billing", "", "https")?>" method="post">
+		<form id="pmpro_form" class="pmpro_form" action="<?php echo pmpro_url("billing", "", "https")?>" method="post">
 
 			<input type="hidden" name="level" value="<?php echo esc_attr($level->id);?>" />		
 			<?php if($pmpro_msg) 
@@ -59,30 +55,31 @@
 				}
 			?>                        	                       	                       														          
 										
+			<?php if(empty($pmpro_stripe_lite) || $gateway != "stripe") { ?>
 			<table id="pmpro_billing_address_fields" class="pmpro_checkout" width="100%" cellpadding="0" cellspacing="0" border="0">
 			<thead>
 				<tr>
-					<th>Billing Address</th>
+					<th><?php _e('Billing Address', 'pmpro');?></th>
 				</tr>
 			</thead>
 			<tbody>
 				<tr>
 					<td>
 						<div>
-							<label for="bfirstname">First Name</label>
+							<label for="bfirstname"><?php _e('First Name', 'pmpro');?></label>
 							<input id="bfirstname" name="bfirstname" type="text" class="input" size="20" value="<?php echo esc_attr($bfirstname);?>" /> 
 						</div>	
 						<div>
-							<label for="blastname">Last Name</label>
+							<label for="blastname"><?php _e('Last Name', 'pmpro');?></label>
 							<input id="blastname" name="blastname" type="text" class="input" size="20" value="<?php echo esc_attr($blastname);?>" /> 
 						</div>					
 						<div>
-							<label for="baddress1">Address 1</label>
+							<label for="baddress1"><?php _e('Address 1', 'pmpro');?></label>
 							<input id="baddress1" name="baddress1" type="text" class="input" size="20" value="<?php echo esc_attr($baddress1);?>" /> 
 						</div>
 						<div>
-							<label for="baddress2">Address 2</label>
-							<input id="baddress2" name="baddress2" type="text" class="input" size="20" value="<?php echo esc_attr($baddress2);?>" /> <small class="lite">(optional)</small>
+							<label for="baddress2"><?php _e('Address 2', 'pmpro');?></label>
+							<input id="baddress2" name="baddress2" type="text" class="input" size="20" value="<?php echo esc_attr($baddress2);?>" /> <small class="lite">(<?php _e('optional', 'pmpro');?>)</small>
 						</div>
 						
 						<?php
@@ -91,15 +88,15 @@
 							{
 							?>
 								<div>
-									<label for="bcity">City</label>
+									<label for="bcity"><?php _e('City', 'pmpro');?>City</label>
 									<input id="bcity" name="bcity" type="text" class="input" size="30" value="<?php echo esc_attr($bcity)?>" /> 
 								</div>
 								<div>
-									<label for="bstate">State</label>
+									<label for="bstate"><?php _e('State', 'pmpro');?>State</label>
 									<input id="bstate" name="bstate" type="text" class="input" size="30" value="<?php echo esc_attr($bstate)?>" /> 
 								</div>
 								<div>
-									<label for="bzipcode">Zip/Postal Code</label>
+									<label for="bzipcode"><?php _e('Postal Code', 'pmpro');?></label>
 									<input id="bzipcode" name="bzipcode" type="text" class="input" size="30" value="<?php echo esc_attr($bzipcode)?>" /> 
 								</div>					
 							<?php
@@ -108,8 +105,48 @@
 							{
 							?>
 								<div>
-									<label for="bcity_state_zip">City, State Zip</label>
-									<input id="bcity" name="bcity" type="text" class="input" size="14" value="<?php echo esc_attr($bcity)?>" />, <input id="bstate" name="bstate" type="text" class="input" size="2" value="<?php echo esc_attr($bstate)?>" /> <input id="bzipcode" name="bzipcode" type="text" class="input" size="5" value="<?php echo esc_attr($bzipcode)?>" /> 
+									<label for="bcity_state_zip"><?php _e('City, State Zip', 'pmpro');?></label>
+									<input id="bcity" name="bcity" type="text" class="input" size="14" value="<?php echo esc_attr($bcity)?>" />, 
+									<?php
+										$state_dropdowns = apply_filters("pmpro_state_dropdowns", false);							
+										if($state_dropdowns === true || $state_dropdowns == "names")
+										{
+											global $pmpro_states;
+										?>
+										<select name="bstate">
+											<option value="">--</option>
+											<?php 									
+												foreach($pmpro_states as $ab => $st) 
+												{ 
+											?>
+												<option value="<?php echo esc_attr($ab);?>" <?php if($ab == $bstate) { ?>selected="selected"<?php } ?>><?php echo $st;?></option>
+											<?php } ?>
+										</select>
+										<?php
+										}
+										elseif($state_dropdowns == "abbreviations")
+										{
+											global $pmpro_states_abbreviations;
+										?>
+											<select name="bstate">
+												<option value="">--</option>
+												<?php 									
+													foreach($pmpro_states_abbreviations as $ab) 
+													{ 
+												?>
+													<option value="<?php echo esc_attr($ab);?>" <?php if($ab == $bstate) { ?>selected="selected"<?php } ?>><?php echo $ab;?></option>
+												<?php } ?>
+											</select>
+										<?php
+										}
+										else
+										{
+										?>	
+										<input id="bstate" name="bstate" type="text" class="input" size="2" value="<?php echo esc_attr($bstate)?>" /> 
+										<?php
+										}
+									?>									
+									<input id="bzipcode" name="bzipcode" type="text" class="input" size="5" value="<?php echo esc_attr($bzipcode)?>" /> 
 								</div>
 							<?php
 							}
@@ -121,7 +158,7 @@
 							{
 						?>
 						<div>
-							<label for="bcountry">Country</label>
+							<label for="bcountry"><?php _e('Country', 'pmpro');?></label>
 							<select name="bcountry">
 								<?php
 									global $pmpro_countries, $pmpro_default_country;
@@ -141,12 +178,12 @@
 							else
 							{
 							?>
-								<input type="hidden" name="bcountry" value="US" />
+								<input type="hidden" id="bcountry" name="bcountry" value="US" />
 							<?php
 							}
 						?>
 						<div>
-							<label for="bphone">Phone</label>
+							<label for="bphone"><?php _e('Phone', 'pmpro');?></label>
 							<input id="bphone" name="bphone" type="text" class="input" size="20" value="<?php echo esc_attr($bphone)?>" /> 
 						</div>		
 						<?php if($current_user->ID) { ?>
@@ -157,11 +194,11 @@
 								$bconfirmemail = $current_user->user_email;									
 						?>
 						<div>
-							<label for="bemail">E-mail Address</label>
+							<label for="bemail"><?php _e('E-mail Address', 'pmpro');?></label>
 							<input id="bemail" name="bemail" type="text" class="input" size="20" value="<?php echo esc_attr($bemail)?>" /> 
 						</div>
 						<div>
-							<label for="bconfirmemail">Confirm E-mail</label>
+							<label for="bconfirmemail"><?php _e('Confirm E-mail', 'pmpro');?></label>
 							<input id="bconfirmemail" name="bconfirmemail" type="text" class="input" size="20" value="<?php echo esc_attr($bconfirmemail)?>" /> 
 
 						</div>	                        
@@ -170,11 +207,18 @@
 				</tr>											
 			</tbody>
 			</table>                   
+			<?php } ?>
+			
+			<?php
+				$pmpro_accepted_credit_cards = pmpro_getOption("accepted_credit_cards");
+				$pmpro_accepted_credit_cards = explode(",", $pmpro_accepted_credit_cards);
+				$pmpro_accepted_credit_cards_string = pmpro_implodeToEnglish($pmpro_accepted_credit_cards);		
+			?>
 			
 			<table id="pmpro_payment_information_fields" class="pmpro_checkout top1em" width="100%" cellpadding="0" cellspacing="0" border="0">
 			<thead>
 				<tr>
-					<th colspan="2"><span class="pmpro_thead-msg">We Accept Visa, Mastercard, American Express, and Discover</span>Credit Card Information</th>
+					<th colspan="2"><span class="pmpro_thead-msg"><?php printf(__('We accept %s', 'pmpro'), $pmpro_accepted_credit_cards_string);?></span><?php _e('Credit Card Information', 'pmpro');?></th>
 				</tr>
 			</thead>
 			<tbody>                    
@@ -189,24 +233,25 @@
 							<?php
 							}
 						?>
+						<?php if(empty($pmpro_stripe_lite) || $gateway != "stripe") { ?>
 						<div>				
-							<label for="CardType">Card Type</label>
-							<select name="CardType">
-								<option value="Visa" <?php if($CardType == "Visa") { ?>selected="selected"<?php } ?>>Visa</option>
-								<option value="MasterCard" <?php if($CardType == "MasterCard") { ?>selected="selected"<?php } ?>>MasterCard</option>
-								<option value="Amex" <?php if($CardType == "Amex") { ?>selected="selected"<?php } ?>>American Express</option>
-								<option value="Discover" <?php if($CardType == "Discover") { ?>selected="selected"<?php } ?>>Discover</option>
+							<label for="CardType"><?php _e('Card Type', 'pmpro');?></label>							
+							<select id="CardType" <?php if($gateway != "stripe") { ?>name="CardType"<?php } ?>>
+								<?php foreach($pmpro_accepted_credit_cards as $cc) { ?>
+									<option value="<?php echo $cc?>" <?php if($CardType == $cc) { ?>selected="selected"<?php } ?>><?php echo $cc?></option>
+								<?php } ?>					
 							</select> 
 						</div>
+						<?php } ?>
 					
 						<div>
-							<label for="AccountNumber">Card Number</label>
-							<input id="AccountNumber" name="AccountNumber"  class="input" type="text" size="25" value="<?php echo esc_attr($AccountNumber)?>" /> 
+							<label for="AccountNumber"><?php _e('Card Number', 'pmpro');?></label>
+							<input id="AccountNumber" <?php if($gateway != "stripe" && $gateway != "braintree") { ?>name="AccountNumber"<?php } ?> class="input <?php echo pmpro_getClassForField("AccountNumber");?>" type="text" size="25" value="<?php echo esc_attr($AccountNumber)?>" <?php if($gateway == "braintree") { ?>data-encrypted-name="number"<?php } ?> autocomplete="off" /> 
 						</div>
-					
+						
 						<div>
-							<label for="ExpirationMonth">Expiration Date</label>
-							<select name="ExpirationMonth">
+							<label for="ExpirationMonth"><?php _e('Expiration Date', 'pmpro');?></label>
+							<select id="ExpirationMonth" <?php if($gateway != "stripe") { ?>name="ExpirationMonth"<?php } ?>>
 								<option value="01" <?php if($ExpirationMonth == "01") { ?>selected="selected"<?php } ?>>01</option>
 								<option value="02" <?php if($ExpirationMonth == "02") { ?>selected="selected"<?php } ?>>02</option>
 								<option value="03" <?php if($ExpirationMonth == "03") { ?>selected="selected"<?php } ?>>03</option>
@@ -219,7 +264,7 @@
 								<option value="10" <?php if($ExpirationMonth == "10") { ?>selected="selected"<?php } ?>>10</option>
 								<option value="11" <?php if($ExpirationMonth == "11") { ?>selected="selected"<?php } ?>>11</option>
 								<option value="12" <?php if($ExpirationMonth == "12") { ?>selected="selected"<?php } ?>>12</option>
-							</select>/<select name="ExpirationYear">
+							</select>/<select id="ExpirationYear" <?php if($gateway != "stripe") { ?>name="ExpirationYear"<?php } ?>>
 								<?php
 									for($i = date("Y"); $i < date("Y") + 10; $i++)
 									{
@@ -237,9 +282,9 @@
 							{
 						?>
 						<div>
-							<label for="CVV">CVV</label>
-							<input class="input" id="CVV" name="CVV" type="text" size="4" value="<?php if(!empty($_REQUEST['CVV'])) { echo esc_attr($_REQUEST['CVV']); }?>" />  <small>(<a href="#" onclick="javascript:window.open('<?php echo plugins_url( "/pages/popup-cvv.html", dirname(__FILE__))?>','cvv','toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=yes, resizable=yes, width=600, height=475');">what's this?</a>)</small>
-						</div>	
+							<label for="CVV"><?php _ex('CVV', 'Credit card security code, CVV/CCV/CVV2', 'pmpro');?></label>
+							<input class="input" id="CVV" <?php if($gateway != "stripe" && $gateway != "braintree") { ?>name="CVV"<?php } ?> type="text" size="4" value="<?php if(!empty($_REQUEST['CVV'])) { echo esc_attr($_REQUEST['CVV']); }?>" class=" <?php echo pmpro_getClassForField("CVV");?>" <?php if($gateway == "braintree") { ?>data-encrypted-name="cvv"<?php } ?> />  <small>(<a href="javascript:void(0);" onclick="javascript:window.open('<?php echo pmpro_https_filter(PMPRO_URL)?>/pages/popup-cvv.html','cvv','toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=yes, resizable=yes, width=600, height=475');"><?php _ex("what's this?", 'link to CVV help', 'pmpro');?></a>)</small>
+						</div>						
 						<?php
 							}
 						?>
@@ -248,10 +293,41 @@
 			</tbody>
 			</table>																	
 			
+			<?php if($gateway == "braintree") { ?>						  
+				<input type='hidden' data-encrypted-name='expiration_date' id='credit_card_exp' />
+				<input type='hidden' name='AccountNumber' id='BraintreeAccountNumber' />
+				<script type="text/javascript" src="https://js.braintreegateway.com/v1/braintree.js"></script>
+				<script type="text/javascript">
+					//setup braintree encryption
+					var braintree = Braintree.create('<?php echo pmpro_getOption("braintree_encryptionkey"); ?>');
+					braintree.onSubmitEncryptForm('pmpro_form');
+
+					//pass expiration dates in original format
+					function pmpro_updateBraintreeCardExp()
+					{
+						jQuery('#credit_card_exp').val(jQuery('#ExpirationMonth').val() + "/" + jQuery('#ExpirationYear').val());
+					}
+					jQuery('#ExpirationMonth, #ExpirationYear').change(function() {
+						pmpro_updateBraintreeCardExp();
+					});
+					pmpro_updateBraintreeCardExp();
+					
+					//pass last 4 of credit card
+					function pmpro_updateBraintreeAccountNumber()
+					{
+						jQuery('#BraintreeAccountNumber').val('XXXXXXXXXXXXX' + jQuery('#AccountNumber').val().substr(jQuery('#AccountNumber').val().length - 4));
+					}
+					jQuery('#AccountNumber').change(function() {
+						pmpro_updateBraintreeAccountNumber();
+					});
+					pmpro_updateBraintreeAccountNumber();
+				</script>
+			<?php } ?>
+			
 			<div align="center">
 				<input type="hidden" name="update-billing" value="1" />
-				<input type="submit" class="pmpro_btn pmpro_btn-submit" value="Update" />
-				<input type="button" name="cancel" class="pmpro_btn pmpro_btn-cancel" value="Cancel" onclick="location.href='<?php echo pmpro_url("account")?>';" />
+				<input type="submit" class="pmpro_btn pmpro_btn-submit" value="<?php _e('Update', 'pmpro');?>" />
+				<input type="button" name="cancel" class="pmpro_btn pmpro_btn-cancel" value="<?php _e('Cancel', 'pmpro');?>" onclick="location.href='<?php echo pmpro_url("account")?>';" />
 			</div>	
 										
 		</form>	
@@ -265,5 +341,5 @@
 		</script>
 	<?php } ?>
 <?php } else { ?>
-	<p>This subscription is not recurring. So you don't need to update your billing information.</p>
+	<p><?php _e("This subscription is not recurring. So you don't need to update your billing information.", "pmpro");?></p>
 <?php } ?>	
