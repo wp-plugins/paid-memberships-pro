@@ -184,9 +184,9 @@ if ($gateway == "stripe" && !pmpro_isLevelFree($pmpro_level)) {
 
                     //insert fields for other card fields
                     if(jQuery('#CardType').length)
-						jQuery('#CardType').val(response['card']['type']);
+						jQuery('#CardType').val(response['card']['brand']);
 					else
-						form$.append("<input type='hidden' name='CardType' value='" + response['card']['type'] + "'/>");
+						form$.append("<input type='hidden' name='CardType' value='" + response['card']['brand'] + "'/>");
                     form$.append("<input type='hidden' name='AccountNumber' value='XXXXXXXXXXXXX" + response['card']['last4'] + "'/>");
                     form$.append("<input type='hidden' name='ExpirationMonth' value='" + ("0" + response['card']['exp_month']).slice(-2) + "'/>");
                     form$.append("<input type='hidden' name='ExpirationYear' value='" + response['card']['exp_year'] + "'/>");
@@ -814,10 +814,9 @@ if (!empty($pmpro_confirmed)) {
             $creds['remember'] = true;
             $user = wp_signon($creds, false);
 			
-			//setting some cookies
-			wp_set_current_user($user_id, $username);
-			
-			wp_set_auth_cookie($user_id, true, (force_ssl_login() || force_ssl_admin()));
+	    //setting some cookies
+	    wp_set_current_user($user_id, $username);
+	    wp_set_auth_cookie($user_id, true, apply_filters('pmpro_checkout_signon_scheme', (force_ssl_login() || force_ssl_admin())));
         }
     } else
         $user_id = $current_user->ID;
