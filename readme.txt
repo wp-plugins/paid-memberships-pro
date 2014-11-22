@@ -2,8 +2,8 @@
 Contributors: strangerstudios
 Tags: memberships, membership, authorize.net, ecommerce, paypal, stripe, braintree, restrict access, restrict content, directory site, payflow
 Requires at least: 3.5
-Tested up to: 4.0
-Stable tag: 1.7.15.1
+Tested up to: 4.0.1
+Stable tag: 1.7.15.2
 
 The easiest way to GET PAID with your WordPress site. Flexible content control by Membership Level, Reports, Affiliates and Discounts
 
@@ -102,6 +102,11 @@ Not sure? You can find out by doing a bit a research.
 4. Offer Membership Discounts with specific price rules (restricted by level, unique pricing for each level, # of uses, expiration date.)
 
 == Changelog == 
+= 1.7.15.2 =
+* BUG: Stripe JS looks for a field with id AND name = CardType now so the new checkout code is compatible with older checkout templates and will avoid "complete all fields" errors.
+* BUG: Removed the urlencode wrappers on the Payflow API calls. Payflow seems to expect the values to be NOT encoded.
+* BUG: No longer running email content through wpautop if there is already HTML in an included header or footer for the email. (Thanks, Erik Bertrand)
+
 = 1.7.15.1 =
 * BUG: Fixed issue where "complete all required fields" was being shown when using Stripe. They are calling the CardType "brand" in their return object, not "type".
 * BUG: Removed code from includes/notifications.php that was deleting the transient used to keep PMPro installs from hitting the PMPro server too often.
