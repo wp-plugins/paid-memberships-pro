@@ -97,7 +97,7 @@
 			foreach ( $rss_items as $item ) {
 				echo '<li class="pmpro_news">';
 				echo '<a class="rsswidget" href="'.esc_url( $item->get_permalink(), $protocolls=null, 'display' ).'">'. esc_html( $item->get_title() ) .'</a>';
-				echo ' <span class="rss-date">'. $item->get_date('F j, Y') .'</span>';
+				echo ' <span class="rss-date">'. $item->get_date(get_option('date_format')) .'</span>';
 				echo '<div class="rssSummary">'. esc_html( pmpro_text_limit( strip_tags( $item->get_description() ), 150 ) ).'</div>';
 				echo '</li>';
 			}
@@ -105,9 +105,9 @@
 
 		echo '</ul>';
 		echo '<br class="clear"/><div style="margin-top:10px;border-top: 1px solid #ddd; padding-top: 10px; text-align:center;">';
-		echo '<a href="'.$pmpro_feed.'"><img src="'.get_bloginfo('wpurl').'/wp-includes/images/rss.png" alt=""/> Subscribe with RSS</a>';
+		echo '<a target="_blank" href="'.$pmpro_feed.'"><img src="'.get_bloginfo('wpurl').'/wp-includes/images/rss.png" alt=""/> Subscribe with RSS</a>';
 		echo ' &nbsp; &nbsp; &nbsp; ';
-		echo '<a href="http://www.paidmembershipspro.com/"><img src="'.get_bloginfo('wpurl').'/wp-includes/images/wpmini-blue.png" alt=""/> View Online</a>';
+		echo '<a target="_blank" href="http://www.paidmembershipspro.com/blog/">View Online</a>';
 		echo '<form class="alignright" method="post"><input type="hidden" name="pmpro_removedbwidget" value="true"/><input title="Remove this widget from all users dashboards" class="button" type="submit" value="X"/></form>';
 		echo '</div>';
 	}
