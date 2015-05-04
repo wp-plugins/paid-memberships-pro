@@ -31,16 +31,16 @@ if(!function_exists("sornot"))
 //setup wpdb for the tables we need
 function pmpro_setDBTables()
 {
-	global $table_prefix, $wpdb;
+	global $wpdb;
 	$wpdb->hide_errors();
-	$wpdb->pmpro_membership_levels = $table_prefix . 'pmpro_membership_levels';
-	$wpdb->pmpro_memberships_users = $table_prefix . 'pmpro_memberships_users';
-	$wpdb->pmpro_memberships_categories = $table_prefix . 'pmpro_memberships_categories';
-	$wpdb->pmpro_memberships_pages = $table_prefix . 'pmpro_memberships_pages';
-	$wpdb->pmpro_membership_orders = $table_prefix . 'pmpro_membership_orders';
-	$wpdb->pmpro_discount_codes = $wpdb->prefix . 'pmpro_discount_codes';
-	$wpdb->pmpro_discount_codes_levels = $wpdb->prefix . 'pmpro_discount_codes_levels';
-	$wpdb->pmpro_discount_codes_uses = $wpdb->prefix . 'pmpro_discount_codes_uses';
+	$wpdb->pmpro_membership_levels = $wpdb->base_prefix . 'pmpro_membership_levels';
+	$wpdb->pmpro_memberships_users = $wpdb->base_prefix . 'pmpro_memberships_users';
+	$wpdb->pmpro_memberships_categories = $wpdb->base_prefix . 'pmpro_memberships_categories';
+	$wpdb->pmpro_memberships_pages = $wpdb->base_prefix . 'pmpro_memberships_pages';
+	$wpdb->pmpro_membership_orders = $wpdb->base_prefix . 'pmpro_membership_orders';
+	$wpdb->pmpro_discount_codes = $wpdb->base_prefix . 'pmpro_discount_codes';
+	$wpdb->pmpro_discount_codes_levels = $wpdb->base_prefix . 'pmpro_discount_codes_levels';
+	$wpdb->pmpro_discount_codes_uses = $wpdb->base_prefix . 'pmpro_discount_codes_uses';
 }
 pmpro_setDBTables();
 
@@ -86,14 +86,7 @@ function pmpro_br2nl($text, $tags = "br")
 
 function pmpro_getOption($s, $force = false)
 {
-	if(isset($_REQUEST[$s]) && !$force)
-	{
-		if(!is_array($_REQUEST[$s]))
-			return trim($_REQUEST[$s]);
-		else
-			return $_REQUEST[$s];
-	}
-	elseif(get_option("pmpro_" . $s))
+	if(get_option("pmpro_" . $s))
 		return get_option("pmpro_" . $s);
 	else
 		return "";
@@ -101,9 +94,9 @@ function pmpro_getOption($s, $force = false)
 
 function pmpro_setOption($s, $v = NULL)
 {
-	//no value is given, set v to the request var
-	if($v === NULL && isset($_REQUEST[$s]))
-		$v = $_REQUEST[$s];
+	//no value is given, set v to the p var
+	if($v === NULL && isset($_POST[$s]))
+		$v = $_POST[$s];
 
 	if(is_array($v))
 		$v = implode(",", $v);
@@ -1094,11 +1087,11 @@ function pmpro_generateUsername($firstname = "", $lastname = "", $email = "")
 		return $username;
 
 	//try the beginning of the email address
-	$emailparts = explode("@", "email");
+	$emailparts = explode("@", $email);
 	if(is_array($emailparts))
 		$email = preg_replace("/[^A-Za-z]/", "", $emailparts[0]);
 
-	if($email)
+	if(!empty($email))
 	{
 		$username = $email;
 	}
@@ -1893,4 +1886,26 @@ function pmpro_getGateway()
 	$gateway = apply_filters('pmpro_get_gateway', $gateway, $valid_gateways);
 
 	return $gateway;
+}
+
+/*
+ * Does the date provided fall in this month.
+ * Used in logins/visits/views report.
+ *
+ * @since 1.8.3
+ */
+function pmpro_isDateThisMonth($str)
+{
+	$now = current_time('timestamp');
+	$this_month = intval(date("n", $now));
+	$this_year = intval(date("Y", $now));
+
+	$date = strtotime($str, $now);
+	$date_month = intval(date("n", $date));
+	$date_year = intval(date("Y", $date));
+
+	if($date_month === $this_month && $date_year === $this_year)
+		return true;
+	else
+		return false;
 }
