@@ -143,9 +143,6 @@
 					<?php
 						wp_dropdown_pages(array("name"=>"account_page_id", "show_option_none"=>"-- ".__( 'Choose One', 'pmpro' )." --", "selected"=>$pmpro_pages['account']));
 					?>	
-					<?php
-						wp_dropdown_pages(array("name"=>"account_page_id", "show_option_none"=>"-- ".__( 'Choose One', 'pmpro' )." --", "selected"=>$pmpro_pages['account']));
-					?>	
 					<?php if(!empty($pmpro_pages['account'])) { ?>
 						<a target="_blank" href="post.php?post=<?php echo $pmpro_pages['account'];?>&action=edit" class="button button-secondary pmpro_page_edit"><?php _e('edit page', 'pmpro');?></a>
 						&nbsp;
